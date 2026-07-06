@@ -4,7 +4,7 @@
 .cat-hero{background:var(--hero-grad); position:relative; overflow:hidden}
 .cat-hero::after{content:""; position:absolute; right:-40px; top:-40px; width:320px; height:320px; border-radius:50%;
   background:radial-gradient(circle,rgba(201,191,150,.6),transparent 70%); filter:blur(20px)}
-.cat-hero .wrap{position:relative; z-index:1; padding-block:34px 40px}
+.cat-hero .wrap{position:relative; z-index:1; padding-block:34px 40px; max-width:var(--maxw-narrow)}
 .cat-hero h1{margin:8px 0 10px}
 .cat-hero .sub{font-size:16px; color:var(--ink-soft); max-width:58ch; margin:0 0 16px}
 .subcat-pills{display:flex; gap:9px; flex-wrap:wrap; margin-top:6px}
@@ -21,7 +21,7 @@
 .viewtoggle button.on{background:var(--ink); color:#fff}
 .viewtoggle svg{width:17px; height:17px}
 
-.plp-body{display:grid; grid-template-columns:280px 1fr; gap:32px; align-items:start; padding-bottom:40px}
+.plp-body{display:grid; grid-template-columns:280px 1fr; gap:32px; align-items:start; padding-top:20px; padding-bottom:40px}
 .filters{background:#fff; border:1px solid var(--border-2); border-radius:20px; padding:8px 20px 16px}
 .fgroup{border-bottom:1px solid var(--border-2); padding:16px 0}
 .fgroup:last-child{border-bottom:0}
@@ -44,7 +44,7 @@
 .price-slider .vals{display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-muted); margin-top:6px; font-weight:600}
 .stars-filter .s{color:var(--star)}
 
-.plp-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px}
+.plp-grid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:22px}
 .plp-grid.cols4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .plp-grid.listview{grid-template-columns:1fr}
 .plp-grid.listview .pcard{flex-direction:row} 
@@ -66,7 +66,7 @@
 .pagination a:hover:not(.on){border-color:var(--rose)}
 
 .seo-band{background:var(--cream-2)}
-.seo-band .wrap{padding-block:48px}
+.seo-band .wrap{padding-block:48px; max-width:var(--maxw-narrow)}
 .seo-band h2{font-size:26px; margin-bottom:12px}
 .seo-band .pts{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
 
@@ -76,7 +76,7 @@
 
 /* mobile filter sheet */
 .filter-sheet-btn{display:none}
-@media(max-width:1080px){ .plp-grid.cols4{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media(max-width:1200px){ .plp-grid,.plp-grid.cols4{grid-template-columns:repeat(3,minmax(0,1fr))} }
 @media(max-width:900px){ .plp-body{grid-template-columns:1fr} .filters{display:none} .plp-grid,.plp-grid.cols4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .plp-toolbar{top:64px}
 }

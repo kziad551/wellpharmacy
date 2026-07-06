@@ -44,7 +44,7 @@
     function paint(list) {
       grid.classList.toggle('listview', state.view === 'list');
       if (!list.length) {
-        grid.innerHTML = `<div class="plp-empty"><span class="ic">${W.icon('dropper')}</span><h3 class="h3">No matches — try fewer filters</h3><p class="muted">Clear a filter or two and we'll find your glow.</p><button class="btn btn-ghost" data-clear-all>Clear all filters</button></div>`;
+        grid.innerHTML = `<div class="plp-empty"><span class="ic">${W.icon('dropper')}</span><h3 class="h3">No matches — try fewer filters</h3><p class="muted">Clear a filter or two and we'll find your glow.</p><button class="view-all" data-clear-all style="margin-top:4px">Clear all filters</button></div>`;
         return;
       }
       let html = list.map((p,i) => {
