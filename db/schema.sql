@@ -76,7 +76,7 @@ CREATE TABLE products (
 -- ---- admin-managed homepage sections (New Arrivals + per-brand rails) -------
 CREATE TABLE home_sections (
   id          INT AUTO_INCREMENT PRIMARY KEY,
-  type        ENUM('new_arrivals','brand') NOT NULL DEFAULT 'brand',
+  type        ENUM('new_arrivals','brand','category') NOT NULL DEFAULT 'brand',
   brand       VARCHAR(120) NOT NULL DEFAULT '',      -- brand name (matches products.brand) when type='brand'
   eyebrow     VARCHAR(120) NOT NULL DEFAULT '',      -- small label above the title (optional)
   title       VARCHAR(160) NOT NULL DEFAULT '',      -- blank = default ('New Arrivals' / the brand name)

@@ -7,7 +7,7 @@ if ($id > 0 && !$editing) { flash('Section not found.', 'err'); redirect('home-s
 
 if (is_post()) {
     csrf_check();
-    $type = input('type') === 'new_arrivals' ? 'new_arrivals' : 'brand';
+    $type = in_array(input('type'), ['new_arrivals','brand','category'], true) ? input('type') : 'brand';
     $data = [
         'type'       => $type,
         'brand'      => $type === 'brand' ? trim((string) input('brand')) : '',
@@ -16,7 +16,7 @@ if (is_post()) {
         'subtitle'   => trim((string) input('subtitle')),
         'show_title' => input('show_title') ? 1 : 0,
         'item_count' => max(0, (int) input('item_count')),
-        'cols'       => (int) input('cols') === 4 ? 4 : 5,
+        'cols'       => in_array((int) input('cols'), [3,4,5], true) ? (int) input('cols') : 5,
         'enabled'    => input('enabled') ? 1 : 0,
         'sort'       => (int) input('sort'),
     ];
@@ -59,6 +59,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
         <select class="input" name="type" id="secType" onchange="document.getElementById('brandRow').style.display=this.value==='brand'?'':'none'">
           <option value="brand" <?= $v['type']==='brand'?'selected':'' ?>>Brand — all products of one brand</option>
           <option value="new_arrivals" <?= $v['type']==='new_arrivals'?'selected':'' ?>>New Arrivals — products you flag</option>
+          <option value="category" <?= $v['type']==='category'?'selected':'' ?>>Category tiles — like “Find your formula”</option>
         </select>
       </div>
       <div class="field" id="brandRow" style="<?= $v['type']==='brand'?'':'display:none' ?>"><label>Brand</label>
@@ -74,7 +75,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       <div class="field"><label>Eyebrow <span class="faint">(small label above the title, optional)</span></label>
         <input class="input" name="eyebrow" value="<?= e($v['eyebrow']) ?>" placeholder="e.g. just dropped"></div>
       <div class="field"><label>Title <span class="faint">(optional)</span></label>
-        <input class="input" name="title" value="<?= e($v['title']) ?>" placeholder="<?= $v['type']==='brand'?'defaults to the brand name':'New Arrivals' ?>">
+        <input class="input" name="title" value="<?= e($v['title']) ?>" placeholder="<?= $v['type']==='brand'?'defaults to the brand name':($v['type']==='category'?'Shop by Category':'New Arrivals') ?>">
         <div class="hint">Blank = default (brand name / “New Arrivals”). The last word is styled in the accent colour.</div></div>
     </div>
 
@@ -88,6 +89,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
         <select class="input" name="cols">
           <option value="5" <?= (int)$v['cols']===5?'selected':'' ?>>5 per row</option>
           <option value="4" <?= (int)$v['cols']===4?'selected':'' ?>>4 per row</option>
+          <option value="3" <?= (int)$v['cols']===3?'selected':'' ?>>3 per row</option>
         </select></div>
       <div class="field"><label>Sort order</label><input class="input" type="number" name="sort" value="<?= e($v['sort']) ?>">
         <div class="hint">Lower shows first.</div></div>

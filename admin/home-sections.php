@@ -35,7 +35,7 @@ admin_head('Home Sections', 'home-sections', count($list) . ' section' . (count(
     <tbody>
     <?php foreach ($list as $s):
       $isBrand = $s['type'] === 'brand';
-      $name = $s['title'] !== '' ? $s['title'] : ($isBrand ? ($s['brand'] ?: '(no brand)') : 'New Arrivals');
+      $name = $s['title'] !== '' ? $s['title'] : ($isBrand ? ($s['brand'] ?: '(no brand)') : ($s['type'] === 'category' ? 'Shop by Category' : 'New Arrivals'));
     ?>
       <tr>
         <td><span class="faint"><?= (int)$s['sort'] ?></span></td>
@@ -44,7 +44,7 @@ admin_head('Home Sections', 'home-sections', count($list) . ' section' . (count(
           <?php if ($s['eyebrow'] || $s['subtitle']): ?><div class="br"><?= e($s['eyebrow']) ?><?= $s['eyebrow'] && $s['subtitle'] ? ' · ' : '' ?><?= e($s['subtitle']) ?></div><?php endif; ?>
           <?php if (!$s['show_title']): ?><div class="br"><span class="faint">title hidden</span></div><?php endif; ?>
         </td>
-        <td><?php if ($isBrand): ?><span class="pill pill-muted">Brand</span><?php else: ?><span class="pill pill-good">New Arrivals</span><?php endif; ?></td>
+        <td><?php if ($isBrand): ?><span class="pill pill-muted">Brand</span><?php elseif ($s['type']==='category'): ?><span class="pill pill-warn">Category</span><?php else: ?><span class="pill pill-good">New Arrivals</span><?php endif; ?></td>
         <td><?= $s['item_count'] > 0 ? (int)$s['item_count'] . ' items' : 'all items' ?></td>
         <td><?= (int)$s['cols'] ?>-up</td>
         <td>

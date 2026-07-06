@@ -15,27 +15,45 @@ function sec_title_html(string $t): string {
     $last = array_pop($parts);
     return e(implode(' ', $parts)) . ' <span class="script">' . e($last) . '</span>';
 }
+$CAT_GRADS = ['linear-gradient(160deg,#F2EFE6,#E7E2D5)','linear-gradient(160deg,#EFEBE0,#E4DFCF)','linear-gradient(160deg,#F1EEE4,#E6E1D2)','linear-gradient(160deg,#EEEADF,#E2DDCC)','linear-gradient(160deg,#F0ECE2,#E5E0D0)'];
 $SECTIONS = [];
 foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") as $hs) {
     $n = (int) $hs['item_count'];
-    if ($hs['type'] === 'new_arrivals') {
-        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort";
-        $args = []; $default = 'New Arrivals'; $viewAll = 'skincare';
+    $ids = null; $panels = null;
+    if ($hs['type'] === 'category') {
+        $cats = rows("SELECT name, image FROM categories ORDER BY sort" . ($n > 0 ? " LIMIT $n" : ""));
+        if (!$cats) continue;
+        $panels = [];
+        foreach ($cats as $k => $c) {
+            $panels[] = [
+                'name'  => $c['name'],
+                'image' => $c['image'],
+                'count' => (int) val("SELECT COUNT(*) FROM products WHERE category=? AND status='active'", [$c['name']]),
+                'grad'  => $CAT_GRADS[$k % count($CAT_GRADS)],
+            ];
+        }
+        $default = 'Shop by Category'; $viewAll = 'skincare';
+    } elseif ($hs['type'] === 'new_arrivals') {
+        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort" . ($n > 0 ? " LIMIT $n" : "");
+        $ids = array_column(rows($sql), 'id');
+        if (!$ids) continue;
+        $default = 'New Arrivals'; $viewAll = 'skincare';
     } else {
-        $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id";
-        $args = [$hs['brand']]; $default = $hs['brand']; $viewAll = 'skincare?brand=' . urlencode($hs['brand']);
+        $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($n > 0 ? " LIMIT $n" : "");
+        $ids = array_column(rows($sql, [$hs['brand']]), 'id');
+        if (!$ids) continue;
+        $default = $hs['brand']; $viewAll = 'skincare?brand=' . urlencode($hs['brand']);
     }
-    if ($n > 0) $sql .= " LIMIT $n";
-    $ids = array_column(rows($sql, $args), 'id');
-    if (!$ids) continue;
     $title = $hs['title'] !== '' ? $hs['title'] : $default;
     $SECTIONS[] = [
+        'kind'     => $hs['type'] === 'category' ? 'category' : 'products',
         'eyebrow'  => $hs['eyebrow'],
         'title'    => $hs['show_title'] ? $title : '',
         'subtitle' => $hs['subtitle'],
         'cols'     => (int) $hs['cols'],
         'view_all' => $viewAll,
         'ids'      => $ids,
+        'panels'   => $panels,
     ];
 }
 
@@ -72,6 +90,8 @@ $HEAD_CSS = <<<CSS
   .prodgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}   /* New Arrivals: 4-up on wide screens */
   .sec-actions{display:flex; align-items:center; gap:10px; flex-shrink:0}
   .cats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
+  .cats.cc3{grid-template-columns:repeat(3,1fr)}
+  .cats.cc5{grid-template-columns:repeat(5,1fr)}
   .cat{position:relative; border-radius:var(--r-lg); border:1px solid var(--border); min-height:330px; padding:28px 28px 0; overflow:hidden; transition:transform .3s ease, box-shadow .3s ease; display:block}
   .cat:hover{transform:translateY(-6px); box-shadow:var(--sh-lg)}
   .cat .pill{position:absolute; z-index:3; top:24px; right:24px; background:var(--ink); color:#F1EDE3; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:lowercase; padding:7px 13px; border-radius:9999px}
@@ -110,12 +130,12 @@ $HEAD_CSS = <<<CSS
   .promise .big .script{color:var(--rose-deep)}
   .promise .sub{color:var(--ink-soft); max-width:46ch; margin:22px auto 0; font-size:16px}
   @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
-  @media(max-width:1080px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(3,minmax(0,1fr))} .cats{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1080px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(3,minmax(0,1fr))} .cats,.cats.cc3,.cats.cc5{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
     .hero .wrap{grid-template-columns:1fr; padding-block:32px 44px} .hero-visual{order:-1; aspect-ratio:1/.82}
     .editorial{grid-template-columns:1fr}
   }
-  @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
+  @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
 </style>
 CSS;
 
@@ -164,7 +184,19 @@ include __DIR__ . '/inc/head.php';
     </div>
     <a class="view-all" href="<?= e($sec['view_all']) ?>">view all</a>
   </div>
-  <div class="prodgrid<?= $sec['cols'] === 4 ? ' c4' : '' ?>" id="homeSec<?= $i ?>"></div>
+  <?php if ($sec['kind'] === 'category'): ?>
+    <div class="cats<?= $sec['cols']===3?' cc3':($sec['cols']===5?' cc5':'') ?>">
+      <?php foreach ($sec['panels'] as $p): ?>
+        <a class="cat" href="skincare?cat=<?= urlencode($p['name']) ?>" style="background:<?= $p['grad'] ?>">
+          <h3><?= e($p['name']) ?></h3>
+          <?php if ($p['count'] > 0): ?><div class="meta"><?= $p['count'] ?> product<?= $p['count']===1?'':'s' ?></div><?php endif; ?>
+          <?php if ($p['image'] !== ''): ?><img class="pack gimg" data-grade src="<?= e($p['image']) ?>" alt=""><?php endif; ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  <?php else: ?>
+    <div class="prodgrid<?= $sec['cols'] === 4 ? ' c4' : '' ?>" id="homeSec<?= $i ?>"></div>
+  <?php endif; ?>
 </section>
 <?php endforeach; ?>
 
@@ -225,7 +257,7 @@ $PAGE_JS = <<<JS
   // dynamic home sections (from database)
   const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);
   const SECTIONS = $SECTIONS_JSON;
-  SECTIONS.forEach((ids,i)=>{ const el=\$('#homeSec'+i); if(el) W.renderProducts(el, pick(ids)); });
+  SECTIONS.forEach((ids,i)=>{ if(!ids) return; const el=\$('#homeSec'+i); if(el) W.renderProducts(el, pick(ids)); });
 
   // trusted brands (from database) — respects each brand's display mode
   const brands = $BRANDS_JSON;
