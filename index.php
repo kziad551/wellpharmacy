@@ -8,7 +8,7 @@ $ACTIVE = 'Shop All';
 $latest   = array_column(rows("SELECT id FROM products WHERE feat_latest=1   AND status='active' ORDER BY home_sort, sort"), 'id');
 $wellness = array_column(rows("SELECT id FROM products WHERE feat_wellness=1 AND status='active' ORDER BY home_sort, sort"), 'id');
 $fbrands  = rows("SELECT name, color, logo FROM brands WHERE featured=1 ORDER BY sort");
-$jposts   = rows("SELECT title, slug, category, image, author, read_min FROM journal_posts WHERE status='published' ORDER BY sort, id LIMIT 3");
+$jposts   = rows("SELECT title, slug, category, image, author, read_min FROM journal_posts WHERE status='published' ORDER BY sort, id LIMIT 4");
 
 $HEAD_CSS = <<<CSS
 <style>
@@ -41,7 +41,7 @@ $HEAD_CSS = <<<CSS
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
   .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
   .sec-actions{display:flex; align-items:center; gap:10px; flex-shrink:0}
-  .cats{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+  .cats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
   .cat{position:relative; border-radius:var(--r-lg); border:1px solid var(--border); min-height:330px; padding:28px 28px 0; overflow:hidden; transition:transform .3s ease, box-shadow .3s ease; display:block}
   .cat:hover{transform:translateY(-6px); box-shadow:var(--sh-lg)}
   .cat .pill{position:absolute; z-index:3; top:24px; right:24px; background:var(--ink); color:#F1EDE3; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:lowercase; padding:7px 13px; border-radius:9999px}
@@ -77,12 +77,12 @@ $HEAD_CSS = <<<CSS
   .promise .big .script{color:var(--rose-deep)}
   .promise .sub{color:var(--ink-soft); max-width:46ch; margin:22px auto 0; font-size:16px}
   @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
-  @media(max-width:1080px){.prodgrid{grid-template-columns:repeat(3,minmax(0,1fr))} .cats{grid-template-columns:1fr} .brandgrid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1080px){.prodgrid{grid-template-columns:repeat(3,minmax(0,1fr))} .cats{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
     .hero .wrap{grid-template-columns:1fr; padding-block:32px 44px} .hero-visual{order:-1; aspect-ratio:1/.82}
     .editorial{grid-template-columns:1fr}
   }
-  @media(max-width:680px){.prodgrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .sec-actions .cbtn{display:none}}
+  @media(max-width:680px){.prodgrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
 </style>
 CSS;
 
@@ -139,6 +139,10 @@ include __DIR__ . '/inc/head.php';
       <span class="pill">only at well</span><h3>protect</h3><div class="meta">spf · barrier · antioxidants</div>
       <img class="pack gimg" data-grade src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80" alt="">
     </a>
+    <a class="cat" href="skincare" style="background:linear-gradient(160deg,#EEEADF,#E2DDCC)">
+      <span class="pill">wellness</span><h3>nourish</h3><div class="meta">omega &middot; vitamins &middot; supplements</div>
+      <img class="pack gimg" data-grade src="https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=500&q=80" alt="">
+    </a>
   </div>
 </section>
 
@@ -186,7 +190,7 @@ include __DIR__ . '/inc/head.php';
     <div><span class="eyebrow">✦ the well journal</span><h2 class="h2">from the wellness <span class="script">journal</span></h2></div>
     <a class="view-all" href="journal">read more</a>
   </div>
-  <div class="grid g3" id="blogGrid"></div>
+  <div class="grid g4" id="blogGrid"></div>
 </section>
 
 <!-- PROMISE -->

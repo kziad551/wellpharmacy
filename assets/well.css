@@ -323,7 +323,7 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 
 /* ---------- USP strip ---------- */
 .usp{background:var(--cream); border-top:1px solid var(--border); border-bottom:1px solid var(--border)}
-.usp .wrap{display:grid; grid-template-columns:repeat(5,1fr); gap:24px; padding-block:32px}
+.usp .wrap{display:grid; grid-template-columns:repeat(5,1fr); gap:24px; padding-block:32px; max-width:var(--maxw-narrow)}
 .usp .item{display:flex; gap:12px}
 .usp .item .ic{width:38px; height:38px; flex:none; border-radius:var(--r-pill); background:#fff; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--rose-deep)}
 .usp .item .ic svg{width:20px; height:20px}
