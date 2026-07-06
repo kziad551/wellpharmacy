@@ -187,10 +187,13 @@ include __DIR__ . '/inc/head.php';
   <?php if ($sec['kind'] === 'category'): ?>
     <div class="cats<?= $sec['cols']===3?' cc3':($sec['cols']===5?' cc5':'') ?>">
       <?php foreach ($sec['panels'] as $p): ?>
-        <a class="cat" href="skincare?cat=<?= urlencode($p['name']) ?>" style="background:<?= $p['grad'] ?>">
-          <h3><?= e($p['name']) ?></h3>
-          <?php if ($p['count'] > 0): ?><div class="meta"><?= $p['count'] ?> product<?= $p['count']===1?'':'s' ?></div><?php endif; ?>
-          <?php if ($p['image'] !== ''): ?><img class="pack gimg" data-grade src="<?= e($p['image']) ?>" alt=""><?php endif; ?>
+        <a class="blogcard" href="skincare?cat=<?= urlencode($p['name']) ?>">
+          <?php if ($p['image'] !== ''): ?><div class="img graded" data-imgwrap><img class="gimg" data-grade src="<?= e($p['image']) ?>" alt="<?= e($p['name']) ?>"></div><?php else: ?><div class="img imgfallback"></div><?php endif; ?>
+          <div class="b">
+            <?php if ($p['count'] > 0): ?><span class="cat-l"><?= $p['count'] ?> product<?= $p['count']===1?'':'s' ?></span><?php endif; ?>
+            <h3><?= e($p['name']) ?></h3>
+            <span class="meta">Shop the range →</span>
+          </div>
         </a>
       <?php endforeach; ?>
     </div>
