@@ -38,7 +38,7 @@ $HEAD_CSS = <<<CSS
   .strip-track span{display:inline-flex; align-items:center; gap:54px} .strip-track b{color:var(--rose-deep); font-weight:600}
   @keyframes marq{to{transform:translateX(-50%)}}
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
-  .prodgrid{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px}
+  .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
   .sec-actions{display:flex; align-items:center; gap:10px; flex-shrink:0}
   .cats{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
   .cat{position:relative; border-radius:var(--r-lg); border:1px solid var(--border); min-height:330px; padding:28px 28px 0; overflow:hidden; transition:transform .3s ease, box-shadow .3s ease; display:block}
@@ -53,13 +53,15 @@ $HEAD_CSS = <<<CSS
   .editorial .ph img{width:100%; height:100%; object-fit:cover}
   .editorial .tx{padding:clamp(28px,4vw,60px); display:flex; flex-direction:column; justify-content:center}
   .editorial .tx p{color:var(--ink-soft); font-size:15px; max-width:40ch; margin:16px 0 0; line-height:1.55}
-  .brandgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
-  .brandcard{display:flex; align-items:center; justify-content:center; height:108px; padding:22px 24px;
-    background:#fff; border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--sh-xs); transition:transform .25s,box-shadow .25s,border-color .25s}
-  .brandcard:hover{transform:translateY(-5px); box-shadow:var(--sh-rose); border-color:var(--rose)}
-  .brandcard .brand-logo-text{font-family:var(--fp); font-weight:700; font-size:23px; text-align:center; line-height:1.1; letter-spacing:.2px; color:var(--ink); transition:color .25s}
-  .brandcard:hover .brand-logo-text{color:var(--rose-deep)}
-  .brandcard .brand-logo{max-height:60px; max-width:100%; width:auto; object-fit:contain}
+  /* signature brand wall — borderless, elegant, colorises on hover */
+  .brandgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px}
+  .brandcard{display:flex; align-items:center; justify-content:center; height:126px; padding:24px 22px; border-radius:var(--r-card);
+    background:transparent; transition:background .25s ease, transform .25s ease}
+  .brandcard:hover{background:var(--cream); transform:translateY(-3px)}
+  .brandcard .brand-logo-text{font-family:var(--fp); font-weight:600; font-size:25px; text-align:center; line-height:1.06; letter-spacing:.2px; color:var(--ink-soft); transition:color .25s}
+  .brandcard:hover .brand-logo-text{background:var(--grad-well); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent}
+  .brandcard .brand-logo{max-height:62px; max-width:100%; width:auto; object-fit:contain; opacity:.88; transition:opacity .25s, transform .25s}
+  .brandcard:hover .brand-logo{opacity:1; transform:scale(1.03)}
   .blogcard{border:1px solid var(--border); border-radius:var(--r-card); overflow:hidden; background:#fff; transition:transform .25s,box-shadow .25s; display:flex; flex-direction:column}
   .blogcard:hover{transform:translateY(-6px); box-shadow:var(--sh-lg)}
   .blogcard .img{aspect-ratio:16/10; overflow:hidden; background:var(--cream-2)}
@@ -73,6 +75,7 @@ $HEAD_CSS = <<<CSS
   .promise .big{font-family:var(--fp); font-weight:600; text-transform:lowercase; font-size:clamp(34px,12vw,180px); line-height:.86; color:var(--ink); letter-spacing:-.025em; overflow-wrap:break-word}
   .promise .big .script{color:var(--rose-deep)}
   .promise .sub{color:var(--ink-soft); max-width:46ch; margin:22px auto 0; font-size:16px}
+  @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:1080px){.prodgrid{grid-template-columns:repeat(3,minmax(0,1fr))} .cats{grid-template-columns:1fr} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
     .hero .wrap{grid-template-columns:1fr; padding-block:32px 44px} .hero-visual{order:-1; aspect-ratio:1/.82}
@@ -120,7 +123,7 @@ include __DIR__ . '/inc/head.php';
 <section class="section-tight wrap">
   <div class="sec-head">
     <div><span class="eyebrow">shop by ritual</span><h2 class="h2">find your <span class="script">formula</span></h2></div>
-    <a class="btn btn-ghost" href="skincare">all categories</a>
+    <a class="view-all" href="skincare">all categories</a>
   </div>
   <div class="cats">
     <a class="cat" href="skincare" style="background:linear-gradient(160deg,#F2EFE6,#E7E2D5)">
@@ -142,7 +145,7 @@ include __DIR__ . '/inc/head.php';
 <section class="section-tight wrap" style="padding-top:0">
   <div class="sec-head">
     <div><span class="eyebrow">✦ just dropped</span><h2 class="h2">latest <span class="script">arrivals</span></h2><p class="lead muted" style="margin-top:8px">Small-batch, derm-loved, ready to glow — hover a product to see it in action.</p></div>
-    <a class="btn btn-ghost" href="skincare">view all</a>
+    <a class="view-all" href="skincare">view all</a>
   </div>
   <div class="prodgrid" id="latestRail"></div>
 </section>
@@ -151,7 +154,7 @@ include __DIR__ . '/inc/head.php';
 <section class="section-tight wrap" style="padding-top:0">
   <div class="sec-head">
     <div><span class="eyebrow">feel good from within</span><h2 class="h2">shop <span class="script">wellness</span></h2></div>
-    <a class="btn btn-ghost" href="skincare">view all</a>
+    <a class="view-all" href="skincare">view all</a>
   </div>
   <div class="prodgrid" id="wellnessRail"></div>
 </section>
@@ -173,14 +176,14 @@ include __DIR__ . '/inc/head.php';
 <section class="section-tight wrap" style="padding-top:0">
   <div class="sec-head" style="justify-content:center; text-align:center; flex-direction:column; gap:4px; align-items:center"><span class="eyebrow">authentic, always</span><h2 class="h2">shop trusted <span class="script">brands</span></h2></div>
   <div class="brandgrid" id="brandGrid"></div>
-  <div class="center mt24"><a class="btn btn-ghost" href="brands">view all brands</a></div>
+  <div class="center mt24"><a class="view-all" href="brands">view all brands</a></div>
 </section>
 
 <!-- JOURNAL -->
 <section class="section-tight wrap" style="padding-top:0">
   <div class="sec-head">
     <div><span class="eyebrow">✦ the well journal</span><h2 class="h2">from the wellness <span class="script">journal</span></h2></div>
-    <a class="btn btn-ghost" href="journal">read more</a>
+    <a class="view-all" href="journal">read more</a>
   </div>
   <div class="grid g3" id="blogGrid"></div>
 </section>
