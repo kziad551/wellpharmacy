@@ -14,7 +14,8 @@ $HEAD_CSS = <<<CSS
 <style>
   /* ============ HOMEPAGE (rhode concept) — header/menu stays as-is via chrome.js ============ */
   .hero{background:var(--hero-grad); position:relative; overflow:hidden}
-  .hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(40px,6vw,80px) clamp(34px,5vw,64px)}
+  /* hero stays contained (like the live site) even though the rest of the page is full-width — bg spans full, content re-centers */
+  .hero .wrap{max-width:1500px; display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(40px,6vw,80px) clamp(34px,5vw,64px)}
   .hero-copy .ey{display:inline-flex; align-items:center; gap:9px}
   .hero-copy .h1{margin:20px 0 0}
   .hero-copy .sub{font-size:clamp(15px,1.3vw,18px); color:var(--ink-soft); max-width:34ch; margin:22px 0 0; line-height:1.5}
