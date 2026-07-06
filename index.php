@@ -5,10 +5,39 @@ $PAGE_TITLE = setting('store_name', 'WELL SHOP') . ' — ' . setting('store_tagl
 $ACTIVE = 'Shop All';
 
 /* dynamic homepage data */
-$latest   = array_column(rows("SELECT id FROM products WHERE feat_latest=1   AND status='active' ORDER BY home_sort, sort"), 'id');
-$wellness = array_column(rows("SELECT id FROM products WHERE feat_wellness=1 AND status='active' ORDER BY home_sort, sort"), 'id');
-$fbrands  = rows("SELECT name, color, logo FROM brands WHERE featured=1 ORDER BY sort");
+$fbrands  = rows("SELECT name, color, logo, logo_mode FROM brands WHERE featured=1 ORDER BY sort");
 $jposts   = rows("SELECT title, slug, category, image, author, read_min FROM journal_posts WHERE status='published' ORDER BY sort, id LIMIT 4");
+
+/* admin-managed homepage product sections (New Arrivals + per-brand rails) */
+function sec_title_html(string $t): string {
+    $parts = preg_split('/\s+/', trim($t));
+    if (count($parts) <= 1) return '<span class="script">' . e($t) . '</span>';
+    $last = array_pop($parts);
+    return e(implode(' ', $parts)) . ' <span class="script">' . e($last) . '</span>';
+}
+$SECTIONS = [];
+foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") as $hs) {
+    $n = (int) $hs['item_count'];
+    if ($hs['type'] === 'new_arrivals') {
+        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort";
+        $args = []; $default = 'New Arrivals'; $viewAll = 'skincare';
+    } else {
+        $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id";
+        $args = [$hs['brand']]; $default = $hs['brand']; $viewAll = 'skincare?brand=' . urlencode($hs['brand']);
+    }
+    if ($n > 0) $sql .= " LIMIT $n";
+    $ids = array_column(rows($sql, $args), 'id');
+    if (!$ids) continue;
+    $title = $hs['title'] !== '' ? $hs['title'] : $default;
+    $SECTIONS[] = [
+        'eyebrow'  => $hs['eyebrow'],
+        'title'    => $hs['show_title'] ? $title : '',
+        'subtitle' => $hs['subtitle'],
+        'cols'     => (int) $hs['cols'],
+        'view_all' => $viewAll,
+        'ids'      => $ids,
+    ];
+}
 
 $HEAD_CSS = <<<CSS
 <style>
@@ -40,6 +69,7 @@ $HEAD_CSS = <<<CSS
   @keyframes marq{to{transform:translateX(-50%)}}
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
   .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
+  .prodgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}   /* New Arrivals: 4-up on wide screens */
   .sec-actions{display:flex; align-items:center; gap:10px; flex-shrink:0}
   .cats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
   .cat{position:relative; border-radius:var(--r-lg); border:1px solid var(--border); min-height:330px; padding:28px 28px 0; overflow:hidden; transition:transform .3s ease, box-shadow .3s ease; display:block}
@@ -63,6 +93,9 @@ $HEAD_CSS = <<<CSS
   .brandcard:hover .brand-logo-text{background:var(--grad-well); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent}
   .brandcard .brand-logo{max-height:62px; max-width:100%; width:auto; object-fit:contain; opacity:.88; transition:opacity .25s, transform .25s}
   .brandcard:hover .brand-logo{opacity:1; transform:scale(1.03)}
+  .brandcard.both{flex-direction:column; gap:9px}
+  .brandcard.both .brand-logo{max-height:44px}
+  .brandcard.both .brand-logo-text{font-size:15px}
   .blogcard{border:1px solid var(--border); border-radius:var(--r-card); overflow:hidden; background:#fff; transition:transform .25s,box-shadow .25s; display:flex; flex-direction:column}
   .blogcard:hover{transform:translateY(-6px); box-shadow:var(--sh-lg)}
   .blogcard .img{aspect-ratio:16/10; overflow:hidden; background:var(--cream-2)}
@@ -77,12 +110,12 @@ $HEAD_CSS = <<<CSS
   .promise .big .script{color:var(--rose-deep)}
   .promise .sub{color:var(--ink-soft); max-width:46ch; margin:22px auto 0; font-size:16px}
   @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
-  @media(max-width:1080px){.prodgrid{grid-template-columns:repeat(3,minmax(0,1fr))} .cats{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1080px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(3,minmax(0,1fr))} .cats{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
     .hero .wrap{grid-template-columns:1fr; padding-block:32px 44px} .hero-visual{order:-1; aspect-ratio:1/.82}
     .editorial{grid-template-columns:1fr}
   }
-  @media(max-width:680px){.prodgrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
+  @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
 </style>
 CSS;
 
@@ -120,49 +153,20 @@ include __DIR__ . '/inc/head.php';
   <span>effortless glow <b>✦</b> clinically backed <b>✦</b> expert guidance <b>✦</b> fast &amp; reliable <b>✦</b> 100% authentic <b>✦</b></span>
 </div></div>
 
-<!-- CATEGORY PANELS -->
-<section class="section-tight wrap">
+<!-- DYNAMIC HOME SECTIONS (admin-managed: New Arrivals + per-brand rails) -->
+<?php foreach ($SECTIONS as $i => $sec): ?>
+<section class="section-tight wrap"<?= $i > 0 ? ' style="padding-top:0"' : '' ?>>
   <div class="sec-head">
-    <div><span class="eyebrow">shop by ritual</span><h2 class="h2">find your <span class="script">formula</span></h2></div>
-    <a class="view-all" href="skincare">all categories</a>
+    <div>
+      <?php if ($sec['eyebrow'] !== ''): ?><span class="eyebrow"><?= e($sec['eyebrow']) ?></span><?php endif; ?>
+      <?php if ($sec['title'] !== ''): ?><h2 class="h2"><?= sec_title_html($sec['title']) ?></h2><?php endif; ?>
+      <?php if ($sec['subtitle'] !== ''): ?><p class="lead muted" style="margin-top:8px"><?= e($sec['subtitle']) ?></p><?php endif; ?>
+    </div>
+    <a class="view-all" href="<?= e($sec['view_all']) ?>">view all</a>
   </div>
-  <div class="cats">
-    <a class="cat" href="skincare" style="background:linear-gradient(160deg,#F2EFE6,#E7E2D5)">
-      <span class="pill">first access</span><h3>glow</h3><div class="meta">serums · vitamin c · exfoliants</div>
-      <img class="pack gimg" data-grade src="https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?auto=format&fit=crop&w=500&q=80" alt="">
-    </a>
-    <a class="cat" href="skincare" style="background:linear-gradient(160deg,#EFEBE0,#E4DFCF)">
-      <span class="pill">bestseller</span><h3>repair</h3><div class="meta">retinol · peptides · ceramides</div>
-      <img class="pack gimg" data-grade src="https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=500&q=80" alt="">
-    </a>
-    <a class="cat" href="skincare" style="background:linear-gradient(160deg,#F1EEE4,#E6E1D2)">
-      <span class="pill">only at well</span><h3>protect</h3><div class="meta">spf · barrier · antioxidants</div>
-      <img class="pack gimg" data-grade src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80" alt="">
-    </a>
-    <a class="cat" href="skincare" style="background:linear-gradient(160deg,#EEEADF,#E2DDCC)">
-      <span class="pill">wellness</span><h3>nourish</h3><div class="meta">omega &middot; vitamins &middot; supplements</div>
-      <img class="pack gimg" data-grade src="https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&w=500&q=80" alt="">
-    </a>
-  </div>
+  <div class="prodgrid<?= $sec['cols'] === 4 ? ' c4' : '' ?>" id="homeSec<?= $i ?>"></div>
 </section>
-
-<!-- LATEST ARRIVALS -->
-<section class="section-tight wrap" style="padding-top:0">
-  <div class="sec-head">
-    <div><span class="eyebrow">✦ just dropped</span><h2 class="h2">latest <span class="script">arrivals</span></h2><p class="lead muted" style="margin-top:8px">Small-batch, derm-loved, ready to glow — hover a product to see it in action.</p></div>
-    <a class="view-all" href="skincare">view all</a>
-  </div>
-  <div class="prodgrid" id="latestRail"></div>
-</section>
-
-<!-- CATEGORY: WELLNESS -->
-<section class="section-tight wrap" style="padding-top:0">
-  <div class="sec-head">
-    <div><span class="eyebrow">feel good from within</span><h2 class="h2">shop <span class="script">wellness</span></h2></div>
-    <a class="view-all" href="skincare">view all</a>
-  </div>
-  <div class="prodgrid" id="wellnessRail"></div>
-</section>
+<?php endforeach; ?>
 
 <!-- EDITORIAL -->
 <section class="section-tight wrap" style="padding-top:0">
@@ -203,8 +207,7 @@ include __DIR__ . '/inc/head.php';
 
 <div id="usp"></div>
 <?php
-$LATEST_JSON   = json_encode($latest, JSON_UNESCAPED_SLASHES);
-$WELLNESS_JSON = json_encode($wellness, JSON_UNESCAPED_SLASHES);
+$SECTIONS_JSON = json_encode(array_map(fn($s) => $s['ids'], $SECTIONS), JSON_UNESCAPED_SLASHES);
 $BRANDS_JSON   = json_encode($fbrands, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $BLOGS_JSON    = json_encode($jposts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $PAGE_JS = <<<JS
@@ -219,14 +222,24 @@ $PAGE_JS = <<<JS
   dots.forEach((d,i)=>d.addEventListener('click',()=>setHero(i)));
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(()=>setHero((hi+1)%heroImgs.length), 5000);
 
-  // product rails (from database)
+  // dynamic home sections (from database)
   const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);
-  W.renderProducts(\$('#latestRail'),   pick($LATEST_JSON));
-  W.renderProducts(\$('#wellnessRail'), pick($WELLNESS_JSON));
+  const SECTIONS = $SECTIONS_JSON;
+  SECTIONS.forEach((ids,i)=>{ const el=\$('#homeSec'+i); if(el) W.renderProducts(el, pick(ids)); });
 
-  // trusted brands (from database)
+  // trusted brands (from database) — respects each brand's display mode
   const brands = $BRANDS_JSON;
-  \$('#brandGrid').innerHTML = brands.map(b=>`<a class="brandcard" href="brands" aria-label="\${b.name}">\${b.logo?`<img class="brand-logo" src="\${b.logo}" alt="\${b.name}" loading="lazy">`:`<span class="brand-logo-text">\${b.name}</span>`}</a>`).join('');
+  \$('#brandGrid').innerHTML = brands.map(b=>{
+    const hasLogo = !!(b.logo && b.logo.length), mode = b.logo_mode || 'auto';
+    const img = `<img class="brand-logo" src="\${b.logo}" alt="\${b.name}" loading="lazy">`;
+    const txt = `<span class="brand-logo-text">\${b.name}</span>`;
+    let inner, cls = 'brandcard';
+    if(mode==='name') inner = txt;
+    else if(mode==='logo') inner = hasLogo ? img : txt;
+    else if(mode==='both'){ inner = (hasLogo?img:'') + txt; if(hasLogo) cls += ' both'; }
+    else inner = hasLogo ? img : txt;
+    return `<a class="\${cls}" href="brands" aria-label="\${b.name}">\${inner}</a>`;
+  }).join('');
 
   // journal (from database)
   const blogs = $BLOGS_JSON;

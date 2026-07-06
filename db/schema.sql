@@ -17,6 +17,7 @@ DROP TABLE IF EXISTS pages;
 DROP TABLE IF EXISTS subscribers;
 DROP TABLE IF EXISTS messages;
 DROP TABLE IF EXISTS reviews;
+DROP TABLE IF EXISTS home_sections;
 
 -- ---- catalog ------------------------------------------------
 CREATE TABLE categories (
@@ -37,6 +38,7 @@ CREATE TABLE brands (
   slug        VARCHAR(120) NOT NULL,
   color       VARCHAR(16)  DEFAULT '',           -- signature colour (interim wordmark)
   logo        VARCHAR(500) DEFAULT '',           -- real logo path (overrides wordmark)
+  logo_mode   ENUM('auto','logo','name','both') NOT NULL DEFAULT 'auto', -- strip display: auto|logo|name|both
   featured    TINYINT      NOT NULL DEFAULT 0,    -- homepage "trusted brands" strip
   sort        INT          NOT NULL DEFAULT 0,
   UNIQUE KEY uq_brand_slug (slug)
@@ -69,6 +71,22 @@ CREATE TABLE products (
   KEY idx_cat (category),
   KEY idx_status (status),
   KEY idx_feat (feat_latest, feat_wellness)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---- admin-managed homepage sections (New Arrivals + per-brand rails) -------
+CREATE TABLE home_sections (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  type        ENUM('new_arrivals','brand') NOT NULL DEFAULT 'brand',
+  brand       VARCHAR(120) NOT NULL DEFAULT '',      -- brand name (matches products.brand) when type='brand'
+  eyebrow     VARCHAR(120) NOT NULL DEFAULT '',      -- small label above the title (optional)
+  title       VARCHAR(160) NOT NULL DEFAULT '',      -- blank = default ('New Arrivals' / the brand name)
+  subtitle    VARCHAR(300) NOT NULL DEFAULT '',      -- optional line under the title
+  show_title  TINYINT      NOT NULL DEFAULT 1,       -- allow hiding the whole title
+  item_count  INT          NOT NULL DEFAULT 5,       -- how many products; 0 = all
+  cols        INT          NOT NULL DEFAULT 5,       -- products per row (4 or 5)
+  enabled     TINYINT      NOT NULL DEFAULT 1,
+  sort        INT          NOT NULL DEFAULT 0,
+  KEY idx_enabled (enabled, sort)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---- editorial ---------------------------------------------

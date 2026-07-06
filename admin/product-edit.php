@@ -122,8 +122,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
           <option value="active" <?= $v['status']==='active'?'selected':'' ?>>Active (visible)</option>
           <option value="draft"  <?= $v['status']==='draft'?'selected':'' ?>>Draft (hidden)</option>
         </select></div>
-        <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="feat_latest" value="1" <?= $v['feat_latest']?'checked':'' ?>> Show in homepage “Latest Arrivals”</label><br>
-        <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="feat_wellness" value="1" <?= $v['feat_wellness']?'checked':'' ?>> Show in homepage “Shop Wellness”</label>
+        <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="feat_latest" value="1" <?= $v['feat_latest']?'checked':'' ?>> Show in homepage “New Arrivals”</label>
         <div class="field" style="margin-top:8px"><label>Homepage order</label><input class="input" type="number" name="home_sort" value="<?= e($v['home_sort']) ?>"></div>
       </div></div>
     </div>
