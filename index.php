@@ -49,7 +49,7 @@ $HEAD_CSS = <<<CSS
   .cat .meta{position:relative; z-index:3; font-size:13px; color:var(--text-muted); margin-top:12px}
   .cat .pack{position:absolute; z-index:1; bottom:16px; left:50%; transform:translateX(-50%); width:62%; max-height:172px; object-fit:contain; filter:drop-shadow(0 18px 26px rgba(44,38,31,.18)); transition:transform .4s ease}
   .cat:hover .pack{transform:translateX(-50%) translateY(-8px) scale(1.04)}
-  .editorial{max-width:var(--maxw-narrow); margin-inline:auto; display:grid; grid-template-columns:1fr 1fr; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); background:var(--cream-2)}
+  .editorial{max-width:1440px; margin-inline:auto; display:grid; grid-template-columns:1fr 1fr; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); background:var(--cream-2)}
   .editorial .ph{aspect-ratio:1/1; overflow:hidden; background:var(--cream-2)}
   .editorial .ph img{width:100%; height:100%; object-fit:cover}
   .editorial .tx{padding:clamp(28px,4vw,60px); display:flex; flex-direction:column; justify-content:center}
