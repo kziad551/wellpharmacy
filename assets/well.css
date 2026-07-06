@@ -342,6 +342,7 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 
 /* ---------- footer ---------- */
 .site-footer{background:var(--ink); color:rgba(255,255,255,.78); margin-top:0}
+.site-footer .wrap{max-width:var(--maxw-narrow)}   /* contain footer content to match the header; dark bg stays full-width */
 .foot-news{border-bottom:1px solid rgba(255,255,255,.1)}
 .foot-news .wrap{padding-block:40px; display:flex; align-items:center; justify-content:space-between; gap:32px; flex-wrap:wrap}
 .foot-news h3{color:#fff; font-size:26px} .foot-news p{margin:6px 0 0; font-size:14px}
