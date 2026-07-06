@@ -1,0 +1,33 @@
+# WELL PHARMACY — portable rewrites (work at the domain root AND in a /wellpharmacy/ subfolder)
+Options -Indexes
+DirectoryIndex index.php
+
+RewriteEngine On
+# No "RewriteBase /": letting Apache auto-detect the base keeps clean URLs working
+# whether the site is served from the domain root or from a subfolder like /wellpharmacy/.
+
+# never expose includes / db scripts / config
+RewriteRule ^(inc|db)(/|$) - [F,L]
+
+# redirect *.php -> clean URL, but leave assets/ + actions/ PHP endpoints (data.php, POST handlers) executing directly
+RewriteCond %{THE_REQUEST} !\s[^?\s]*/(assets|actions)/[^?\s]+\.php[\s?] [NC]
+RewriteCond %{THE_REQUEST} \s/+([^?\s]+)\.php[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L,NE]
+
+# serve clean URL from the matching .php file (relative to this folder, so subfolders work)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^.]+?)/?$ $1.php [L]
+
+# anything else that isn't a real file/dir -> styled 404 (relative target keeps it subfolder-portable)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ 404.php [L]
+
+# don't execute PHP inside uploads
+<FilesMatch "\.(php|phtml|phar)$">
+  <If "%{REQUEST_URI} =~ m#/uploads/#">
+    Require all denied
+  </If>
+</FilesMatch>

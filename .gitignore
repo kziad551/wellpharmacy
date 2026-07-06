@@ -1,0 +1,19 @@
+# --- Secrets / production config (NEVER commit) ---
+inc/config.prod.php
+inc/config.prod.php.backup
+
+# --- OS / editor cruft ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+
+# --- Logs / temp ---
+*.log
+error_log
+php_error_log
+
+# --- Local deploy artifacts ---
+/deploy/secrets.*
+.deploy.local
