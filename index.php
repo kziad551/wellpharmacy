@@ -15,7 +15,7 @@ $HEAD_CSS = <<<CSS
   /* ============ HOMEPAGE (rhode concept) — header/menu stays as-is via chrome.js ============ */
   .hero{background:var(--hero-grad); position:relative; overflow:hidden}
   /* hero stays contained (like the live site) even though the rest of the page is full-width — bg spans full, content re-centers */
-  .hero .wrap{max-width:1400px; display:grid; grid-template-columns:1.15fr .85fr; gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(28px,4vw,52px) clamp(24px,3.5vw,40px)}
+  .hero .wrap{max-width:var(--maxw-narrow); display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(32px,4.5vw,64px) clamp(28px,4vw,52px)}
   .hero-copy .ey{display:inline-flex; align-items:center; gap:9px}
   .hero-copy .h1{margin:20px 0 0}
   .hero-copy .sub{font-size:clamp(15px,1.3vw,18px); color:var(--ink-soft); max-width:34ch; margin:22px 0 0; line-height:1.5}
@@ -49,7 +49,7 @@ $HEAD_CSS = <<<CSS
   .cat .meta{position:relative; z-index:3; font-size:13px; color:var(--text-muted); margin-top:12px}
   .cat .pack{position:absolute; z-index:1; bottom:16px; left:50%; transform:translateX(-50%); width:62%; max-height:172px; object-fit:contain; filter:drop-shadow(0 18px 26px rgba(44,38,31,.18)); transition:transform .4s ease}
   .cat:hover .pack{transform:translateX(-50%) translateY(-8px) scale(1.04)}
-  .editorial{display:grid; grid-template-columns:1fr 1fr; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); background:var(--cream-2)}
+  .editorial{max-width:var(--maxw-narrow); margin-inline:auto; display:grid; grid-template-columns:1fr 1fr; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); background:var(--cream-2)}
   .editorial .ph{aspect-ratio:1/1; overflow:hidden; background:var(--cream-2)}
   .editorial .ph img{width:100%; height:100%; object-fit:cover}
   .editorial .tx{padding:clamp(28px,4vw,60px); display:flex; flex-direction:column; justify-content:center}

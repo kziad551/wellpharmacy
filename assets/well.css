@@ -40,7 +40,7 @@
   /* radii */
   --r-pill:9999px; --r-card:24px; --r-lg:30px; --r-input:14px;
   /* layout */
-  --maxw:1760px; --gutter:24px;
+  --maxw:1760px; --maxw-narrow:1300px; --gutter:24px;   /* --maxw = wide product rails; --maxw-narrow = contained chrome/hero/editorial */
   --fs:'General Sans',system-ui,sans-serif;
   --fp:'Clash Display','General Sans',sans-serif;
   --fscript:'Clash Display',sans-serif;
@@ -246,7 +246,7 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 
 /* ---------- utility bar ---------- */
 .utilbar{background:var(--ink); color:rgba(255,255,255,.82); font-size:12px; font-weight:500}
-.utilbar .wrap{height:38px; display:flex; align-items:center; gap:14px; max-width:1400px}
+.utilbar .wrap{height:38px; display:flex; align-items:center; gap:14px; max-width:var(--maxw-narrow)}
 .utilbar .marq{flex:1; display:flex; align-items:center; gap:14px; overflow:hidden; white-space:nowrap}
 .utilbar .dot{opacity:.4}
 .utilbar a{color:#fff}
@@ -260,7 +260,7 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 /* ---------- header ---------- */
 .site-header{position:sticky; top:0; z-index:60; background:#fff; border-bottom:1px solid var(--border-2)}
 /* contained top chrome (header + nav) even though page content is full-width */
-.site-header .wrap{max-width:1400px}
+.site-header .wrap{max-width:var(--maxw-narrow)}
 .site-header.scrolled{box-shadow:var(--sh-sm)}
 .hdr-main{height:80px; display:flex; align-items:center; gap:24px; transition:height .25s}
 .site-header.scrolled .hdr-main{height:64px}
@@ -304,7 +304,7 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
   box-shadow:var(--sh-lg); border:1px solid var(--border-2); border-top:0; padding:28px var(--gutter) 32px;
   opacity:0; visibility:hidden; transform:translateY(-8px); transition:opacity .18s ease,transform .18s ease,visibility .18s; z-index:55}
 .mega.open{opacity:1; visibility:visible; transform:translateY(0)}
-.mega-inner{max-width:1400px; margin-inline:auto; display:grid; grid-template-columns:repeat(3,1fr) 320px; gap:32px}
+.mega-inner{max-width:var(--maxw-narrow); margin-inline:auto; display:grid; grid-template-columns:repeat(3,1fr) 320px; gap:32px}
 .mega col,.mega-col{display:block}
 .mega-col h4{font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--ink); margin-bottom:14px}
 .mega-col ul{display:flex; flex-direction:column; gap:9px}
