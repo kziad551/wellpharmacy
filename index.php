@@ -104,15 +104,14 @@ $HEAD_CSS = <<<CSS
   .editorial .ph img{width:100%; height:100%; object-fit:cover}
   .editorial .tx{padding:clamp(28px,4vw,60px); display:flex; flex-direction:column; justify-content:center}
   .editorial .tx p{color:var(--ink-soft); font-size:15px; max-width:40ch; margin:16px 0 0; line-height:1.55}
-  /* signature brand wall — borderless, elegant, colorises on hover */
-  .brandgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px}
-  .brandcard{display:flex; align-items:center; justify-content:center; height:126px; padding:24px 22px; border-radius:var(--r-card);
-    background:transparent; transition:background .25s ease, transform .25s ease}
-  .brandcard:hover{background:var(--cream); transform:translateY(-3px)}
-  .brandcard .brand-logo-text{font-family:var(--fp); font-weight:600; font-size:25px; text-align:center; line-height:1.06; letter-spacing:.2px; color:var(--ink-soft); transition:color .25s}
-  .brandcard:hover .brand-logo-text{background:var(--grad-well); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent}
-  .brandcard .brand-logo{max-height:62px; max-width:100%; width:auto; object-fit:contain; opacity:.88; transition:opacity .25s, transform .25s}
-  .brandcard:hover .brand-logo{opacity:1; transform:scale(1.03)}
+  /* trusted brands — bordered signature cards (as it was) */
+  .brandgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
+  .brandcard{display:flex; align-items:center; justify-content:center; height:108px; padding:22px 24px;
+    background:#fff; border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--sh-xs); transition:transform .25s,box-shadow .25s,border-color .25s}
+  .brandcard:hover{transform:translateY(-5px); box-shadow:var(--sh-rose); border-color:var(--rose)}
+  .brandcard .brand-logo-text{font-family:var(--fp); font-weight:700; font-size:23px; text-align:center; line-height:1.1; letter-spacing:.2px; color:var(--ink); transition:color .25s}
+  .brandcard:hover .brand-logo-text{color:var(--rose-deep)}
+  .brandcard .brand-logo{max-height:60px; max-width:100%; width:auto; object-fit:contain}
   .brandcard.both{flex-direction:column; gap:9px}
   .brandcard.both .brand-logo{max-height:44px}
   .brandcard.both .brand-logo-text{font-size:15px}
