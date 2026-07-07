@@ -21,3 +21,5 @@ php_error_log
 /deploy/secrets.*
 .deploy.local
 deploy-*.zip
+*_db_export.sql
+*.dump.sql
