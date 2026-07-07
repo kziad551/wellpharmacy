@@ -105,7 +105,7 @@ $HEAD_CSS = <<<CSS
   .editorial .tx{padding:clamp(28px,4vw,60px); display:flex; flex-direction:column; justify-content:center}
   .editorial .tx p{color:var(--ink-soft); font-size:15px; max-width:40ch; margin:16px 0 0; line-height:1.55}
   /* trusted brands — bordered signature cards (as it was) */
-  .brandgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
+  .brandgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:18px}
   .brandcard{display:flex; align-items:center; justify-content:center; height:108px; padding:22px 24px;
     background:#fff; border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--sh-xs); transition:transform .25s,box-shadow .25s,border-color .25s}
   .brandcard:hover{transform:translateY(-5px); box-shadow:var(--sh-rose); border-color:var(--rose)}
