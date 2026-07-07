@@ -3,6 +3,9 @@
    WELL PHARMACY — seed data (faithful port of assets/data.js)
    Run AFTER schema.sql is loaded:  php db/seed.php
    ============================================================ */
+/* Guard: this script TRUNCATES every table — never allow it to run over HTTP. */
+if (PHP_SAPI !== 'cli') { http_response_code(403); exit('This script can only be run from the command line.'); }
+
 require __DIR__ . '/../inc/db.php';
 require __DIR__ . '/../inc/functions.php';
 $pdo = db();

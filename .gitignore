@@ -2,6 +2,9 @@
 inc/config.prod.php
 inc/config.prod.php.backup
 
+# --- Internal handoff doc (admin login + server paths — never publish/deploy) ---
+PROJECT-HANDOFF.md
+
 # --- OS / editor cruft ---
 Thumbs.db
 Desktop.ini
@@ -17,3 +20,4 @@ php_error_log
 # --- Local deploy artifacts ---
 /deploy/secrets.*
 .deploy.local
+deploy-*.zip
