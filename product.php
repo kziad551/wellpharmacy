@@ -73,8 +73,8 @@ $HEAD_CSS = <<<CSS
   .trust-row{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; padding:18px 0; border-top:1px solid var(--border-2)}
   .trust-row .ti{display:flex; align-items:center; gap:9px; font-size:13px; color:var(--ink-soft)}
   .trust-row .ti svg{width:17px; height:17px; color:var(--mint); flex:none}
-  .pdp-tabs{background:var(--cream); border-bottom:1px solid var(--border); padding-top:8px}
-  .pdp-tabs .pill-tabs{padding-bottom:14px; margin-left:-18px}
+  .pdp-tabs{background:var(--cream); border-bottom:1px solid var(--border); padding-block:14px}
+  .pdp-tabs .pill-tabs{margin-left:-18px}
   .tab-panel{padding:32px 0; max-width:760px}
   .tab-panel h3{font-family:var(--fp); font-size:24px; font-weight:600; margin:0 0 14px}
   .tab-panel p{font-size:15.5px; line-height:1.7; color:var(--ink-soft)}
