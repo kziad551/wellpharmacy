@@ -2,7 +2,8 @@
 /* ONE-TIME DB IMPORT — loads the local dump into the live DB. DELETE THIS FILE AFTER USE. */
 if (($_GET['key'] ?? '') !== 'imp-8x4k2m9q') { http_response_code(404); exit; }
 @set_time_limit(180); header('Content-Type: text/plain; charset=utf-8');
-require __DIR__ . '/../inc/config.php';
+@ini_set('display_errors','1'); error_reporting(E_ALL);
+require __DIR__ . '/inc/config.php';
 $m = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, (int)DB_PORT);
 if ($m->connect_errno) { http_response_code(500); exit('DB connect failed: ' . $m->connect_error); }
 $m->set_charset('utf8mb4');
