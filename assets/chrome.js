@@ -171,7 +171,7 @@
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';
     const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
     const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
-    return `<article class="pcard${soldOut ? ' is-sold' : ''}" data-pid="${p.id}">
+    return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>
         <div class="pc-top"><h3 class="pc-kw">${kw}</h3><div class="badge-slot">${soldBadge}${saleBadge}${b ? `<span class="badge ${b.cls}">${b.label}</span>` : ''}</div></div>
