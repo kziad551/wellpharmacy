@@ -40,7 +40,8 @@ $PAGE_TITLE = $p['name'] . ' — ' . setting('store_name','WELL SHOP');
 $ACTIVE = $p['category'];
 $HEAD_CSS = <<<CSS
 <style>
-  .pdp{display:grid; grid-template-columns:58% 42%; gap:48px; padding-top:8px; align-items:start}
+  .pdp{display:grid; grid-template-columns:minmax(0,560px) 1fr; gap:48px; padding-top:8px; align-items:start}
+  .wrap.pdp-w{max-width:1200px}   /* contain product detail + tabs + frequently-bought; "you may also love" stays full-width */
   .gallery{display:grid; grid-template-columns:72px 1fr; gap:16px; position:sticky; top:160px}
   .thumbs{display:flex; flex-direction:column; gap:12px}
   .thumb-btn{width:72px; height:72px; border-radius:14px; overflow:hidden; border:2px solid transparent; background:var(--cream-2); padding:0; cursor:pointer}
@@ -131,7 +132,7 @@ CSS;
 
 include __DIR__ . '/inc/head.php';
 ?>
-<div class="wrap">
+<div class="wrap pdp-w">
   <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><a href="skincare?cat=<?= urlencode($p['category']) ?>"><?= e($p['category']) ?></a><span class="sep">›</span><b><?= e($p['name']) ?></b></nav>
   <div class="pdp">
     <div class="gallery">
@@ -169,14 +170,14 @@ include __DIR__ . '/inc/head.php';
 
 <div class="pdp-tabs-wrap">
 <div class="pdp-tabs" id="pdpTabs">
-  <div class="wrap"><div class="pill-tabs">
+  <div class="wrap pdp-w"><div class="pill-tabs">
     <button class="pill-tab active" data-tab="desc">Description</button>
     <button class="pill-tab" data-tab="use">How to Use</button>
     <button class="pill-tab" data-tab="pharm">Pharmacist Note</button>
     <button class="pill-tab" data-tab="rev">Reviews</button>
   </div></div>
 </div>
-<div class="wrap">
+<div class="wrap pdp-w">
   <div class="tab-panel" data-panel="desc">
     <h3>About this product</h3>
     <p><?= e($p['long_desc'] ?: $p['descr']) ?></p>
@@ -241,7 +242,7 @@ include __DIR__ . '/inc/head.php';
 </div>
 </div>
 
-<section class="wrap section-tight">
+<section class="wrap section-tight pdp-w">
   <h2 class="h2" style="margin-bottom:20px">Frequently Bought <span class="script">Together</span></h2>
   <div class="fbt" id="fbt"></div>
 </section>
