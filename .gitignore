@@ -23,3 +23,7 @@ php_error_log
 deploy-*.zip
 *_db_export.sql
 *.dump.sql
+
+EXCEL-PRODUCTS.md
+items-images/
+*.xlsx

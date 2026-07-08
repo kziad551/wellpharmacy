@@ -60,6 +60,13 @@ CREATE TABLE products (
   kw            VARCHAR(60)  DEFAULT '',          -- big overlaid card title
   descr         VARCHAR(180) DEFAULT '',          -- one-line card descriptor
   long_desc     TEXT         NULL,                -- product-page body
+  barcode       VARCHAR(32)  NOT NULL DEFAULT '', -- EAN barcode
+  sku           VARCHAR(64)  NOT NULL DEFAULT '', -- item number
+  size          VARCHAR(48)  NOT NULL DEFAULT '', -- e.g. "150 ml"
+  how_to_use    TEXT         NULL,                -- product-page "How to Use" tab
+  ingredients   TEXT         NULL,                -- product-page "Ingredients"
+  benefits      TEXT         NULL,                -- benefit bullet points
+  keywords      TEXT         NULL,                -- extra search terms (not shown)
   image         VARCHAR(500) DEFAULT '',
   hover_image   VARCHAR(500) DEFAULT '',
   feat_latest   TINYINT      NOT NULL DEFAULT 0,  -- homepage "latest arrivals" rail

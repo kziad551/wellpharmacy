@@ -26,6 +26,8 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
         'hover'   => $p['hover_image'],
         'kw'      => $p['kw'],
         'desc'    => $p['descr'],
+        'keywords'=> $p['keywords'] ?? '',
+        'size'    => $p['size'] ?? '',
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],

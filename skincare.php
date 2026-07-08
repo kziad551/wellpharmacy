@@ -127,7 +127,7 @@ $PAGE_JS = <<<JS
   const CAT = {$jcat}, Q = {$jq}, BRAND = {$jbrand}, OFFERS = {$joffers};
   let products = W.PRODUCTS.slice();
   if (CAT) products = products.filter(p => p.cat === CAT);
-  if (Q) { const q = Q.toLowerCase(); products = products.filter(p => (p.name+' '+p.brand).toLowerCase().includes(q)); }
+  if (Q) { const q = Q.toLowerCase(); products = products.filter(p => (p.name+' '+p.brand+' '+(p.kw||'')+' '+(p.desc||'')+' '+(p.keywords||'')).toLowerCase().includes(q)); }
   if (OFFERS) products = products.filter(p => p.was || p.sale);
 
   // filter options (concern/skin decorative as in design; brand + price + rating + sale are functional)

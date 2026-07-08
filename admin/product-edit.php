@@ -29,6 +29,9 @@ if (is_post()) {
         'stock'=>(int)input('stock'), 'low_stock'=>(int)input('low_stock'),
         'kw'=>trim((string)input('kw')), 'descr'=>trim((string)input('descr')),
         'long_desc'=>(string)input('long_desc'), 'image'=>$image, 'hover_image'=>$hover,
+        'barcode'=>trim((string)input('barcode')), 'sku'=>trim((string)input('sku')), 'size'=>trim((string)input('size')),
+        'how_to_use'=>(string)input('how_to_use'), 'ingredients'=>(string)input('ingredients'), 'benefits'=>(string)input('benefits'),
+        'keywords'=>(string)input('keywords'),
         'feat_latest'=> input('feat_latest') ? 1 : 0, 'feat_wellness'=> input('feat_wellness') ? 1 : 0,
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
@@ -54,6 +57,7 @@ if (is_post()) {
 /* defaults for the form */
 $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','price'=>'','was'=>'','sale_pct'=>'',
     'badge'=>'','rating'=>'4.8','reviews'=>'0','stock'=>'0','low_stock'=>'5','kw'=>'','descr'=>'','long_desc'=>'',
+    'barcode'=>'','sku'=>'','size'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
     'image'=>'','hover_image'=>'','feat_latest'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
 
 admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v['name'] : 'New product');
@@ -79,7 +83,11 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
           <div class="field"><label>Card title (kw)</label><input class="input" name="kw" value="<?= e($v['kw']) ?>" placeholder="glow"></div>
           <div class="field"><label>Short descriptor</label><input class="input" name="descr" value="<?= e($v['descr']) ?>" placeholder="Brightening serum"></div>
         </div>
-        <div class="field"><label>Full description</label><textarea class="input" name="long_desc" rows="4"><?= e($v['long_desc']) ?></textarea></div>
+        <div class="field"><label>Full description <span class="faint">(product page “Description” tab)</span></label><textarea class="input" name="long_desc" rows="4"><?= e($v['long_desc']) ?></textarea></div>
+        <div class="field"><label>How to use <span class="faint">(“How to Use” tab)</span></label><textarea class="input" name="how_to_use" rows="3"><?= e($v['how_to_use'] ?? '') ?></textarea></div>
+        <div class="field"><label>Ingredients <span class="faint">(“Ingredients” tab)</span></label><textarea class="input" name="ingredients" rows="3"><?= e($v['ingredients'] ?? '') ?></textarea></div>
+        <div class="field"><label>Benefits <span class="faint">(one per line — shown as bullets)</span></label><textarea class="input" name="benefits" rows="3"><?= e($v['benefits'] ?? '') ?></textarea></div>
+        <div class="field"><label>Search keywords <span class="faint">(not shown; helps the product appear in search)</span></label><textarea class="input" name="keywords" rows="2"><?= e($v['keywords'] ?? '') ?></textarea></div>
       </div></div>
 
       <div class="a-card"><div class="hd"><h2>Images</h2></div><div class="bd">
@@ -115,6 +123,14 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
           <div class="field"><label>Low-stock warning at</label><input class="input" type="number" name="low_stock" value="<?= e($v['low_stock']) ?>"><div class="hint">Shows "Only X left" when stock hits this.</div></div>
         </div>
         <p class="muted" style="font-size:12.5px;margin:4px 0 0">⭐ Rating &amp; review count come from real customer reviews on the product page — not set here.</p>
+      </div></div>
+
+      <div class="a-card"><div class="hd"><h2>Catalog</h2></div><div class="bd">
+        <div class="f-row">
+          <div class="field"><label>Barcode (EAN)</label><input class="input" name="barcode" value="<?= e($v['barcode'] ?? '') ?>"></div>
+          <div class="field"><label>SKU / item #</label><input class="input" name="sku" value="<?= e($v['sku'] ?? '') ?>"></div>
+        </div>
+        <div class="field"><label>Size</label><input class="input" name="size" value="<?= e($v['size'] ?? '') ?>" placeholder="e.g. 150 ml"></div>
       </div></div>
 
       <div class="a-card"><div class="hd"><h2>Visibility</h2></div><div class="bd">

@@ -152,7 +152,8 @@ include __DIR__ . '/inc/head.php';
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
-      <p class="promise"><?= e($p['long_desc'] ?: $p['descr']) ?></p>
+      <?php if (!empty($p['size']) || !empty($p['sku'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px"><?= !empty($p['size'])?'Size: <b>'.e($p['size']).'</b>':'' ?><?= (!empty($p['size'])&&!empty($p['sku']))?' &middot; ':'' ?><?= !empty($p['sku'])?'Ref: '.e($p['sku']):'' ?></div><?php endif; ?>
+      <p class="promise"><?= e($p['descr'] ?: $p['long_desc']) ?></p>
       <div class="trust-chips">
         <span class="chip chip-mint">✓ 100% Authentic</span>
         <span class="chip chip-mint">Pharmacist-vetted</span>
@@ -173,6 +174,7 @@ include __DIR__ . '/inc/head.php';
   <div class="wrap pdp-w"><div class="pill-tabs">
     <button class="pill-tab active" data-tab="desc">Description</button>
     <button class="pill-tab" data-tab="use">How to Use</button>
+    <button class="pill-tab" data-tab="ingr">Ingredients</button>
     <button class="pill-tab" data-tab="pharm">Pharmacist Note</button>
     <button class="pill-tab" data-tab="rev">Reviews</button>
   </div></div>
@@ -180,11 +182,23 @@ include __DIR__ . '/inc/head.php';
 <div class="wrap pdp-w">
   <div class="tab-panel" data-panel="desc">
     <h3>About this product</h3>
-    <p><?= e($p['long_desc'] ?: $p['descr']) ?></p>
+    <p><?= nl2br(e($p['long_desc'] ?: $p['descr'])) ?></p>
+    <?php if (!empty($p['benefits'])): ?>
+      <h3 style="margin-top:24px;font-size:19px">Key benefits</h3>
+      <ul style="margin:10px 0 0;padding-left:20px;line-height:1.85;color:var(--ink-soft)">
+        <?php foreach (preg_split('/\r\n|\r|\n/', $p['benefits']) as $b): $b=trim(preg_replace('/^[\s•·\-]+/u','',$b)); if($b==='') continue; ?>
+          <li><?= e($b) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
   </div>
   <div class="tab-panel" data-panel="use" hidden>
     <h3>How to Use</h3>
-    <p>Follow the directions on the pack. Introduce gradually if your skin is sensitive, and patch-test new actives. For external use only — keep out of reach of children. Speak to our pharmacists for personalised guidance.</p>
+    <p><?= !empty($p['how_to_use']) ? nl2br(e($p['how_to_use'])) : 'Follow the directions on the pack. Introduce gradually if your skin is sensitive, and patch-test new actives. For external use only — keep out of reach of children. Speak to our pharmacists for personalised guidance.' ?></p>
+  </div>
+  <div class="tab-panel" data-panel="ingr" hidden>
+    <h3>Ingredients</h3>
+    <p><?= !empty($p['ingredients']) ? nl2br(e($p['ingredients'])) : 'The full ingredient list is printed on the pack. Ask our pharmacists about any specific sensitivities.' ?></p>
   </div>
   <div class="tab-panel" data-panel="pharm" hidden>
     <h3>Pharmacist Note</h3>
