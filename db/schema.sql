@@ -69,6 +69,7 @@ CREATE TABLE products (
   keywords      TEXT         NULL,                -- extra search terms (not shown)
   image         VARCHAR(500) DEFAULT '',
   hover_image   VARCHAR(500) DEFAULT '',
+  gallery       TEXT         NULL,                -- extra product photos (one path/URL per line)
   feat_latest   TINYINT      NOT NULL DEFAULT 0,  -- homepage "latest arrivals" rail
   feat_wellness TINYINT      NOT NULL DEFAULT 0,  -- homepage "shop wellness" rail
   home_sort     INT          NOT NULL DEFAULT 0,

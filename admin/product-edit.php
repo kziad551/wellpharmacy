@@ -24,12 +24,21 @@ if (is_post()) {
     if ($u = save_upload('hover_file', $upErr2)) $hover = $u;
     if (!$upErr && $upErr2) $upErr = $upErr2;
 
+    $galPaths = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) input('gallery')))));
+    if (!empty($_FILES['gallery_files']['name']) && is_array($_FILES['gallery_files']['name'])) {
+        foreach ($_FILES['gallery_files']['name'] as $gi => $gnm) {
+            if (($_FILES['gallery_files']['error'][$gi] ?? 4) !== UPLOAD_ERR_OK) continue;
+            $_FILES['_gf'] = ['name'=>$gnm,'type'=>$_FILES['gallery_files']['type'][$gi],'tmp_name'=>$_FILES['gallery_files']['tmp_name'][$gi],'error'=>0,'size'=>$_FILES['gallery_files']['size'][$gi]];
+            $ge=null; if ($gu = save_upload('_gf', $ge)) $galPaths[] = $gu;
+        }
+    }
+
     $data = [
         'name'=>$name, 'brand'=>trim((string)input('brand')), 'category'=>(string)input('category'),
         'price'=>$price, 'was'=>$was, 'sale_pct'=>$sale, 'badge'=>(string)input('badge'),
         'stock'=>(int)input('stock'), 'low_stock'=>(int)input('low_stock'),
         'kw'=>trim((string)input('kw')), 'descr'=>trim((string)input('descr')),
-        'long_desc'=>(string)input('long_desc'), 'image'=>$image, 'hover_image'=>$hover,
+        'long_desc'=>(string)input('long_desc'), 'image'=>$image, 'hover_image'=>$hover, 'gallery'=>implode("\n",$galPaths),
         'barcode'=>trim((string)input('barcode')), 'sku'=>trim((string)input('sku')), 'size'=>trim((string)input('size')),
         'how_to_use'=>(string)input('how_to_use'), 'ingredients'=>(string)input('ingredients'), 'benefits'=>(string)input('benefits'),
         'keywords'=>(string)input('keywords'),
@@ -59,7 +68,7 @@ if (is_post()) {
 $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','price'=>'','was'=>'','sale_pct'=>'',
     'badge'=>'','rating'=>'4.8','reviews'=>'0','stock'=>'0','low_stock'=>'5','kw'=>'','descr'=>'','long_desc'=>'',
     'barcode'=>'','sku'=>'','size'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
-    'image'=>'','hover_image'=>'','feat_latest'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
+    'image'=>'','hover_image'=>'','gallery'=>'','feat_latest'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
 
 admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v['name'] : 'New product');
 ?>
@@ -106,6 +115,16 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
             <input class="input" name="hover_image" value="<?= e($v['hover_image']) ?>" placeholder="optional 2nd image">
             <input type="file" name="hover_file" accept="image/*" data-maxmb="10" style="margin-top:8px;font-size:12.5px"><div class="hint">Shown on hover (rhode-style swap).</div>
           </div>
+        </div>
+      </div></div>
+
+      <div class="a-card"><div class="hd"><h2>Gallery images</h2></div><div class="bd">
+        <?php $gp = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($v['gallery'] ?? ''))))); ?>
+        <?php if ($gp): ?><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><?php foreach ($gp as $g): ?><img src="<?= e(asrc($g)) ?>" style="width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid var(--a-border2)"><?php endforeach; ?></div><?php endif; ?>
+        <div class="field"><label>Extra photos <span class="faint">(thumbnails on the product page, after main + hover)</span></label>
+          <textarea class="input" name="gallery" rows="3" placeholder="one image path or URL per line"><?= e($v['gallery'] ?? '') ?></textarea>
+          <input type="file" name="gallery_files[]" accept="image/*" multiple style="margin-top:8px;font-size:12.5px">
+          <div class="hint">Upload several at once — they're added to the list when you Save.</div>
         </div>
       </div></div>
     </div>

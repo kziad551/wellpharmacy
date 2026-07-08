@@ -24,6 +24,7 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
         'cat'     => $p['category'],
         'img'     => $p['image'],
         'hover'   => $p['hover_image'],
+        'gallery' => array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($p['gallery'] ?? ''))))),
         'kw'      => $p['kw'],
         'desc'    => $p['descr'],
         'keywords'=> $p['keywords'] ?? '',

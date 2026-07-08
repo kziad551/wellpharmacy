@@ -289,7 +289,7 @@ $PAGE_JS = <<<JS
   document.querySelectorAll('[data-wish]').forEach(b=>{ if(b.textContent.trim()==='♡') b.innerHTML = W.icon('heart'); });
   const p = W.BY_ID[{$pid}];
 
-  const gal = [p.img, p.hover].filter(Boolean);
+  const gal = [...new Set([p.img, p.hover, ...(p.gallery||[])].filter(Boolean))];
   \$('#thumbs').innerHTML = gal.map((g,i)=>`<button class="thumb-btn \${i===0?'on':''}" data-i="\${i}"><img class="gimg" data-grade src="\${g}" alt=""></button>`).join('');
   function setPhoto(i){ \$('#mainPhoto').dataset.failed=''; \$('#mainPhoto').src=gal[i]; \$\$('.thumb-btn').forEach((b,j)=>b.classList.toggle('on',j===i)); W.guardImages(\$('#mainImg')); }
   setPhoto(0);
