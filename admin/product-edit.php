@@ -32,6 +32,21 @@ if (is_post()) {
             $ge=null; if ($gu = save_upload('_gf', $ge)) $galPaths[] = $gu;
         }
     }
+    // de-duplicate: drop repeated paths/URLs and pixel-identical local uploads (safety net for the client-side guard)
+    $seenStr = []; $seenHash = []; $uniqueGal = [];
+    foreach ($galPaths as $gpath) {
+        if (isset($seenStr[$gpath])) continue;
+        $seenStr[$gpath] = true;
+        if (!preg_match('~^(https?:|/|data:)~', $gpath)) {              // local, site-relative path → compare file contents
+            $abs = dirname(__DIR__) . '/' . $gpath;
+            if (is_file($abs) && ($h = md5_file($abs)) !== false) {
+                if (isset($seenHash[$h])) continue;
+                $seenHash[$h] = true;
+            }
+        }
+        $uniqueGal[] = $gpath;
+    }
+    $galPaths = $uniqueGal;
 
     $data = [
         'name'=>$name, 'brand'=>trim((string)input('brand')), 'category'=>(string)input('category'),
@@ -120,11 +135,21 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
 
       <div class="a-card"><div class="hd"><h2>Gallery images</h2></div><div class="bd">
         <?php $gp = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($v['gallery'] ?? ''))))); ?>
-        <?php if ($gp): ?><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><?php foreach ($gp as $g): ?><img src="<?= e(asrc($g)) ?>" style="width:56px;height:56px;border-radius:8px;object-fit:cover;border:1px solid var(--a-border2)"><?php endforeach; ?></div><?php endif; ?>
         <div class="field"><label>Extra photos <span class="faint">(thumbnails on the product page, after main + hover)</span></label>
-          <textarea class="input" name="gallery" rows="3" placeholder="one image path or URL per line"><?= e($v['gallery'] ?? '') ?></textarea>
-          <input type="file" name="gallery_files[]" accept="image/*" multiple style="margin-top:8px;font-size:12.5px">
-          <div class="hint">Upload several at once — they're added to the list when you Save.</div>
+          <div class="gal" data-gallery>
+            <div class="gal-grid" data-gal-grid></div>
+            <textarea name="gallery" data-gal-store hidden><?= e(implode("\n", $gp)) ?></textarea>
+            <input type="file" name="gallery_files[]" accept="image/*" multiple data-gal-files hidden>
+            <div class="gal-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-gal-pick>＋ Add photos</button>
+              <div class="gal-url">
+                <input type="text" class="input" data-gal-url placeholder="…or paste an image URL">
+                <button type="button" class="btn btn-ghost btn-sm" data-gal-url-add>Add URL</button>
+              </div>
+            </div>
+            <div class="gal-note" data-gal-note></div>
+            <div class="hint">Pick several at once — previews appear instantly and stack left→right. Hover a photo and click ✕ to remove it. Duplicate images are skipped automatically. Nothing is saved until you click <b>Save product</b>.</div>
+          </div>
         </div>
       </div></div>
     </div>
@@ -168,4 +193,122 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   </div>
   <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save product</button></div>
 </form>
+
+<style>
+  .gal-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  .gal-grid:empty{display:none}
+  .gal-tile{position:relative;width:92px}
+  .gal-tile .ph{width:92px;height:92px;border-radius:10px;object-fit:cover;border:1px solid var(--a-border2,#e6e1d6);display:block;background:#f4f1ea}
+  .gal-tile .cap{margin-top:4px;font-size:10.5px;line-height:1.3;color:#8a7d6e;word-break:break-all;max-height:28px;overflow:hidden}
+  .gal-tile .x{position:absolute;top:5px;right:5px;width:26px;height:26px;border:0;border-radius:7px;background:rgba(176,74,47,.92);color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.28);padding:0}
+  .gal-tile:hover .x{display:flex}
+  .gal-tile .x:hover{background:#b04a2f}
+  .gal-tile .x svg{width:14px;height:14px}
+  .gal-tile.up .ph{border-style:dashed;border-color:#8fae7e}
+  .gal-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .gal-url{display:flex;gap:8px;flex:1;min-width:240px}
+  .gal-url .input{flex:1}
+  .gal-note{margin-top:8px;font-size:12.5px;line-height:1.5}
+  .gal-note:empty{display:none}
+</style>
+<script>
+(function(){
+  var box=document.querySelector('[data-gallery]'); if(!box) return;
+  var grid=box.querySelector('[data-gal-grid]');
+  var store=box.querySelector('[data-gal-store]');
+  var fileInput=box.querySelector('[data-gal-files]');
+  var pickBtn=box.querySelector('[data-gal-pick]');
+  var urlInput=box.querySelector('[data-gal-url]');
+  var urlAdd=box.querySelector('[data-gal-url-add]');
+  var note=box.querySelector('[data-gal-note]');
+  if(typeof DataTransfer==='undefined') return;   // very old browser: leave the (hidden) native inputs as-is
+
+  // hidden picker: opens the file dialog; its selections are merged into `files` (the named input keeps them all)
+  var picker=document.createElement('input');
+  picker.type='file'; picker.accept='image/*'; picker.multiple=true; picker.style.display='none';
+  box.appendChild(picker);
+
+  var urls=(store.value||'').split(/\r\n|\r|\n/).map(function(s){return s.trim();}).filter(Boolean);
+  urls=urls.filter(function(u,i){return urls.indexOf(u)===i;});   // drop any pre-existing repeats
+  var files=[];                       // [{file, key, url}]
+  var seen=Object.create(null);       // content-hash (or name:size) -> true, for de-dupe
+
+  function asrc(v){ return (!v||/^(https?:|\/|data:|blob:)/.test(v)) ? v : '../'+v; }
+  function trashSvg(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>'; }
+  function say(msg,ok){ note.style.color=ok?'#4a7a3a':'#b04a2f'; note.textContent=msg||''; }
+  function syncStore(){ store.value=urls.join('\n'); }
+  function syncFiles(){ var dt=new DataTransfer(); files.forEach(function(f){dt.items.add(f.file);}); fileInput.files=dt.files; }
+  function hex(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return b.toString(16).padStart(2,'0');}).join(''); }
+
+  function tile(src,cap,isUp,onRemove){
+    var t=document.createElement('div'); t.className='gal-tile'+(isUp?' up':'');
+    var img=document.createElement('img'); img.className='ph'; img.src=src; img.loading='lazy'; t.appendChild(img);
+    var x=document.createElement('button'); x.type='button'; x.className='x'; x.title='Remove'; x.innerHTML=trashSvg();
+    x.addEventListener('click',function(e){e.preventDefault();onRemove();}); t.appendChild(x);
+    var c=document.createElement('div'); c.className='cap'; c.textContent=cap; t.appendChild(c);
+    grid.appendChild(t);
+  }
+  function render(){
+    grid.innerHTML='';
+    urls.forEach(function(u,i){ tile(asrc(u),u,false,function(){ urls.splice(i,1); syncStore(); render(); say('Removed.',true); }); });
+    files.forEach(function(f,i){ tile(f.url,f.file.name+' (new)',true,function(){ delete seen[f.key]; URL.revokeObjectURL(f.url); files.splice(i,1); syncFiles(); render(); say('Removed.',true); }); });
+  }
+
+  function keyFor(file){
+    if(window.crypto&&crypto.subtle&&file.arrayBuffer){
+      return file.arrayBuffer()
+        .then(function(buf){ return crypto.subtle.digest('SHA-256',buf); })
+        .then(function(h){ return hex(h); })
+        .catch(function(){ return 'ns:'+file.name+':'+file.size; });
+    }
+    return Promise.resolve('ns:'+file.name+':'+file.size);
+  }
+
+  // best-effort: fingerprint already-saved same-origin images so re-uploading one is caught too
+  urls.forEach(function(u){
+    if(!(window.crypto&&crypto.subtle)) return;
+    try{
+      fetch(asrc(u)).then(function(r){ return r.ok?r.blob():null; })
+        .then(function(b){ return (b&&b.arrayBuffer)?b.arrayBuffer():null; })
+        .then(function(buf){ return buf?crypto.subtle.digest('SHA-256',buf):null; })
+        .then(function(h){ if(h) seen[hex(h)]=true; }).catch(function(){});
+    }catch(e){}
+  });
+
+  pickBtn.addEventListener('click',function(){ picker.click(); });
+  picker.addEventListener('change',function(){
+    var chosen=Array.prototype.slice.call(picker.files||[]); picker.value='';
+    if(!chosen.length) return;
+    say('Adding…',true);
+    var added=0,dup=0,bad=0,pending=chosen.length;
+    function done(){
+      if(--pending>0) return;
+      var parts=[];
+      if(added) parts.push(added+' added');
+      if(dup)   parts.push(dup+' duplicate'+(dup>1?'s':'')+' skipped');
+      if(bad)   parts.push(bad+' unsupported/too-large skipped');
+      say(parts.join(' · ')||'Nothing added', !(dup||bad));
+    }
+    chosen.forEach(function(file){
+      if(!/\.(jpe?g|png|webp|gif|avif)$/i.test(file.name)||file.size>10*1048576){ bad++; done(); return; }
+      keyFor(file).then(function(k){
+        if(seen[k]){ dup++; }
+        else { seen[k]=true; files.push({file:file,key:k,url:URL.createObjectURL(file)}); added++; syncFiles(); render(); }
+        done();
+      });
+    });
+  });
+
+  function addUrl(){
+    var u=(urlInput.value||'').trim();
+    if(!u){ say('Enter an image URL first.',false); return; }
+    if(urls.indexOf(u)!==-1){ say('That URL is already in the gallery.',false); return; }
+    urls.push(u); syncStore(); render(); urlInput.value=''; say('URL added.',true);
+  }
+  urlAdd.addEventListener('click',function(e){ e.preventDefault(); addUrl(); });
+  urlInput.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addUrl(); } });
+
+  syncStore(); render();
+})();
+</script>
 <?php admin_foot();
