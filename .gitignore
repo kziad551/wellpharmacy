@@ -27,3 +27,6 @@ deploy-*.zip
 EXCEL-PRODUCTS.md
 items-images/
 *.xlsx
+
+# Internal status/handoff doc (read locally by a new chat)
+PROJECT-STATUS.md

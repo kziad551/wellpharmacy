@@ -64,6 +64,9 @@ $HEAD_CSS = <<<CSS
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
   .instock .dot{width:8px; height:8px; border-radius:50%; background:var(--mint)}
   .promise{font-size:15px; color:var(--ink-soft); line-height:1.6; margin:0 0 18px; max-width:46ch}
+  .pdp-benefits{list-style:none; margin:2px 0 18px; padding:0; display:flex; flex-direction:column; gap:8px; max-width:52ch}
+  .pdp-benefits li{position:relative; padding-left:26px; font-size:14.5px; color:var(--ink-soft); line-height:1.45}
+  .pdp-benefits li::before{content:"✓"; position:absolute; left:0; top:1px; color:var(--mint); font-weight:700}
   .trust-chips{display:flex; gap:9px; flex-wrap:wrap; margin-bottom:22px}
   .buy-actions{display:flex; gap:12px; margin-bottom:14px}
   .qty-stepper{display:inline-flex; align-items:center; border:1.5px solid var(--border-2); border-radius:9999px; height:52px}
@@ -153,7 +156,13 @@ include __DIR__ . '/inc/head.php';
         <span class="instock" id="stockLine"></span>
       </div>
       <?php if (!empty($p['size']) || !empty($p['sku'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px"><?= !empty($p['size'])?'Size: <b>'.e($p['size']).'</b>':'' ?><?= (!empty($p['size'])&&!empty($p['sku']))?' &middot; ':'' ?><?= !empty($p['sku'])?'Ref: '.e($p['sku']):'' ?></div><?php endif; ?>
+      <?php if (!empty($p['benefits'])): ?>
+      <ul class="pdp-benefits">
+        <?php foreach (preg_split('/\r\n|\r|\n/', $p['benefits']) as $b): $b=trim(preg_replace('/^[\s•·\-]+/u','',$b)); if($b==='') continue; ?><li><?= e($b) ?></li><?php endforeach; ?>
+      </ul>
+      <?php else: ?>
       <p class="promise"><?= e($p['descr'] ?: $p['long_desc']) ?></p>
+      <?php endif; ?>
       <div class="trust-chips">
         <span class="chip chip-mint">✓ 100% Authentic</span>
         <span class="chip chip-mint">Pharmacist-vetted</span>
@@ -183,14 +192,6 @@ include __DIR__ . '/inc/head.php';
   <div class="tab-panel" data-panel="desc">
     <h3>About this product</h3>
     <p><?= nl2br(e($p['long_desc'] ?: $p['descr'])) ?></p>
-    <?php if (!empty($p['benefits'])): ?>
-      <h3 style="margin-top:24px;font-size:19px">Key benefits</h3>
-      <ul style="margin:10px 0 0;padding-left:20px;line-height:1.85;color:var(--ink-soft)">
-        <?php foreach (preg_split('/\r\n|\r|\n/', $p['benefits']) as $b): $b=trim(preg_replace('/^[\s•·\-]+/u','',$b)); if($b==='') continue; ?>
-          <li><?= e($b) ?></li>
-        <?php endforeach; ?>
-      </ul>
-    <?php endif; ?>
   </div>
   <div class="tab-panel" data-panel="use" hidden>
     <h3>How to Use</h3>

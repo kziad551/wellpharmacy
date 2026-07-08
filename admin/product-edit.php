@@ -3,6 +3,7 @@ require __DIR__ . '/inc/layout.php';
 
 $BADGES = ['' => '— none —','derm'=>'Derm Pick','best'=>'Bestseller','trend'=>'Trending','trusted'=>'Trusted','new'=>'New','vegan'=>'Vegan','ff'=>'Frag-Free'];
 $cats   = array_column(rows("SELECT name FROM categories ORDER BY sort"), 'name');
+$brandList = array_column(rows("SELECT name FROM brands ORDER BY name"), 'name');
 
 $id = (string) input('id');
 $editing = $id !== '' && ($p = row("SELECT * FROM products WHERE id = ?", [$id]));
@@ -71,7 +72,10 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       <div class="a-card"><div class="hd"><h2>Details</h2></div><div class="bd">
         <div class="field"><label>Product name</label><input class="input" name="name" value="<?= e($v['name']) ?>" required></div>
         <div class="f-row">
-          <div class="field"><label>Brand</label><input class="input" name="brand" value="<?= e($v['brand']) ?>"></div>
+          <div class="field"><label>Brand</label><select class="input" name="brand">
+            <option value="">— choose brand —</option>
+            <?php $bl=$brandList; if($v['brand'] && !in_array($v['brand'],$bl,true)) $bl[]=$v['brand']; sort($bl); foreach ($bl as $b): ?><option <?= $b===$v['brand']?'selected':'' ?>><?= e($b) ?></option><?php endforeach; ?>
+          </select><div class="hint">Manage the list under <b>Brands</b>.</div></div>
           <div class="field"><label>Category</label><select class="input" name="category">
             <?php foreach ($cats as $c): ?><option <?= $c===$v['category']?'selected':'' ?>><?= e($c) ?></option><?php endforeach; ?>
           </select></div>
