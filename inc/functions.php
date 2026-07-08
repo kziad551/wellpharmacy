@@ -16,8 +16,15 @@ function slugify(string $s): string {
     $s = preg_replace('/[^a-z0-9]+/', '-', $s);
     return trim($s, '-');
 }
-/* cache-busted asset url */
-function asset(string $path): string { return $path . '?v=' . ASSET_VER; }
+/* cache-busted asset url — versioned by the file's own mtime so any deployed
+   change busts caches automatically (no manual ASSET_VER bump needed);
+   falls back to ASSET_VER for missing files / external URLs. */
+function asset(string $path): string {
+    if (preg_match('~^(https?:)?//~', $path)) return $path;   // external URL — leave as-is
+    $abs = dirname(__DIR__) . '/' . ltrim($path, '/');
+    $v   = is_file($abs) ? filemtime($abs) : ASSET_VER;
+    return $path . '?v=' . $v;
+}
 
 /* a few inline SVG icons for server-rendered pages (match chrome.js set) */
 function svg_icon(string $n): string {
