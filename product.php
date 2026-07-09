@@ -42,7 +42,8 @@ $HEAD_CSS = <<<CSS
 <style>
   .pdp{display:grid; grid-template-columns:minmax(0,560px) 1fr; gap:48px; padding-top:8px; align-items:start}
   .wrap.pdp-w{max-width:1200px}   /* contain product detail + tabs + frequently-bought; "you may also love" stays full-width */
-  .gallery{display:grid; grid-template-columns:72px 1fr; gap:16px; position:sticky; top:160px}
+  .gallery{display:grid; grid-template-columns:72px 1fr; gap:16px; position:sticky; top:120px; align-self:start}
+  .pdp-right{min-width:0; display:flex; flex-direction:column}   /* buy box + tabs share the column → gallery stays pinned through both */
   .thumbs{display:flex; flex-direction:column; gap:12px}
   .thumb-btn{width:72px; height:72px; border-radius:14px; overflow:hidden; border:2px solid transparent; background:var(--cream-2); padding:0; cursor:pointer}
   .thumb-btn.on{border-color:var(--rose)}
@@ -76,8 +77,8 @@ $HEAD_CSS = <<<CSS
   .trust-row{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; padding:18px 0; border-top:1px solid var(--border-2)}
   .trust-row .ti{display:flex; align-items:center; gap:9px; font-size:13px; color:var(--ink-soft)}
   .trust-row .ti svg{width:17px; height:17px; color:var(--mint); flex:none}
-  .pdp-tabs{background:var(--cream); border-bottom:1px solid var(--border); padding-block:14px}
-  .pdp-tabs .pill-tabs{margin-left:-18px}
+  .pdp-tabs{background:var(--cream); border:1px solid var(--border-2); border-radius:14px; padding:6px 8px}
+  .pdp-tabs .pill-tabs{margin-left:0; flex-wrap:wrap}
   .tab-panel{padding:32px 0; max-width:760px}
   .tab-panel h3{font-family:var(--fp); font-size:24px; font-weight:600; margin:0 0 14px}
   .tab-panel p{font-size:15.5px; line-height:1.7; color:var(--ink-soft)}
@@ -146,6 +147,7 @@ include __DIR__ . '/inc/head.php';
         <img class="gimg" data-grade id="mainPhoto" alt="<?= e($p['name']) ?>">
       </div>
     </div>
+    <div class="pdp-right">
     <div class="buybox">
       <span class="eyebrow"><?= e($p['brand']) ?></span>
       <h1><?= e($p['name']) ?></h1>
@@ -155,7 +157,7 @@ include __DIR__ . '/inc/head.php';
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
-      <?php if (!empty($p['size']) || !empty($p['sku'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px"><?= !empty($p['size'])?'Size: <b>'.e($p['size']).'</b>':'' ?><?= (!empty($p['size'])&&!empty($p['sku']))?' &middot; ':'' ?><?= !empty($p['sku'])?'Ref: '.e($p['sku']):'' ?></div><?php endif; ?>
+      <?php if (!empty($p['size'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px">Size: <b><?= e($p['size']) ?></b></div><?php endif; ?>
       <?php if (!empty($p['benefits'])): ?>
       <ul class="pdp-benefits">
         <?php foreach (preg_split('/\r\n|\r|\n/', $p['benefits']) as $b): $b=trim(preg_replace('/^[\s•·\-]+/u','',$b)); if($b==='') continue; ?><li><?= e($b) ?></li><?php endforeach; ?>
@@ -175,20 +177,18 @@ include __DIR__ . '/inc/head.php';
       </div>
       <div class="trust-row" id="trustRow"></div>
     </div>
-  </div>
-</div>
 
-<div class="pdp-tabs-wrap">
-<div class="pdp-tabs" id="pdpTabs">
-  <div class="wrap pdp-w"><div class="pill-tabs">
+    <div class="pdp-tabs-wrap">
+    <div class="pdp-tabs" id="pdpTabs">
+      <div class="pill-tabs">
     <button class="pill-tab active" data-tab="desc">Description</button>
     <button class="pill-tab" data-tab="use">How to Use</button>
     <button class="pill-tab" data-tab="ingr">Ingredients</button>
     <button class="pill-tab" data-tab="pharm">Pharmacist Note</button>
     <button class="pill-tab" data-tab="rev">Reviews</button>
-  </div></div>
-</div>
-<div class="wrap pdp-w">
+      </div>
+    </div>
+    <div class="pdp-panels">
   <div class="tab-panel" data-panel="desc">
     <h3>About this product</h3>
     <p><?= nl2br(e($p['long_desc'] ?: $p['descr'])) ?></p>
@@ -255,6 +255,9 @@ include __DIR__ . '/inc/head.php';
     </div>
   </div>
 </div>
+</div>
+    </div>
+  </div>
 </div>
 
 <section class="wrap section-tight pdp-w">
