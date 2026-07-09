@@ -40,9 +40,12 @@ $PAGE_TITLE = $p['name'] . ' — ' . setting('store_name','WELL SHOP');
 $ACTIVE = $p['category'];
 $HEAD_CSS = <<<CSS
 <style>
-  .pdp{display:grid; grid-template-columns:minmax(0,560px) 1fr; gap:48px; padding-top:8px; align-items:start}
+  html{overflow-x:clip}           /* the tabs band bleeds to the viewport edges below */
+  .pdp{display:grid; grid-template-columns:minmax(0,560px) 1fr; gap:0 48px; padding-top:8px; align-items:start}
   .wrap.pdp-w{max-width:1200px}   /* contain product detail + tabs + frequently-bought; "you may also love" stays full-width */
-  .gallery{display:grid; grid-template-columns:72px 1fr; gap:16px; position:sticky; top:120px; align-self:start}
+  /* the image column spans the buy box AND the tabs/description rows, so it stays pinned while all of it scrolls */
+  .gallery{display:grid; grid-template-columns:72px 1fr; gap:16px; position:sticky; top:120px; align-self:start; grid-column:1; grid-row:1 / span 2; z-index:2}
+  .buybox{grid-column:2; grid-row:1; min-width:0}
   .thumbs{display:flex; flex-direction:column; gap:12px}
   .thumb-btn{width:72px; height:72px; border-radius:14px; overflow:hidden; border:2px solid transparent; background:var(--cream-2); padding:0; cursor:pointer}
   .thumb-btn.on{border-color:var(--rose)}
@@ -76,8 +79,11 @@ $HEAD_CSS = <<<CSS
   .trust-row{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; padding:18px 0; border-top:1px solid var(--border-2)}
   .trust-row .ti{display:flex; align-items:center; gap:9px; font-size:13px; color:var(--ink-soft)}
   .trust-row .ti svg{width:17px; height:17px; color:var(--mint); flex:none}
-  .pdp-tabs{background:var(--cream); border-bottom:1px solid var(--border); padding-block:14px}
-  .pdp-tabs .pill-tabs{margin-left:-18px}
+  .pdp-tabs-wrap{grid-column:1 / -1; grid-row:2; min-width:0}
+  .pdp-tabs{position:relative; padding-block:14px}
+  .pdp-tabs::before{content:""; position:absolute; top:0; bottom:0; left:calc(50% - 50vw); right:calc(50% - 50vw); background:var(--cream); border-bottom:1px solid var(--border); z-index:-1}   /* beige bar across the whole page */
+  .pdp-tabs .pill-tabs{margin-left:608px; flex-wrap:wrap}   /* clear the pinned image rail (560px col + 48px gap) */
+  .pdp-panels{margin-left:608px; min-width:0}
   .tab-panel{padding:32px 0; max-width:760px}
   .tab-panel h3{font-family:var(--fp); font-size:24px; font-weight:600; margin:0 0 14px}
   .tab-panel p{font-size:15.5px; line-height:1.7; color:var(--ink-soft)}
@@ -113,7 +119,11 @@ $HEAD_CSS = <<<CSS
   .lightbox .x{position:absolute; top:24px; right:24px; color:#fff; width:44px;height:44px;border:0;background:rgba(255,255,255,.15);border-radius:50%}
   @media(max-width:900px){
     .pdp{grid-template-columns:1fr; gap:28px}
-    .gallery{position:static; grid-template-columns:1fr}
+    .gallery{position:static; grid-template-columns:1fr; grid-column:1; grid-row:auto}
+    .buybox{grid-column:1; grid-row:auto}
+    .pdp-tabs-wrap{grid-column:1; grid-row:auto}
+    .pdp-tabs .pill-tabs{margin-left:0}
+    .pdp-panels{margin-left:0}
     .thumbs{flex-direction:row; order:2; overflow-x:auto}
     .thumb-btn{flex:none}
     .rev-summary{grid-template-columns:1fr}
@@ -175,20 +185,18 @@ include __DIR__ . '/inc/head.php';
       </div>
       <div class="trust-row" id="trustRow"></div>
     </div>
-  </div>
-</div>
 
 <div class="pdp-tabs-wrap">
 <div class="pdp-tabs" id="pdpTabs">
-  <div class="wrap pdp-w"><div class="pill-tabs">
+  <div class="pill-tabs">
     <button class="pill-tab active" data-tab="desc">Description</button>
     <button class="pill-tab" data-tab="use">How to Use</button>
     <button class="pill-tab" data-tab="ingr">Ingredients</button>
     <button class="pill-tab" data-tab="pharm">Pharmacist Note</button>
     <button class="pill-tab" data-tab="rev">Reviews</button>
-  </div></div>
+  </div>
 </div>
-<div class="wrap pdp-w">
+<div class="pdp-panels">
   <div class="tab-panel" data-panel="desc">
     <h3>About this product</h3>
     <p><?= nl2br(e($p['long_desc'] ?: $p['descr'])) ?></p>
@@ -255,6 +263,8 @@ include __DIR__ . '/inc/head.php';
     </div>
   </div>
 </div>
+</div>
+  </div>
 </div>
 
 <section class="wrap section-tight pdp-w">
