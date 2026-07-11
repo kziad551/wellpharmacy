@@ -277,6 +277,10 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 .foot-brand .logo .tag{display:block; text-transform:none; font-weight:400; font-size:12.5px; letter-spacing:normal; color:rgba(239,231,217,.62); margin-top:3px}
 .nav-toggle{display:none; width:42px; height:42px; border:0; background:transparent; color:var(--ink); align-items:center; justify-content:center; cursor:pointer; border-radius:var(--r-pill); flex:none}
 .nav-toggle svg{width:24px; height:24px}
+.nav-toggle span{display:inline-flex; align-items:center; justify-content:center}
+.nav-toggle .nt-close{display:none}
+.site-header.nav-open .nav-toggle .nt-open{display:none}
+.site-header.nav-open .nav-toggle .nt-close{display:inline-flex}
 .hdr-search{flex:1; max-width:560px; position:relative}
 .hdr-right{display:flex; align-items:center; gap:8px; flex:none}
 .hdr-expert{display:flex; align-items:center; gap:10px; padding:6px 12px; border-radius:var(--r-pill); transition:background .2s}
@@ -403,6 +407,12 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 .crumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted); padding-block:16px}
 .crumb a:hover{color:var(--rose-deep)} .crumb .sep{opacity:.5}
 .crumb b{color:var(--ink); font-weight:600}
+@media (max-width:760px){
+  /* one tidy line: keep Home › Category › and let the long product name ellipsis-truncate */
+  .crumb{flex-wrap:nowrap; gap:6px; font-size:12px; padding-block:10px 12px}
+  .crumb a, .crumb .sep{flex:none; white-space:nowrap}
+  .crumb b{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+}
 
 /* ---------- toast ---------- */
 .toast-wrap{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:120; display:flex; flex-direction:column; gap:10px; align-items:center}

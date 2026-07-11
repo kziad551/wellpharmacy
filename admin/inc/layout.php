@@ -92,10 +92,12 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
     </nav>
     <div class="foot">© <?= date('Y') ?> WELL PHARMACY</div>
   </aside>
+  <div class="a-side-bd" id="aSideBd" hidden></div>
   <main class="a-main">
     <div class="a-top">
-      <div><h1><?= e($title) ?></h1><?php if ($subtitle): ?><div class="sub"><?= e($subtitle) ?></div><?php endif; ?></div>
-      <div class="who"><span><?= e($me['name']) ?></span><span class="av"><?= e(strtoupper(substr($me['name'],0,1))) ?></span></div>
+      <button class="a-burger" id="aBurger" type="button" aria-label="Open menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="a-top-title"><h1><?= e($title) ?></h1><?php if ($subtitle): ?><div class="sub"><?= e($subtitle) ?></div><?php endif; ?></div>
+      <div class="who"><span class="who-name"><?= e($me['name']) ?></span><span class="av"><?= e(strtoupper(substr($me['name'],0,1))) ?></span></div>
     </div>
     <div class="a-body">
     <?php if ($f = take_flash()): ?>
@@ -266,6 +268,18 @@ function admin_foot(): void {
       status.style.color='#4a7a3a'; status.textContent='✓ '+f.name+' ('+mb.toFixed(1)+' MB) — preview only. Click Save to keep it.';
     });
   });
+})();
+
+/* ---- mobile sidebar drawer: burger opens, backdrop / link / Esc closes ---- */
+(function(){
+  var side=document.getElementById('aSide'), bd=document.getElementById('aSideBd'), bg=document.getElementById('aBurger');
+  if(!side||!bd||!bg) return;
+  function open(){ side.classList.add('open'); bd.hidden=false; requestAnimationFrame(function(){bd.classList.add('show');}); bg.setAttribute('aria-expanded','true'); document.body.style.overflow='hidden'; }
+  function close(){ side.classList.remove('open'); bd.classList.remove('show'); bg.setAttribute('aria-expanded','false'); document.body.style.overflow=''; setTimeout(function(){bd.hidden=true;},200); }
+  bg.addEventListener('click', function(){ side.classList.contains('open')?close():open(); });
+  bd.addEventListener('click', close);
+  side.querySelectorAll('a').forEach(function(a){ a.addEventListener('click', close); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
 })();
 </script>
 </body>

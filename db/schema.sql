@@ -229,8 +229,10 @@ CREATE TABLE reviews (
   title       VARCHAR(160) DEFAULT '',
   body        TEXT         NOT NULL,
   status      ENUM('published','hidden') NOT NULL DEFAULT 'published',
+  reviewer_token VARCHAR(64) DEFAULT NULL,        -- per-browser identity (guest, no accounts): 1 editable review per product
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_prod (product_id, status)
+  KEY idx_prod (product_id, status),
+  KEY idx_rev_tok (product_id, reviewer_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

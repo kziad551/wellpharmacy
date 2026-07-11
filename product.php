@@ -5,7 +5,16 @@ $id = (string) input('id');
 $p  = row("SELECT * FROM products WHERE id = ? AND status='active'", [$id]);
 if (!$p) { http_response_code(404); $PAGE_TITLE='Not found'; include __DIR__.'/inc/head.php'; echo '<div class="wrap section" style="text-align:center"><h1 class="h2">Product not found</h1><p class="muted">This product doesn\'t exist or is no longer available.</p><a class="btn btn-primary" href="skincare">Back to shop</a></div>'; include __DIR__.'/inc/foot.php'; exit; }
 
-/* ---- reviews: handle a submission, then load the real ones ---- */
+/* ---- per-browser reviewer identity (guest site, no accounts): a persistent token cookie
+        lets us tie a review to this browser so it can be edited, not duplicated ---- */
+$reviewerTok = (string)($_COOKIE['wp_reviewer'] ?? '');
+if ($reviewerTok === '' || !ctype_xdigit($reviewerTok) || strlen($reviewerTok) !== 32) {
+    $reviewerTok = bin2hex(random_bytes(16));
+    setcookie('wp_reviewer', $reviewerTok, time() + 63072000, '/');   // 2 years
+    $_COOKIE['wp_reviewer'] = $reviewerTok;
+}
+
+/* ---- reviews: handle a submission (insert new OR update this browser's own), then load ---- */
 if (is_post() && input('action') === 'review') {
     csrf_check();
     $rAuthor = trim((string) input('author'));
@@ -13,12 +22,17 @@ if (is_post() && input('action') === 'review') {
     $rTitle  = trim((string) input('title'));
     $rBody   = trim((string) input('body'));
     if ($rAuthor !== '' && $rBody !== '') {
-        q("INSERT INTO reviews (product_id, author, rating, title, body) VALUES (?,?,?,?,?)", [$p['id'], $rAuthor, $rRating, $rTitle, $rBody]);
+        $mine = row("SELECT id FROM reviews WHERE product_id=? AND reviewer_token=? LIMIT 1", [$p['id'], $reviewerTok]);
+        if ($mine) {
+            q("UPDATE reviews SET author=?, rating=?, title=?, body=? WHERE id=?", [$rAuthor, $rRating, $rTitle, $rBody, $mine['id']]);
+        } else {
+            q("INSERT INTO reviews (product_id, author, rating, title, body, reviewer_token) VALUES (?,?,?,?,?,?)", [$p['id'], $rAuthor, $rRating, $rTitle, $rBody, $reviewerTok]);
+        }
         // refresh the cached rating + count on the product so cards/listings stay in sync
         $agg = row("SELECT COUNT(*) c, COALESCE(AVG(rating),0) a FROM reviews WHERE product_id = ? AND status='published'", [$p['id']]);
         q("UPDATE products SET reviews = ?, rating = ? WHERE id = ?", [(int)$agg['c'], round((float)$agg['a'], 1), $p['id']]);
     }
-    redirect("product?id=" . urlencode($p['id']) . "&reviewed=1#reviews");
+    redirect("product?id=" . urlencode($p['id']) . "&reviewed=" . ($mine ? 'upd' : '1') . "#reviews");
 }
 $reviews  = rows("SELECT * FROM reviews WHERE product_id = ? AND status='published' ORDER BY created_at DESC LIMIT 100", [$p['id']]);
 $revCount = (int) $p['reviews'];
@@ -26,6 +40,7 @@ $revAvg   = (float) $p['rating'];
 $dist = [5=>0,4=>0,3=>0,2=>0,1=>0];
 foreach ($reviews as $r) { $k = (int) $r['rating']; if (isset($dist[$k])) $dist[$k]++; }
 $stars5 = function ($v): string { $n = (int) round((float)$v); return str_repeat('★', max(0,min(5,$n))) . str_repeat('☆', 5 - max(0,min(5,$n))); };
+$myReview = row("SELECT * FROM reviews WHERE product_id=? AND reviewer_token=? AND status='published' ORDER BY id DESC LIMIT 1", [$p['id'], $reviewerTok]);
 
 $BADGES = ['derm'=>['badge-derm','DERM PICK'],'best'=>['badge-best','BESTSELLER'],'trend'=>['badge-trend','TRENDING'],'trusted'=>['badge-trusted','TRUSTED'],'new'=>['badge-new','NEW'],'vegan'=>['badge-vegan','VEGAN'],'ff'=>['badge-ff','FRAG-FREE']];
 $badge = $p['badge'] && isset($BADGES[$p['badge']]) ? $BADGES[$p['badge']] : null;
@@ -103,11 +118,15 @@ $HEAD_CSS = <<<CSS
   .fbt .plus{font-size:22px; color:var(--text-faint)}
   .fbt .tot{margin-left:auto; text-align:right}
   .fbt .tot .t{font-family:var(--fp); font-size:24px; font-weight:600}
-  .mini-bar{position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border-2); box-shadow:0 -4px 20px rgba(44,38,31,.06); z-index:50; transform:translateY(100%); transition:transform .3s}
+  .mini-bar{position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border-2); border-radius:16px 16px 0 0; box-shadow:0 -6px 26px rgba(44,38,31,.14); z-index:50; transform:translateY(110%); transition:transform .3s; padding-bottom:env(safe-area-inset-bottom)}
   .mini-bar.show{transform:translateY(0)}
-  .mini-bar .wrap{display:flex; align-items:center; gap:18px; padding-block:12px}
-  .mini-bar img{width:48px;height:48px;border-radius:10px;object-fit:cover}
-  .mini-bar .nm{font-size:14px; font-weight:600} .mini-bar .pr{font-family:var(--fp); font-size:20px; font-weight:600}
+  .mini-bar .wrap{display:flex; align-items:center; gap:14px; padding-block:12px}
+  .mini-img{width:48px;height:48px;border-radius:10px;object-fit:cover; flex:none}
+  .mini-title{font-family:var(--fs); font-size:14px; font-weight:600; min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .mini-meta{display:flex; align-items:baseline; gap:8px; flex:none; min-width:0}
+  .mini-meta .pr{font-family:var(--fp); font-size:20px; font-weight:600}
+  .mini-meta .mini-brand{font-size:12px; color:var(--text-muted); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .mini-btn{flex:none; white-space:nowrap}
   .lightbox{position:fixed; inset:0; background:rgba(44,38,31,.85); z-index:100; display:none; align-items:center; justify-content:center; padding:40px}
   .lightbox.open{display:flex} .lightbox img{max-width:90vw; max-height:90vh; border-radius:16px}
   .lightbox .x{position:absolute; top:24px; right:24px; color:#fff; width:44px;height:44px;border:0;background:rgba(255,255,255,.15);border-radius:50%}
@@ -130,6 +149,62 @@ $HEAD_CSS = <<<CSS
   .main-img{max-height:560px}
   .pdp-tabs-wrap{margin-top:44px}
   .tab-panel{padding:40px 0 30px}
+
+  /* ============ RESPONSIVE: small desktop → tablet → phone ============ */
+  @media (min-width:901px) and (max-width:1100px){
+    .wrap.pdp-w{max-width:980px}
+    .pdp{grid-template-columns:minmax(0,420px) 1fr; gap:36px}
+    .buybox h1{font-size:29px}
+    .price-row .p{font-size:26px}
+    .main-img{max-height:480px}
+  }
+  @media (max-width:900px){
+    .buybox h1{font-size:27px; margin:6px 0 10px}
+    .price-row .p{font-size:25px}
+    .pdp-benefits li{font-size:14px}
+    .tab-panel h3{font-size:21px}
+    .tab-panel p{font-size:14.5px}
+    /* tabs band: give the pills the page gutter instead of the desktop -18px pull */
+    .pdp-tabs .pill-tabs{margin-left:0; flex-wrap:wrap}
+    .pdp-tabs-wrap{margin-top:30px}
+    .tab-panel{padding:24px 0 20px}
+  }
+  @media (max-width:560px){
+    .buybox h1{font-size:23px; line-height:1.15; margin:4px 0 10px}
+    .price-row .p{font-size:23px}
+    .buybox .eyebrow{font-size:12px}
+    .rate-row{font-size:13px; margin-bottom:12px}
+    .trust-chips .chip{font-size:11.5px; padding:5px 9px}
+    .pdp-benefits li{font-size:13.5px; padding-left:24px}
+    .qty-stepper{height:48px} .qty-stepper button{height:46px}
+    .buy-actions .btn{height:48px}
+    .pdp{gap:20px}
+    .main-img{border-radius:18px}
+    .tab-panel h3{font-size:19px}
+    /* mini-bar → tidy 2 rows × 2 cols: [img | title] / [price·brand | Add to Bag] */
+    .mini-bar .wrap{display:grid; grid-template-columns:minmax(42px,auto) 1fr; grid-template-areas:"img title" "meta btn"; gap:5px 12px; padding-block:9px}
+    .mini-img{grid-area:img; width:42px; height:42px; align-self:center}
+    .mini-title{grid-area:title; white-space:normal; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; align-self:center}
+    .mini-meta{grid-area:meta; align-self:center}
+    .mini-meta .pr{font-size:17px}
+    .mini-btn{grid-area:btn; justify-self:end; align-self:center; height:42px; padding-inline:22px}
+  }
+
+  /* review CTA header, your-review card, and the write/edit modal */
+  .rev-head{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:16px}
+  .my-review{background:var(--clinic-blue-tint); border:1px solid var(--border-2); border-radius:14px; padding:14px 16px; margin-bottom:22px}
+  .my-review .top{display:flex; align-items:center; gap:10px; margin-bottom:2px}
+  .review-modal{position:fixed; inset:0; z-index:120; display:flex; align-items:center; justify-content:center; padding:20px}
+  .review-modal[hidden]{display:none}
+  .rm-backdrop{position:absolute; inset:0; background:rgba(44,38,31,.55)}
+  .rm-box{position:relative; background:#fff; border-radius:20px; padding:26px 24px; width:min(480px,100%); max-height:90vh; overflow-y:auto; box-shadow:0 30px 80px rgba(44,38,31,.4)}
+  .rm-x{position:absolute; top:14px; right:14px; width:34px; height:34px; border:0; background:var(--cream-2); border-radius:50%; font-size:15px; color:var(--ink); cursor:pointer}
+  .rm-title{font-family:var(--fp); font-size:22px; font-weight:600; margin:0}
+  .rm-sub{margin:2px 0 16px; font-size:13px}
+  .rm-lbl{display:block; font-size:13px; font-weight:600; margin-bottom:6px}
+  .rm-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0}
+  .rm-submit{margin-top:14px; width:100%}
+  @media (max-width:480px){ .rm-grid{grid-template-columns:1fr} .rm-box{padding:22px 18px} }
 </style>
 CSS;
 
@@ -149,7 +224,7 @@ include __DIR__ . '/inc/head.php';
     <div class="buybox">
       <span class="eyebrow"><?= e($p['brand']) ?></span>
       <h1><?= e($p['name']) ?></h1>
-      <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
+      <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a> <span class="muted">·</span> <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);font-weight:600"><?= $myReview ? 'Edit your review' : 'Write a review' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
       <div class="price-row">
         <span class="p"><?= money($p['price']) ?></span>
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?>
@@ -209,12 +284,24 @@ include __DIR__ . '/inc/head.php';
     </div>
   </div>
   <div class="tab-panel" data-panel="rev" hidden id="reviews">
-    <?php if (input('reviewed') === '1'): ?>
-      <div style="background:var(--mint-tint);border:1px solid #cfd3b8;border-radius:14px;padding:14px 16px;margin-bottom:20px;font-weight:600">✓ Thanks! Your review has been posted.</div>
+    <?php if (input('reviewed') === '1' || input('reviewed') === 'upd'): ?>
+      <div style="background:var(--mint-tint);border:1px solid #cfd3b8;border-radius:14px;padding:14px 16px;margin-bottom:20px;font-weight:600">✓ Thanks! Your review has been <?= input('reviewed') === 'upd' ? 'updated' : 'posted' ?>.</div>
+    <?php endif; ?>
+
+    <div class="rev-head">
+      <h3 style="margin:0"><?= $revCount > 0 ? number_format($revAvg,1).' out of 5 — '.$revCount.' review'.($revCount===1?'':'s') : 'No reviews yet' ?></h3>
+      <button type="button" class="btn btn-outline js-review-open"><?= $myReview ? 'Edit your review' : 'Write a review' ?></button>
+    </div>
+
+    <?php if ($myReview): ?>
+      <div class="my-review">
+        <div class="top"><span class="stars" style="color:var(--star)"><?= $stars5($myReview['rating']) ?></span> <b>Your review</b> <span class="muted" style="font-size:12px">· <?= (int)$myReview['rating'] ?>/5</span> <a href="#reviews" class="js-review-open" style="margin-left:auto;color:var(--rose-deep);font-weight:600">Edit</a></div>
+        <?php if ($myReview['title']): ?><b style="font-size:14.5px"><?= e($myReview['title']) ?></b><?php endif; ?>
+        <p class="muted" style="margin:4px 0 0;font-size:14px"><?= nl2br(e($myReview['body'])) ?></p>
+      </div>
     <?php endif; ?>
 
     <?php if ($revCount > 0): ?>
-      <h3><?= number_format($revAvg,1) ?> out of 5 — <?= $revCount ?> review<?= $revCount===1?'':'s' ?></h3>
       <div class="rev-summary">
         <div class="rev-big"><div class="n"><?= number_format($revAvg,1) ?></div><div class="stars" style="color:var(--star)"><?= $stars5($revAvg) ?></div><div class="muted" style="font-size:13px;margin-top:4px"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></div></div>
         <div class="rev-bars">
@@ -224,7 +311,7 @@ include __DIR__ . '/inc/head.php';
         </div>
       </div>
       <div id="revList">
-        <?php foreach ($reviews as $r): ?>
+        <?php foreach ($reviews as $r): if ($myReview && (int)$r['id'] === (int)$myReview['id']) continue; ?>
           <div class="rev-item">
             <div class="top"><span class="stars" style="color:var(--star)"><?= $stars5($r['rating']) ?></span> <b><?= e($r['author']) ?></b> <span class="muted" style="font-size:12px;margin-left:auto"><?= e(date('M j, Y', strtotime($r['created_at']))) ?></span></div>
             <?php if ($r['title']): ?><b style="font-size:14.5px"><?= e($r['title']) ?></b><?php endif; ?>
@@ -232,27 +319,9 @@ include __DIR__ . '/inc/head.php';
           </div>
         <?php endforeach; ?>
       </div>
-    <?php else: ?>
-      <h3>No reviews yet</h3>
+    <?php elseif (!$myReview): ?>
       <p class="muted" style="margin-bottom:8px">Be the first to review <?= e($p['name']) ?>.</p>
     <?php endif; ?>
-
-    <div class="rev-form">
-      <h3 style="margin-top:30px">Write a review</h3>
-      <form method="post" action="product?id=<?= e($p['id']) ?>#reviews">
-        <?= csrf_field() ?><input type="hidden" name="action" value="review">
-        <div class="rev-stars" id="revStars">
-          <?php for ($s = 1; $s <= 5; $s++): ?><button type="button" class="rs" data-v="<?= $s ?>">☆</button><?php endfor; ?>
-          <input type="hidden" name="rating" id="ratingInput" value="5">
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0">
-          <input class="input" name="author" placeholder="Your name" required>
-          <input class="input" name="title" placeholder="Review title (optional)">
-        </div>
-        <textarea class="input" name="body" placeholder="Share your experience with this product…" rows="4" required></textarea>
-        <button class="btn btn-primary" style="margin-top:12px">Post review</button>
-      </form>
-    </div>
   </div>
 </div>
 </div>
@@ -272,13 +341,36 @@ include __DIR__ . '/inc/head.php';
 
 <div class="mini-bar" id="miniBar">
   <div class="wrap">
-    <img class="gimg" data-grade id="miniImg">
-    <div><div class="nm"><?= e($p['name']) ?></div><div class="muted" style="font-size:12px"><?= e($p['brand']) ?></div></div>
-    <div class="pr" id="miniPrice" style="margin-left:auto"><?= money($p['price']) ?></div>
-    <button class="btn btn-primary" id="miniAdd" <?= $stock===0?'aria-disabled="true"':'' ?>>Add to Bag</button>
+    <img class="gimg mini-img" data-grade id="miniImg">
+    <div class="mini-title"><?= e($p['name']) ?></div>
+    <div class="mini-meta"><span class="pr" id="miniPrice"><?= money($p['price']) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
+    <button class="btn btn-primary mini-btn" id="miniAdd" <?= $stock===0?'aria-disabled="true"':'' ?>>Add to Bag</button>
   </div>
 </div>
 <div class="lightbox" id="lightbox"><button class="x" id="lbX">✕</button><img id="lbImg"></div>
+
+<div class="review-modal" id="reviewModal" hidden>
+  <div class="rm-backdrop" data-review-close></div>
+  <div class="rm-box" role="dialog" aria-modal="true" aria-label="Write a review">
+    <button class="rm-x" type="button" data-review-close aria-label="Close">✕</button>
+    <h3 class="rm-title"><?= $myReview ? 'Edit your review' : 'Write a review' ?></h3>
+    <p class="muted rm-sub"><?= e($p['name']) ?></p>
+    <form method="post" action="product?id=<?= e($p['id']) ?>#reviews">
+      <?= csrf_field() ?><input type="hidden" name="action" value="review">
+      <label class="rm-lbl">Your rating</label>
+      <div class="rev-stars" id="revStars">
+        <?php for ($s = 1; $s <= 5; $s++): ?><button type="button" class="rs" data-v="<?= $s ?>">☆</button><?php endfor; ?>
+        <input type="hidden" name="rating" id="ratingInput" value="<?= $myReview ? (int)$myReview['rating'] : 5 ?>">
+      </div>
+      <div class="rm-grid">
+        <input class="input" name="author" placeholder="Your name" value="<?= $myReview ? e($myReview['author']) : '' ?>" required>
+        <input class="input" name="title" placeholder="Review title (optional)" value="<?= $myReview ? e($myReview['title']) : '' ?>">
+      </div>
+      <textarea class="input" name="body" placeholder="Share your experience with this product…" rows="4" required><?= $myReview ? e($myReview['body']) : '' ?></textarea>
+      <button class="btn btn-primary rm-submit"><?= $myReview ? 'Update review' : 'Post review' ?></button>
+    </form>
+  </div>
+</div>
 <?php
 $pid      = json_encode($p['id']);
 $jrelated = json_encode(array_column($related,'id'), JSON_UNESCAPED_SLASHES);
@@ -341,10 +433,22 @@ $PAGE_JS = <<<JS
     paintStars(+ri.value || 5);
   }
 
-  \$\$('.pill-tab').forEach(t=>t.addEventListener('click',()=>{
-    \$\$('.pill-tab').forEach(x=>x.classList.remove('active')); t.classList.add('active');
-    \$\$('.tab-panel').forEach(pn=>pn.hidden = pn.dataset.panel!==t.dataset.tab);
-  }));
+  function showTab(name){
+    \$\$('.pill-tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===name));
+    \$\$('.tab-panel').forEach(pn=>pn.hidden = pn.dataset.panel!==name);
+  }
+  \$\$('.pill-tab').forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+  if (location.hash === '#reviews') showTab('rev');
+
+  // review write/edit modal
+  const revModal = \$('#reviewModal');
+  if (revModal) {
+    const openRev = e => { if(e && e.preventDefault) e.preventDefault(); showTab('rev'); revModal.hidden=false; document.body.style.overflow='hidden'; };
+    const closeRev = () => { revModal.hidden=true; document.body.style.overflow=''; };
+    \$\$('.js-review-open').forEach(b=>b.addEventListener('click', openRev));
+    revModal.querySelectorAll('[data-review-close]').forEach(x=>x.addEventListener('click', closeRev));
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !revModal.hidden) closeRev(); });
+  }
 
   const fbtItems = {$jfbt}.map(id=>W.BY_ID[id]).filter(Boolean);
   const fbtTotal = fbtItems.reduce((s,x)=>s+x.price,0);

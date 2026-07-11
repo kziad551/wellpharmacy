@@ -235,7 +235,7 @@
   function header() {
     return `<header class="site-header" id="siteHeader">
       <div class="wrap hdr-main">
-        <button class="nav-toggle" data-nav-toggle aria-label="Menu" aria-expanded="false">${I.menu}</button>
+        <button class="nav-toggle" data-nav-toggle aria-label="Menu" aria-expanded="false"><span class="nt-open">${I.menu}</span><span class="nt-close">${I.close}</span></button>
         ${logo()}
         <div class="hdr-search">
           <form class="search" role="search" action="search" method="get">

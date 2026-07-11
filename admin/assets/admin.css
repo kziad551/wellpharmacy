@@ -40,6 +40,11 @@ img{max-width:100%;display:block}
 .a-top .who{display:flex;align-items:center;gap:10px;font-size:13px}
 .a-top .who .av{width:34px;height:34px;border-radius:50%;background:var(--a-primary-tint);color:var(--a-primary);display:flex;align-items:center;justify-content:center;font-weight:600}
 .a-body{padding:26px 30px;max-width:1180px;width:100%}
+.a-top-title{min-width:0}
+.a-burger{display:none;flex:none;width:40px;height:40px;border:1px solid var(--a-border);border-radius:10px;background:#fff;color:var(--a-ink);align-items:center;justify-content:center;cursor:pointer}
+.a-burger svg{width:22px;height:22px}
+.a-side-bd{position:fixed;inset:0;background:rgba(26,22,15,.5);z-index:49;opacity:0;transition:opacity .2s}
+.a-side-bd.show{opacity:1}
 
 /* cards */
 .a-card{background:var(--a-surface);border:1px solid var(--a-border);border-radius:var(--a-r);box-shadow:var(--a-shadow)}
@@ -116,4 +121,28 @@ textarea.input{height:auto;padding:11px 14px;min-height:96px;resize:vertical;lin
 
 .page-actions{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
 .spacer{flex:1}
-@media(max-width:840px){.a-shell{grid-template-columns:1fr}.a-side{position:fixed;left:-260px;z-index:50;transition:left .2s}.a-side.open{left:0}.a-stats{grid-template-columns:repeat(2,1fr)}.f-row,.f-row-3{grid-template-columns:1fr}}
+@media(max-width:1040px){
+  .a-shell{grid-template-columns:1fr}
+  .a-side{position:fixed;left:-280px;width:264px;z-index:50;transition:left .22s;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .a-side.open{left:0}
+  .a-burger{display:inline-flex}
+  .a-top-title{margin-right:auto}
+  .a-stats{grid-template-columns:repeat(2,1fr)}
+  .f-row-3{grid-template-columns:1fr 1fr}
+}
+@media(max-width:760px){
+  .a-top{padding:12px 16px}
+  .a-top h1{font-size:18px}
+  .a-body{padding:16px}
+  .a-card .bd{padding:16px}
+  /* wide tables scroll horizontally instead of crushing */
+  .a-card .bd{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .a-table{min-width:600px}
+  .f-row,.f-row-3{grid-template-columns:1fr}
+  .who .who-name{display:none}
+  .page-actions{gap:8px}
+  .page-actions .btn{height:38px;padding:0 12px;font-size:12.5px}
+}
+@media(max-width:460px){
+  .a-stats{grid-template-columns:1fr}
+}
