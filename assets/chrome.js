@@ -249,11 +249,12 @@
           </form>
         </div>
         <div class="hdr-right">
-          <div class="hdr-social">
-            <a class="icon-btn wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="WhatsApp">${I.whatsapp}</a>
-            <a class="icon-btn ig" href="${ig}" target="_blank" rel="noopener" aria-label="Instagram">${I.ig}</a>
-            <a class="icon-btn tt" href="${tt}" target="_blank" rel="noopener" aria-label="TikTok">${I.tiktok}</a>
-          </div>
+          <a class="hdr-expert wa-expert" href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+            <span class="wa-av">${I.whatsapp}</span>
+            <span class="t"><b>Chat with us</b><span>on WhatsApp</span></span>
+          </a>
+          <a class="icon-btn ig" href="${ig}" target="_blank" rel="noopener" aria-label="Instagram">${I.ig}</a>
+          <a class="icon-btn tt" href="${tt}" target="_blank" rel="noopener" aria-label="TikTok">${I.tiktok}</a>
           <a class="icon-btn" href="order-tracking" aria-label="Track order">${I.truck}</a>
           <button class="icon-btn" data-open-cart aria-label="Cart">${I.bag}<span class="count" data-cart-count>0</span></button>
         </div>
