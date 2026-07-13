@@ -92,12 +92,13 @@ $HEAD_CSS = <<<CSS
      .home-rail padding-top        = gap ABOVE the section (separates it from the section above)
      .home-rail .sec-head .lead margin-bottom = gap BELOW the subtitle, before the products
      padding-bottom stays 0 — the next section supplies its own top gap */
-  .home-rail{padding-top:60px; padding-bottom:0}
+  .home-rail{padding-top:50px; padding-bottom:0}
   .home-rail .sec-head{margin-bottom:0}
   .home-rail .sec-head .lead{margin-bottom:6px}
-  /* compact (section spills past one row): keep SQUARE uncropped images like single-row, but drop the overlaid word so the product NAME below labels it, and tighten the text rows */
+  /* compact (section spills past one row): keep SQUARE uncropped images like single-row; move the range name to the BOTTOM of the image (fades on hover so the add button stays clean), and tighten the text rows */
   .prodgrid.compact{gap:16px 18px}
-  .prodgrid.compact .pc-kw{display:none}
+  .prodgrid.compact .pc-top{top:auto; bottom:0; padding:0 14px 10px}
+  .prodgrid.compact .pcard:hover .pc-top{opacity:0; transition:opacity .2s}
   .prodgrid.compact .pcard .body{padding-top:8px; gap:5px}
   .prodgrid.compact .pcard .price{font-size:20px}
   .prodgrid.compact .pcard .desc{min-height:0; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
