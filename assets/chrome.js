@@ -234,6 +234,10 @@
   }
 
   function header() {
+    const wa  = (W.SETTINGS && W.SETTINGS.whatsapp) || '9613627766';   // placeholder — change once in admin Settings, updates the whole site
+    const soc = (W.SETTINGS && W.SETTINGS.social) || {};
+    const ig  = soc.instagram || 'https://www.instagram.com/wellhealthandbeautyy';
+    const tt  = soc.tiktok    || 'https://www.tiktok.com/@wellhealthandbeauty';
     return `<header class="site-header" id="siteHeader">
       <div class="wrap hdr-main">
         <button class="nav-toggle" data-nav-toggle aria-label="Menu" aria-expanded="false"><span class="nt-open">${I.menu}</span><span class="nt-close">${I.close}</span></button>
@@ -245,10 +249,11 @@
           </form>
         </div>
         <div class="hdr-right">
-          <a class="hdr-expert" href="contact">
-            <img class="av gimg" data-grade src="${W.IMG.pharmacist}" alt="Pharmacist">
-            <span class="t"><b>Expert Advice</b><span>Ask our experts</span></span>
-          </a>
+          <div class="hdr-social">
+            <a class="icon-btn wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="WhatsApp">${I.whatsapp}</a>
+            <a class="icon-btn ig" href="${ig}" target="_blank" rel="noopener" aria-label="Instagram">${I.ig}</a>
+            <a class="icon-btn tt" href="${tt}" target="_blank" rel="noopener" aria-label="TikTok">${I.tiktok}</a>
+          </div>
           <a class="icon-btn" href="order-tracking" aria-label="Track order">${I.truck}</a>
           <button class="icon-btn" data-open-cart aria-label="Cart">${I.bag}<span class="count" data-cart-count>0</span></button>
         </div>

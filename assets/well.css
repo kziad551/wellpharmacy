@@ -222,7 +222,8 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 .pcard .stars .s{color:var(--star); display:inline-flex; width:14px}
 .pcard .prow{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
 .pcard .name{font-family:var(--fs); font-weight:600; text-transform:uppercase; letter-spacing:.04em; font-size:15px; line-height:1.2; color:var(--ink);
-  min-width:0; overflow-wrap:anywhere}
+  min-width:0; overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.4em}   /* show max 2 lines then … ; reserved height keeps every card row aligned */
 .pcard .pprice{margin-top:auto; padding-top:4px}
 .pcard .price{font-family:var(--fp); font-weight:600; letter-spacing:.01em; font-size:23px; color:var(--cocoa); white-space:nowrap; display:flex; align-items:baseline; gap:7px; flex:none}
 .pcard .price .was{font-size:13px; color:var(--text-faint); text-decoration:line-through; font-weight:400}
@@ -296,6 +297,14 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 .icon-btn svg{width:22px; height:22px}
 .icon-btn .count{position:absolute; top:4px; right:4px; min-width:18px; height:18px; padding:0 5px; border-radius:var(--r-pill); background:var(--rose-deep); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center}
 .icon-btn .count.wishc{background:var(--rose-deep)}
+/* header social icons (WhatsApp / Instagram / TikTok) — brand colours, sit in the right of the header */
+.hdr-social{display:flex; align-items:center; gap:2px}
+.hdr-social .icon-btn svg{width:21px; height:21px}
+.hdr-social .wa{color:#25D366}
+.hdr-social .ig{color:#E1306C}
+.hdr-social .tt{color:var(--ink)}
+.hdr-social .icon-btn:hover{filter:brightness(.9)}
+@media(max-width:760px){.hdr-social .ig,.hdr-social .tt{display:none}}   /* keep the WhatsApp CTA on phones; IG/TikTok live in the footer */
 
 /* ---------- mega-menu nav ---------- */
 /* ---------- mega-menu nav (desktop horizontal; mobile = hamburger dropdown in the ≤760 block) ---------- */
