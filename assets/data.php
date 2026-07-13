@@ -36,7 +36,7 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
     ];
 }
 $navCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
-$NAV = array_merge(['Shop All'], $navCats, ['Brands', 'Offers']);
+$NAV = array_merge(['Shop All', 'Brands', 'Offers'], $navCats);
 
 $cats = [];
 foreach (rows("SELECT name, image, is_cross FROM categories ORDER BY sort") as $c) {

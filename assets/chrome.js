@@ -181,8 +181,9 @@
       </div>
       <div class="body">
         <span class="stars">${p.reviews > 0 ? `<span class="s">${I.star}</span> ${p.rating.toFixed(1)} <span class="muted">(${p.reviews.toLocaleString()})</span>` : `<span class="muted" style="font-size:12px">No reviews yet</span>`}${stockNote}</span>
-        <div class="prow"><a class="name" href="product?id=${p.id}">${p.name}</a>${priceHtml}</div>
+        <a class="name" href="product?id=${p.id}">${p.name}</a>
         ${p.desc ? `<span class="desc">${p.desc}</span>` : ''}
+        <div class="pprice">${priceHtml}</div>
         ${buyBtn}
       </div>
     </article>`;
