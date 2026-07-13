@@ -95,10 +95,8 @@ $HEAD_CSS = <<<CSS
   .home-rail{padding-top:50px; padding-bottom:0}
   .home-rail .sec-head{margin-bottom:0}
   .home-rail .sec-head .lead{margin-bottom:6px}
-  /* compact (section spills past one row): keep SQUARE uncropped images like single-row; move the range name to the BOTTOM of the image (fades on hover so the add button stays clean), and tighten the text rows */
+  /* compact (section spills past one row): identical to single-row cards — square uncropped image, range name at the TOP — just tighter text rows */
   .prodgrid.compact{gap:16px 18px}
-  .prodgrid.compact .pc-top{top:auto; bottom:0; padding:0 14px 10px}
-  .prodgrid.compact .pcard:hover .pc-top{opacity:0; transition:opacity .2s}
   .prodgrid.compact .pcard .body{padding-top:8px; gap:5px}
   .prodgrid.compact .pcard .price{font-size:20px}
   .prodgrid.compact .pcard .desc{min-height:0; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
