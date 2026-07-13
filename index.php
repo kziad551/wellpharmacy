@@ -88,9 +88,13 @@ $HEAD_CSS = <<<CSS
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
   .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
   .prodgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}   /* New Arrivals: 4-up on wide screens */
-  /* product rails: doubled top (20px), zero bottom; title/subtitle block sits right on the products (no bottom gap) */
-  .home-rail{padding-top:20px; padding-bottom:0}
+  /* product rails — spacing knobs (adjust the px values):
+     .home-rail padding-top        = gap ABOVE the section (separates it from the section above)
+     .home-rail .sec-head .lead margin-bottom = gap BELOW the subtitle, before the products
+     padding-bottom stays 0 — the next section supplies its own top gap */
+  .home-rail{padding-top:60px; padding-bottom:0}
   .home-rail .sec-head{margin-bottom:0}
+  .home-rail .sec-head .lead{margin-bottom:6px}
   /* compact (section spills past one row): keep SQUARE uncropped images like single-row, but drop the overlaid word so the product NAME below labels it, and tighten the text rows */
   .prodgrid.compact{gap:16px 18px}
   .prodgrid.compact .pc-kw{display:none}
@@ -210,7 +214,7 @@ include __DIR__ . '/inc/head.php';
 <?php endforeach; ?>
 
 <!-- EDITORIAL -->
-<section class="section-tight wrap" style="padding-top:0">
+<section class="section-tight wrap" style="padding-top:0;margin-top:40px">
   <div class="editorial">
     <div class="ph graded" data-imgwrap><img class="gimg" data-grade src="https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&w=900&q=80" alt=""></div>
     <div class="tx">
