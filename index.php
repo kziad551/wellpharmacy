@@ -88,6 +88,9 @@ $HEAD_CSS = <<<CSS
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
   .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
   .prodgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}   /* New Arrivals: 4-up on wide screens */
+  /* product rails: halve the vertical padding + the gap under the section title/subtitle (was 64px / 32px) */
+  .home-rail{padding-block:32px}
+  .home-rail .sec-head{margin-bottom:16px}
   /* compact: a section spilling past one row gets shorter cards + tighter rows so more fit cleanly (single-row sections keep full size) */
   .prodgrid.compact{gap:16px 18px}
   .prodgrid.compact .pcard .media{aspect-ratio:1/0.9}
@@ -181,7 +184,7 @@ include __DIR__ . '/inc/head.php';
 
 <!-- DYNAMIC HOME SECTIONS (admin-managed: New Arrivals + per-brand rails) -->
 <?php foreach ($SECTIONS as $i => $sec): ?>
-<section class="section-tight wrap"<?= $i > 0 ? ' style="padding-top:0"' : '' ?>>
+<section class="section-tight wrap home-rail"<?= $i > 0 ? ' style="padding-top:0"' : '' ?>>
   <div class="sec-head">
     <div>
       <?php if ($sec['eyebrow'] !== ''): ?><span class="eyebrow"><?= e($sec['eyebrow']) ?></span><?php endif; ?>
