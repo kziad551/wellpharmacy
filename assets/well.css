@@ -183,16 +183,17 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 
 /* ---------- product card (rhode collections/shop: light panel · BIG overlaid title · name·price·descriptor · hover swap+buy) ---------- */
 .pcard{position:relative; background:transparent; border:0; box-shadow:none; display:flex; flex-direction:column; height:100%; min-width:0}
-.pcard .media{position:relative; aspect-ratio:1/1.18; background:#F8F6F0; border-radius:12px; overflow:hidden; container-type:inline-size}
+/* white-bg packshots: `contain` (never crop the bottle/label/badge) on a near-square white frame — fixed ratio keeps every card equal height */
+.pcard .media{position:relative; aspect-ratio:1/1.05; background:#fff; border-radius:12px; overflow:hidden; container-type:inline-size}
 .pcard .media-link{position:absolute; inset:0; z-index:2; display:block}
-.pcard .media img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:opacity .5s ease, transform .6s ease}
+.pcard .media img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; padding:26px 14px 12px; transition:opacity .5s ease, transform .6s ease}
 .pcard .media .pc-b{opacity:0}
-.pcard:hover .media .pc-a{opacity:0; transform:scale(1.04)}
+.pcard:hover .media .pc-a{opacity:0; transform:scale(1.03)}
 .pcard.no-hover:hover .media .pc-a{opacity:1}   /* no 2nd image → keep the main photo on hover instead of the empty tile */
-.pcard:hover .media .pc-b{opacity:1; transform:scale(1.04)}
-/* legibility scrim so the overlaid title reads over any photo (pristine once real white-bg packshots land) */
-.pcard .media::before{content:""; position:absolute; inset:0 0 auto 0; height:58%; z-index:2; pointer-events:none;
-  background:linear-gradient(180deg, rgba(248,246,240,.92) 0%, rgba(248,246,240,.5) 48%, rgba(248,246,240,0) 100%)}
+.pcard:hover .media .pc-b{opacity:1; transform:scale(1.03)}
+/* legibility scrim so the overlaid title reads over any photo — white so it's invisible over the white packshots, still lifts the title over a coloured shot */
+.pcard .media::before{content:""; position:absolute; inset:0 0 auto 0; height:36%; z-index:2; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.82) 0%, rgba(255,255,255,0) 100%)}
 /* title + pill share a flex row so they can never overlap; title scales to the CARD width (cqi), not the viewport */
 .pcard .pc-top{position:absolute; top:0; left:0; right:0; z-index:3; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:12px 14px 0 15px; pointer-events:none}
 .pcard .pc-kw{margin:0; flex:1 1 auto; min-width:0; font-family:var(--fp); font-weight:600; text-transform:lowercase;

@@ -88,6 +88,13 @@ $HEAD_CSS = <<<CSS
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
   .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
   .prodgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}   /* New Arrivals: 4-up on wide screens */
+  /* compact: a section spilling past one row gets shorter cards + tighter rows so more fit cleanly (single-row sections keep full size) */
+  .prodgrid.compact{gap:16px 18px}
+  .prodgrid.compact .pcard .media{aspect-ratio:1/0.9}
+  .prodgrid.compact .pcard .media img{padding:20px 12px 10px}
+  .prodgrid.compact .pcard .body{padding-top:8px; gap:5px}
+  .prodgrid.compact .pcard .price{font-size:20px}
+  .prodgrid.compact .pcard .desc{min-height:0; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
   .sec-actions{display:flex; align-items:center; gap:10px; flex-shrink:0}
   .cats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
   .cats.cc3{grid-template-columns:repeat(3,1fr)}
@@ -194,7 +201,8 @@ include __DIR__ . '/inc/head.php';
       <?php endforeach; ?>
     </div>
   <?php else: ?>
-    <div class="prodgrid<?= $sec['cols'] === 4 ? ' c4' : '' ?>" id="homeSec<?= $i ?>"></div>
+    <?php $pcols = $sec['cols'] === 4 ? 4 : 5; /* effective desktop per-row count */ ?>
+    <div class="prodgrid<?= $sec['cols'] === 4 ? ' c4' : '' ?><?= count($sec['ids']) > $pcols ? ' compact' : '' ?>" id="homeSec<?= $i ?>"></div>
   <?php endif; ?>
 </section>
 <?php endforeach; ?>
