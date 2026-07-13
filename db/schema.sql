@@ -67,6 +67,7 @@ CREATE TABLE products (
   ingredients   TEXT         NULL,                -- product-page "Ingredients"
   benefits      TEXT         NULL,                -- benefit bullet points
   keywords      TEXT         NULL,                -- extra search terms (not shown)
+  arabic        TEXT         NULL,                -- Arabic name/desc/benefits (stored, not displayed yet)
   image         VARCHAR(500) DEFAULT '',
   hover_image   VARCHAR(500) DEFAULT '',
   gallery       TEXT         NULL,                -- extra product photos (one path/URL per line)
