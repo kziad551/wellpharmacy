@@ -32,6 +32,14 @@ $FIELDS = [
     'ship_fee_outside'     => ['delivery','text','Outside Beirut fee ($)',''],
     'delivery_beirut_text' => ['delivery','text','Beirut delivery promise',''],
     'delivery_outside_text'=> ['delivery','text','Outside Beirut promise',''],
+    'smtp_host'            => ['email','text','SMTP host','e.g. smtp-relay.brevo.com — leave BLANK and no mail is sent (it is saved to storage/mail instead)'],
+    'smtp_port'            => ['email','text','SMTP port','587 for TLS, 465 for SSL'],
+    'smtp_secure'          => ['email','text','Encryption','tls (port 587) or ssl (port 465)'],
+    'smtp_user'            => ['email','text','SMTP username','Usually your full email address or provider login'],
+    'smtp_pass'            => ['email','text','SMTP password / API key','Kept server-side only — never shown on the storefront'],
+    'mail_from'            => ['email','text','Send from address','Must be a domain the SMTP provider lets you send as, e.g. orders@wellpharmacy.com'],
+    'mail_from_name'       => ['email','text','Send from name','e.g. Well Pharmacy'],
+    'admin_notify_email'   => ['email','text','New-order alerts go to','Where YOU get told about every order (guest or account)'],
     'areeba_merchant_id'   => ['payment','text','Areeba Merchant ID','From your Areeba / MPGS account'],
     'areeba_api_password'  => ['payment','text','Areeba API password','Kept server-side only'],
     'areeba_gateway_url'   => ['payment','text','Areeba gateway URL',''],
@@ -56,6 +64,7 @@ $groups = [
     'hours'    => ['Opening hours', 'Shown on the contact page'],
     'delivery' => ['Delivery', 'Shipping fees &amp; delivery promises by area'],
     'payment'  => ['Payments', 'Cash on Delivery &amp; the Areeba card gateway'],
+    'email'    => ['Email (SMTP)', 'Order confirmations, new-order alerts &amp; sign-up codes. Leave SMTP host blank while testing — messages are then written to <code>storage/mail/</code> instead of being sent.'],
 ];
 
 admin_head('Settings', 'settings', 'Store information, delivery and payment options.');

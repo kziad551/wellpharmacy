@@ -15,9 +15,35 @@ if (is_post()) {
     if ($act === 'update') {
         $os = in_array(input('order_status'), $STATUSES, true) ? (string) input('order_status') : $o['order_status'];
         $ps = in_array(input('payment_status'), $PAY_STATUSES, true) ? (string) input('payment_status') : $o['payment_status'];
-        q("UPDATE orders SET order_status = ?, payment_status = ?, notes = ? WHERE id = ?",
-          [$os, $ps, trim((string) input('notes')), $id]);
-        flash('Order updated.');
+        $was = $o['order_status'];
+        $note = '';
+
+        /* Stock moves only on a real CHANGE of cancelled-ness, never on a re-save —
+           otherwise saving a cancelled order twice would credit the stock twice. */
+        $pdo = db();
+        $pdo->beginTransaction();
+        try {
+            q("UPDATE orders SET order_status = ?, payment_status = ?, notes = ? WHERE id = ?",
+              [$os, $ps, trim((string) input('notes')), $id]);
+
+            if ($was !== 'cancelled' && $os === 'cancelled') {
+                foreach (rows("SELECT product_id, qty FROM order_items WHERE order_id = ?", [$id]) as $li) {
+                    q("UPDATE products SET stock = stock + ? WHERE id = ?", [(int) $li['qty'], $li['product_id']]);
+                }
+                $note = ' Stock was returned to inventory.';
+            } elseif ($was === 'cancelled' && $os !== 'cancelled') {
+                foreach (rows("SELECT product_id, qty FROM order_items WHERE order_id = ?", [$id]) as $li) {
+                    q("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?", [(int) $li['qty'], $li['product_id']]);
+                }
+                $note = ' Stock was taken back out of inventory.';
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            flash('Could not update the order.', 'err');
+            redirect("order?id=$id");
+        }
+        flash('Order updated.' . $note);
     }
     redirect("order?id=$id");
 }
