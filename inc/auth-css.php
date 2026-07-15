@@ -31,6 +31,9 @@ $AUTH_CSS = <<<CSS
   .ordrow .no{font-family:var(--fp);font-weight:600;font-size:16px}
   .ordrow .when{font-size:12.5px;color:var(--text-muted)}
   .ordrow .li{font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6}
+  .oitems{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+  .oitem{display:flex;align-items:center;gap:9px;font-size:13px;background:var(--cream,#F4F1E9);border-radius:10px;padding:6px 12px 6px 6px}
+  .oitem img{width:38px;height:38px;object-fit:contain;background:#fff;border-radius:7px;flex:none;padding:2px}
   .pill{height:24px;padding:0 10px;border-radius:var(--r-pill);font-size:11px;font-weight:700;text-transform:uppercase;
     display:inline-flex;align-items:center;background:var(--cream-2);color:var(--ink-soft)}
   .pill.new{background:var(--clinic-blue-tint);color:var(--clinic-blue)}
@@ -38,8 +41,8 @@ $AUTH_CSS = <<<CSS
   .pill.cancelled{background:#F7E9E2;color:var(--coral-deep)}
   .empty{text-align:center;padding:44px 20px;color:var(--text-muted)}
   .empty b{display:block;font-family:var(--fp);font-size:20px;color:var(--ink);margin-bottom:6px}
-  .phone-row{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:8px}
+  .phone-row{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px}
   .phone-row .phone-dial{padding-inline:10px}
-  @media(max-width:640px){.two{grid-template-columns:1fr}.phone-row{grid-template-columns:minmax(0,130px) minmax(0,1fr)}}
+  @media(max-width:640px){.two{grid-template-columns:1fr}.phone-row{grid-template-columns:106px minmax(0,1fr)}}
 </style>
 CSS;

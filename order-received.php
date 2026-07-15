@@ -19,7 +19,8 @@ $HEAD_CSS = <<<CSS
   .oc-top .no b{color:var(--ink)}
   .oc-card{background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:18px;padding:24px;margin-bottom:18px}
   .oc-card h3{font-family:var(--fp);font-size:18px;margin:0 0 14px}
-  .oc-it{display:grid;grid-template-columns:1fr auto;gap:10px;font-size:14px;padding:8px 0;border-bottom:1px solid var(--cream-2)}
+  .oc-th{width:50px;height:50px;object-fit:contain;background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:9px;flex:none;padding:3px}
+  .oc-it{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:center;font-size:14px;padding:10px 0;border-bottom:1px solid var(--cream-2)}
   .oc-it .q{color:var(--text-muted);font-size:12.5px}
   .oc-line{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:var(--ink-soft)}
   .oc-line.total{border-top:1px solid var(--border-2,#E4DFD3);margin-top:6px;padding-top:12px;font-size:19px;font-weight:700;color:var(--ink)}
@@ -40,7 +41,7 @@ if (!$order):
   </div>
 </div>
 <?php else:
-  $items = rows("SELECT * FROM order_items WHERE order_id = ?", [$order['id']]);
+  $items = rows("SELECT oi.*, p.image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?", [$order['id']]);
   $note  = $_SESSION['order_note'] ?? ''; unset($_SESSION['order_note']);
 ?>
 <div class="wrap oc">
@@ -54,7 +55,11 @@ if (!$order):
   <div class="oc-card">
     <h3>Order summary</h3>
     <?php foreach ($items as $it): ?>
-      <div class="oc-it"><div><?= e($it['name']) ?><div class="q"><?= e($it['brand']) ?> · Qty <?= (int)$it['qty'] ?></div></div><b><?= money($it['line_total']) ?></b></div>
+      <div class="oc-it">
+        <img class="oc-th gimg" data-grade src="<?= e($it['image'] ?: 'uploads/photo-pending.png') ?>" alt="">
+        <div><?= e($it['name']) ?><div class="q"><?= e($it['brand']) ?> · Qty <?= (int)$it['qty'] ?></div></div>
+        <b><?= money($it['line_total']) ?></b>
+      </div>
     <?php endforeach; ?>
     <div style="margin-top:14px">
       <div class="oc-line"><span>Subtotal</span><span><?= money($order['subtotal']) ?></span></div>

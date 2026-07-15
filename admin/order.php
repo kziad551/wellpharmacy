@@ -50,7 +50,7 @@ if (is_post()) {
     redirect("order?id=$id");
 }
 
-$items = rows("SELECT * FROM order_items WHERE order_id = ?", [$id]);
+$items = rows("SELECT oi.*, p.image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?", [$id]);
 
 admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime($o['created_at'])));
 ?>
@@ -66,7 +66,13 @@ admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime
         <tbody>
         <?php foreach ($items as $it): ?>
           <tr>
-            <td><a class="nm" href="product-edit?id=<?= e($it['product_id']) ?>"><?= e($it['name']) ?></a><div class="br"><?= e($it['brand']) ?></div></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:11px">
+                <img src="<?= e(asrc($it['image'] ?: 'uploads/photo-pending.png')) ?>" alt=""
+                     style="width:44px;height:44px;object-fit:contain;background:#fff;border:1px solid var(--a-border2);border-radius:8px;padding:3px;flex:none">
+                <span><a class="nm" href="product-edit?id=<?= e($it['product_id']) ?>"><?= e($it['name']) ?></a><div class="br"><?= e($it['brand']) ?></div></span>
+              </div>
+            </td>
             <td><?= money($it['price']) ?></td>
             <td><?= (int)$it['qty'] ?></td>
             <td style="text-align:right"><?= money($it['line_total']) ?></td>

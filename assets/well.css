@@ -166,6 +166,8 @@ h2{font-weight:600} h3{font-weight:600}
 }
 textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical; line-height:1.55}
 .input::placeholder{color:var(--text-faint)}
+/* room for the native dropdown arrow so it never crowds the label text */
+select.input,.select{padding-right:34px}
 .input:focus,.select:focus,textarea.input:focus{outline:none; border-color:var(--rose); box-shadow:0 0 0 4px rgba(156,129,88,.25)}
 .input.err{border-color:var(--coral-deep); box-shadow:0 0 0 4px rgba(148,97,38,.16)}
 .field .err-msg{font-size:12.5px; color:var(--coral-deep); display:none}
@@ -211,6 +213,14 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 .wish.on{color:var(--rose-deep); opacity:1}
 .wish.on svg{fill:var(--rose); stroke:var(--rose-deep); transform:scale(1.12)}
 .wish.pop svg{animation:heartpop .35s ease}
+/* Product page: the big heart beside "add to bag". It's a .btn-outline, so it had no
+   saved-state style at all — the click registered but looked unchanged. Click again to
+   un-save; this is real state, not a hover effect. */
+.btn-outline[data-wish].on{background:var(--blush-tint); border-color:var(--rose-deep); color:var(--rose-deep)}
+.btn-outline[data-wish].on svg{fill:var(--rose); stroke:var(--rose-deep)}
+.btn-outline[data-wish].on:hover{background:var(--rose-deep); color:#fff}
+.btn-outline[data-wish].on:hover svg{fill:#fff; stroke:#fff}
+.btn-outline[data-wish].pop svg{animation:heartpop .35s ease}
 @keyframes heartpop{0%{transform:scale(1)}40%{transform:scale(1.3)}100%{transform:scale(1.15)}}
 .pcard .add{position:absolute; left:20px; right:20px; bottom:20px; z-index:4; opacity:0; transform:translateY(12px); transition:opacity .3s ease,transform .3s ease}
 .pcard:hover .add{opacity:1; transform:none}

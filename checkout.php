@@ -55,8 +55,20 @@ $HEAD_CSS = <<<CSS
   .co-msg{font-size:12.5px;margin-top:6px}
   .co-msg.ok{color:#4a7a3a} .co-msg.err{color:var(--coral-deep,#b04a2f)}
   .co-empty{text-align:center;padding:50px 20px}
-  .phone-row{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:8px}
-  @media(max-width:640px){.phone-row{grid-template-columns:minmax(0,120px) minmax(0,1fr)}}
+  /* in-site confirm — replaces the browser's "localhost says" alert */
+  .ask{position:fixed;inset:0;z-index:130;display:none;align-items:center;justify-content:center;padding:20px}
+  .ask.open{display:flex}
+  .ask-bd{position:absolute;inset:0;background:rgba(44,38,31,.55);backdrop-filter:blur(3px)}
+  .ask-card{position:relative;background:#fff;border-radius:20px;padding:28px;max-width:440px;width:100%;
+    box-shadow:0 30px 70px rgba(44,38,31,.35);animation:askUp .28s cubic-bezier(.2,.8,.2,1)}
+  @keyframes askUp{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+  .ask-card h4{font-family:var(--fp);font-size:22px;font-weight:600;text-transform:lowercase;margin:0 0 8px}
+  .ask-card p{font-size:14px;line-height:1.6;color:var(--ink-soft);margin:0 0 20px}
+  .ask-card .code{font-weight:700;color:var(--coral-deep)}
+  .ask-btns{display:flex;gap:10px;flex-wrap:wrap}
+  .ask-btns .btn{flex:1;min-width:150px}
+  .phone-row{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px}
+  @media(max-width:640px){.phone-row{grid-template-columns:106px minmax(0,1fr)}}
   @media(max-width:820px){.co-layout{grid-template-columns:1fr}.co-sum{position:static}.co-two{grid-template-columns:1fr}}
 </style>
 CSS;
@@ -66,6 +78,19 @@ include __DIR__ . '/inc/head.php';
 <div class="wrap copg">
   <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><a href="cart">Bag</a><span class="sep">›</span><b>Checkout</b></nav>
   <h1>checkout</h1>
+
+  <!-- in-site confirm dialog (coupon typed but not applied) -->
+  <div class="ask" id="coAsk" role="dialog" aria-modal="true" aria-labelledby="coAskT">
+    <div class="ask-bd" data-ask-no></div>
+    <div class="ask-card">
+      <h4 id="coAskT">your coupon isn't applied</h4>
+      <p>You typed <span class="code" id="coAskCode"></span> but didn't press <b>Apply</b>, so it won't be discounted.</p>
+      <div class="ask-btns">
+        <button type="button" class="btn btn-outline" data-ask-no>back &amp; apply it</button>
+        <button type="button" class="btn btn-primary" data-ask-yes>order without it</button>
+      </div>
+    </div>
+  </div>
 
   <div id="coEmpty" class="co-card co-empty" style="display:none">
     <b style="font-family:var(--fp);font-size:22px">Your bag is empty.</b>
@@ -148,6 +173,27 @@ ob_start(); ?>
   var form = document.getElementById('coForm'), empty = document.getElementById('coEmpty');
   var applied = null;   // {code, discount, freeship}
   var skipCouponWarn = false;   // set once the shopper knowingly places an order without applying a typed code
+
+  /* in-site confirm — one callback, answered by the dialog buttons / Esc / backdrop */
+  function askCoupon(code, done) {
+    var box = document.getElementById('coAsk');
+    document.getElementById('coAskCode').textContent = '"' + code + '"';
+    box.classList.add('open');
+    function close(answer) {
+      box.classList.remove('open');
+      box.removeEventListener('click', onClick);
+      document.removeEventListener('keydown', onKey);
+      done(answer);
+    }
+    function onClick(e) {
+      if (e.target.closest('[data-ask-yes]')) close(true);
+      else if (e.target.closest('[data-ask-no]')) close(false);
+    }
+    function onKey(e) { if (e.key === 'Escape') close(false); }
+    box.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+    var y = box.querySelector('[data-ask-yes]'); y && y.focus();
+  }
 
   function items() { return W.cart().map(function (l) { var p = W.BY_ID[l.id]; return p ? { p: p, qty: l.qty } : null; }).filter(Boolean); }
   function subtotal() { return items().reduce(function (s, x) { return s + x.p.price * x.qty; }, 0); }
@@ -233,19 +279,23 @@ ob_start(); ?>
       return;
     }
     /* Coupon typed but never applied → don't silently ignore it and charge full price.
-       Ask once; if they choose to continue we remember and won't nag again. */
+       Asked via an in-site dialog (never the browser's alert). Answering "order without
+       it" is remembered, so we don't nag twice. */
     var codeEl = document.getElementById('coCode');
     var typed = codeEl ? codeEl.value.trim() : '';
     if (typed && (!applied || applied.code.toUpperCase() !== typed.toUpperCase()) && !skipCouponWarn) {
       err.textContent = '';
-      if (!confirm('You typed the coupon "' + typed + '" but didn\'t press Apply, so it will NOT be discounted.\n\nOK = place the order anyway without it\nCancel = go back and press Apply')) {
-        skipCouponWarn = false;
-        codeEl.classList.add('err');
-        codeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        W.toast('Press Apply to use your coupon');
-        return;
-      }
-      skipCouponWarn = true;   // they knowingly chose to continue
+      askCoupon(typed, function (goAhead) {
+        if (!goAhead) {
+          codeEl.classList.add('err');
+          codeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          W.toast('Press Apply to use your coupon');
+          return;
+        }
+        skipCouponWarn = true;                 // they knowingly chose to continue
+        form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', {cancelable:true}));
+      });
+      return;   // wait for their answer
     }
 
     var pm = form.querySelector('input[name="payment_method"]:checked');

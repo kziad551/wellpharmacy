@@ -76,7 +76,7 @@ include __DIR__ . '/inc/head.php';
         <div class="empty"><b>No orders yet</b>Once you place an order it'll show up here.
           <div style="margin-top:16px"><a class="btn btn-primary btn-sm" href="skincare">start shopping</a></div></div>
       <?php else: foreach ($orders as $o):
-        $items = rows("SELECT name, qty FROM order_items WHERE order_id = ?", [(int) $o['id']]); ?>
+        $items = rows("SELECT oi.name, oi.qty, p.image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?", [(int) $o['id']]); ?>
         <div class="ordrow">
           <div class="top">
             <div>
@@ -89,8 +89,13 @@ include __DIR__ . '/inc/head.php';
               <a class="btn btn-ghost btn-sm" href="invoice?order=<?= urlencode($o['order_no']) ?>">invoice</a>
             </div>
           </div>
-          <div class="li">
-            <?php foreach ($items as $i): ?>• <?= e($i['name']) ?> × <?= (int) $i['qty'] ?><br><?php endforeach; ?>
+          <div class="oitems">
+            <?php foreach ($items as $i): ?>
+              <div class="oitem">
+                <img class="gimg" data-grade src="<?= e($i['image'] ?: 'uploads/photo-pending.png') ?>" alt="">
+                <span><?= e($i['name']) ?> <span class="muted">× <?= (int) $i['qty'] ?></span></span>
+              </div>
+            <?php endforeach; ?>
           </div>
         </div>
       <?php endforeach; endif; ?>
