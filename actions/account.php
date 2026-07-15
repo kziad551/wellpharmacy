@@ -56,20 +56,20 @@ $next = (string) input('next', '');
 switch ($do) {
     case 'register': {
         $r = customer_register(input('first_name'), input('last_name'), input('email'), (string) input('password'), (string) input('phone'));
-        if (!$r['ok']) { flash($r['err'], 'err'); $_SESSION['form_email'] = input('email'); go('register'); }
+        if (!$r['ok']) { cflash($r['err'], 'err'); $_SESSION['form_email'] = input('email'); go('register'); }
         $_SESSION['pending_verify'] = (int) $r['customer']['id'];
-        flash('We sent a 6-digit code to ' . $r['customer']['email'] . '.');
+        cflash('We sent a 6-digit code to ' . $r['customer']['email'] . '.');
         go('verify');
     }
     case 'verify': {
         $id = (int) ($_SESSION['pending_verify'] ?? 0);
         $c  = $id ? row("SELECT * FROM customers WHERE id = ?", [$id]) : null;
-        if (!$c) { flash('Please register first.', 'err'); go('register'); }
+        if (!$c) { cflash('Please register first.', 'err'); go('register'); }
         $r = otp_check($c, (string) input('code'));
-        if (!$r['ok']) { flash($r['err'], 'err'); go('verify'); }
+        if (!$r['ok']) { cflash($r['err'], 'err'); go('verify'); }
         unset($_SESSION['pending_verify']);
         customer_session_start($c);
-        flash('Welcome to ' . setting('store_name', 'Well Pharmacy') . ' — your account is ready.');
+        cflash('Welcome to ' . setting('store_name', 'Well Pharmacy') . ' — your account is ready.');
         go('account');
     }
     case 'resend': {
@@ -77,22 +77,22 @@ switch ($do) {
         $c  = $id ? row("SELECT * FROM customers WHERE id = ?", [$id]) : null;
         if (!$c) go('register');
         $r = otp_issue($c);
-        flash($r['ok'] ? 'A new code is on its way.' : $r['err'], $r['ok'] ? 'ok' : 'err');
+        cflash($r['ok'] ? 'A new code is on its way.' : $r['err'], $r['ok'] ? 'ok' : 'err');
         go('verify');
     }
     case 'login': {
         $r = customer_login((string) input('email'), (string) input('password'));
-        if (!$r['ok']) { flash($r['err'], 'err'); $_SESSION['form_email'] = input('email'); go('login'); }
+        if (!$r['ok']) { cflash($r['err'], 'err'); $_SESSION['form_email'] = input('email'); go('login'); }
         /* unverified accounts can still shop — we just nudge them to confirm */
         if (!(int) $r['customer']['verified']) {
             $_SESSION['pending_verify'] = (int) $r['customer']['id'];
             otp_issue($r['customer']);
-            flash('Please confirm your email — we sent you a new code.');
+            cflash('Please confirm your email — we sent you a new code.');
             go('verify');
         }
         go($next !== '' && !preg_match('#^https?://#i', $next) ? $next : 'account');
     }
-    case 'logout': customer_logout(); flash('You have been signed out.'); go('index');
+    case 'logout': customer_logout(); cflash('You have been signed out.'); go('index');
 
     case 'profile': {
         require_customer(); $cid = customer_id();
@@ -100,17 +100,17 @@ switch ($do) {
             trim((string) input('first_name')), trim((string) input('last_name')), trim((string) input('phone')),
             trim((string) input('address')), trim((string) input('governorate')), trim((string) input('city')), $cid,
         ]);
-        flash('Your details were saved.');
+        cflash('Your details were saved.');
         go('account');
     }
     case 'password': {
         require_customer(); $c = current_customer();
-        if (!password_verify((string) input('current_password'), $c['password_hash'])) { flash('Your current password is not correct.', 'err'); go('account?tab=password'); }
+        if (!password_verify((string) input('current_password'), $c['password_hash'])) { cflash('Your current password is not correct.', 'err'); go('account?tab=password'); }
         $new = (string) input('new_password');
-        if (strlen($new) < 8) { flash('New password must be at least 8 characters.', 'err'); go('account?tab=password'); }
-        if ($new !== (string) input('confirm_password')) { flash('The two new passwords do not match.', 'err'); go('account?tab=password'); }
+        if (strlen($new) < 8) { cflash('New password must be at least 8 characters.', 'err'); go('account?tab=password'); }
+        if ($new !== (string) input('confirm_password')) { cflash('The two new passwords do not match.', 'err'); go('account?tab=password'); }
         q("UPDATE customers SET password_hash = ? WHERE id = ?", [password_hash($new, PASSWORD_DEFAULT), (int) $c['id']]);
-        flash('Your password was changed.');
+        cflash('Your password was changed.');
         go('account?tab=password');
     }
 }

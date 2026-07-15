@@ -11,6 +11,10 @@ require_once __DIR__ . '/../inc/customer.php';
 header('Content-Type: application/javascript; charset=utf-8');
 header('Cache-Control: private, no-store');   // carries who is signed in — never cache publicly
 
+/* one-shot: tell the browser to drop its local bag/favourites (set on sign-out) */
+$FLUSH = !empty($_SESSION['flush_local']);
+unset($_SESSION['flush_local']);
+
 /* who's shopping (null for guests) + whatever they've saved to their account */
 $me = current_customer();
 $USER = $me ? [
@@ -138,6 +142,7 @@ $SET = [
   W.BRANDS     = <?= json_encode($brands, $JE) ?>;
   W.SETTINGS   = <?= json_encode($SET, $JE) ?>;
   W.USER       = <?= json_encode($USER, $JE) ?>;   // null = guest (guests can still order)
+  W.FLUSH_LOCAL = <?= $FLUSH ? 'true' : 'false' ?>;  // just signed out → clear this device's bag/favourites
 
   W.IMG = IMG; W.BADGE = BADGE; W.AV = AV; W.shot = shot; W.U = U;
 })(window.WELL = window.WELL || {});

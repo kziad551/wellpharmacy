@@ -23,11 +23,23 @@ include __DIR__ . '/inc/head.php';
       <p class="muted" style="margin:6px 0 0;font-size:14px" id="wishSub">The things you've hearted.</p>
     </div>
     <?php if (logged_in()): ?>
-      <a class="btn btn-ghost btn-sm" href="account">my account</a>
+      <form method="post" action="actions/account.php">
+        <?= csrf_field() ?><input type="hidden" name="do" value="logout">
+        <button class="btn btn-ghost btn-sm" type="submit">sign out</button>
+      </form>
     <?php else: ?>
       <a class="btn btn-ghost btn-sm" href="login?next=wishlist">sign in to save these</a>
     <?php endif; ?>
   </div>
+
+  <?php if (logged_in()): $nOrders = (int) val("SELECT COUNT(*) FROM orders WHERE customer_id = ?", [customer_id()]); ?>
+    <div class="acct-tabs">
+      <a href="account?tab=profile">my details</a>
+      <a href="account?tab=orders">my orders (<?= $nOrders ?>)</a>
+      <a href="account?tab=password">password</a>
+      <a href="wishlist" class="on">my favourites</a>
+    </div>
+  <?php endif; ?>
 
   <?php if (!logged_in()): ?>
     <div class="optnote">You're browsing as a guest — your favourites are saved on this device.

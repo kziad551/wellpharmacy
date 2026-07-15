@@ -309,6 +309,25 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
   .hdr-right .ig,.hdr-right .tt{display:none}        /* IG/TikTok live in the footer on phones */
 }
 
+/* signed-in identity — "hi, Sara / my account" beside the person icon */
+.hdr-acct{display:flex; align-items:center; gap:8px; padding:6px 10px 6px 8px; border-radius:var(--r-pill); color:var(--ink); transition:background .2s}
+.hdr-acct:hover{background:var(--cream)}
+.hdr-acct svg{width:22px; height:22px; flex:none}
+.hdr-acct .t{line-height:1.2; display:flex; flex-direction:column}
+.hdr-acct .t b{font-size:13px; white-space:nowrap}
+.hdr-acct .t span{font-size:11px; color:var(--text-muted); white-space:nowrap}
+
+/* favourites · account · bag cluster — row 2 (nav) on desktop, row 1 on phones */
+.shop-icons{display:flex; align-items:center; gap:4px; flex:none}
+.nav-wrap{display:flex; align-items:center; justify-content:space-between; gap:20px}
+.nav-wrap .nav-list{flex:1; min-width:0}
+.mobile-icons{display:none}
+@media(max-width:760px){
+  .desk-icons{display:none}
+  .mobile-icons{display:flex}
+  .hdr-acct .t{display:none}
+}
+
 /* ---------- mega-menu nav ---------- */
 /* ---------- mega-menu nav (desktop horizontal; mobile = hamburger dropdown in the ≤760 block) ---------- */
 .nav-row{border-top:1px solid var(--border-2); position:relative}

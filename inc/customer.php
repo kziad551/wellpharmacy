@@ -25,11 +25,12 @@ function customer_name(): string {
     return $c ? trim($c['first_name'] . ' ' . $c['last_name']) : '';
 }
 
-/* flash — shared session key with the admin helper; guard so both can coexist */
-if (!function_exists('flash')) {
-    function flash(string $msg, string $type = 'ok'): void { $_SESSION['flash'] = ['m' => $msg, 't' => $type]; }
-    function take_flash(): ?array { $f = $_SESSION['flash'] ?? null; unset($_SESSION['flash']); return $f; }
-}
+/* Shopper flashes live under their OWN session key. They must never share
+   $_SESSION['flash'] with the admin panel — otherwise a shopper signing out
+   pops "You have been signed out" inside the admin, which is both confusing
+   and none of the admin's business. */
+function cflash(string $msg, string $type = 'ok'): void { $_SESSION['cust_flash'] = ['m' => $msg, 't' => $type]; }
+function take_cflash(): ?array { $f = $_SESSION['cust_flash'] ?? null; unset($_SESSION['cust_flash']); return $f; }
 
 /* ---------- OTP ---------- */
 function otp_generate(): string { return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT); }
@@ -91,7 +92,14 @@ function customer_session_start(array $c): void {
     merge_guest_data_into_account((int) $c['id']);
 }
 
-function customer_logout(): void { unset($_SESSION['cust_id']); session_regenerate_id(true); }
+/* Signing out must also wipe the browser's local copy of the bag/favourites.
+   Those belong to the ACCOUNT, not the device — leaving them behind would show
+   the next person (or the next account to sign in) someone else's saved items. */
+function customer_logout(): void {
+    unset($_SESSION['cust_id'], $_SESSION['guest_merge']);
+    session_regenerate_id(true);
+    $_SESSION['flush_local'] = 1;   // consumed once by assets/data.php
+}
 
 /* ---------- saved wishlist / cart ----------
    Guests keep these in localStorage; on login we merge whatever they built

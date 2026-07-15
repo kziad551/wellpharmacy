@@ -59,6 +59,11 @@
   const LS = { cart:'well_cart_v1', wish:'well_wish_v1' };
   const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } };
   const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  /* just signed out → the bag/favourites belonged to that ACCOUNT, not this
+     device. Drop them before reading, so the next visitor (or the next account
+     to sign in here) never inherits someone else's saved items. */
+  if (W.FLUSH_LOCAL) { try { localStorage.removeItem(LS.cart); localStorage.removeItem(LS.wish); } catch (e) {} }
+
   let CART = read(LS.cart, []);
   if (!Array.isArray(CART)) CART = [];
   let WISH = read(LS.wish, []);
@@ -166,7 +171,14 @@
   function syncBadges() {
     document.querySelectorAll('[data-cart-count]').forEach(e => { e.textContent = cartCount(); e.style.display = cartCount() ? '' : 'none'; });
     document.querySelectorAll('[data-wish-count]').forEach(e => { e.textContent = WISH.length; e.style.display = WISH.length ? '' : 'none'; });
+    syncWishButtons();
   }
+  /* paint every heart on the page to match saved state — without this a product you
+     already love renders as an empty heart until you click it */
+  function syncWishButtons() {
+    document.querySelectorAll('[data-wish]').forEach(b => b.classList.toggle('on', WISH.indexOf(b.dataset.wish) >= 0));
+  }
+  W.syncWishButtons = syncWishButtons;
   function bumpBag() {
     document.querySelectorAll('[data-cart-count]').forEach(e => { e.style.animation = 'none'; void e.offsetWidth; e.style.animation = 'heartpop .4s ease'; });
   }
@@ -223,6 +235,7 @@
   W.renderProducts = function (container, list) {
     container.innerHTML = list.map(p => W.productCard(p)).join('');
     W.guardImages(container);
+    syncWishButtons();   // cards render after mount — paint their hearts too
   };
 
   /* delegate card interactions globally */
@@ -264,6 +277,20 @@
     </a>`;
   }
 
+  /* favourites · account · bag. Rendered TWICE: on the nav row for desktop, and in the
+     top row for phones (where the nav row collapses into the hamburger and would hide
+     them). Badges/handlers are delegated + querySelectorAll, so both copies stay live. */
+  function shopIcons() {
+    return `<a class="icon-btn" href="wishlist" aria-label="My favourites">${I.heart}<span class="count wishc" data-wish-count hidden>0</span></a>
+      <a class="hdr-acct" href="${W.USER ? 'account' : 'login'}" aria-label="${W.USER ? 'My account' : 'Sign in or register'}">
+        ${I.user}
+        <span class="t">${W.USER
+          ? `<b>hi, ${W.USER.first}</b><span>my account</span>`
+          : `<b>sign in</b><span>or register</span>`}</span>
+      </a>
+      <button class="icon-btn" data-open-cart aria-label="Cart">${I.bag}<span class="count" data-cart-count>0</span></button>`;
+  }
+
   function header() {
     const wa  = (W.SETTINGS && W.SETTINGS.whatsapp) || '9613627766';   // placeholder — change once in admin Settings, updates the whole site
     const soc = (W.SETTINGS && W.SETTINGS.social) || {};
@@ -286,12 +313,13 @@
           </a>
           <a class="icon-btn ig" href="${ig}" target="_blank" rel="noopener" aria-label="Instagram">${I.ig}</a>
           <a class="icon-btn tt" href="${tt}" target="_blank" rel="noopener" aria-label="TikTok">${I.tiktok}</a>
-          <a class="icon-btn" href="wishlist" aria-label="My favourites">${I.heart}<span class="count wishc" data-wish-count hidden>0</span></a>
-          <a class="icon-btn" href="${W.USER ? 'account' : 'login'}" aria-label="${W.USER ? 'My account' : 'Sign in or register'}" title="${W.USER ? 'My account' : 'Sign in / register'}">${I.user}</a>
-          <button class="icon-btn" data-open-cart aria-label="Cart">${I.bag}<span class="count" data-cart-count>0</span></button>
+          <div class="shop-icons mobile-icons">${shopIcons()}</div>
         </div>
       </div>
-      <div class="nav-row"><div class="wrap"><ul class="nav-list" id="navList"></ul></div>
+      <div class="nav-row"><div class="wrap nav-wrap">
+          <ul class="nav-list" id="navList"></ul>
+          <div class="shop-icons desk-icons">${shopIcons()}</div>
+        </div>
         <div class="mega" id="megaPanel"></div>
       </div>
     </header>`;

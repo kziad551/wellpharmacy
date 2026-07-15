@@ -7,7 +7,7 @@ $PAGE_TITLE = 'Create an account — ' . setting('store_name', 'WELL SHOP');
 $ACTIVE = ''; $NO_POPUP = true;
 require __DIR__ . '/inc/auth-css.php';
 $HEAD_CSS = $AUTH_CSS;
-$f = take_flash();
+$f = take_cflash();
 $email = $_SESSION['form_email'] ?? ''; unset($_SESSION['form_email']);
 include __DIR__ . '/inc/head.php';
 ?>
