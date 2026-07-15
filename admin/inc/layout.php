@@ -55,6 +55,7 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
         ]],
         ['Inbox', [
             ['messages',    $unread ? "Messages ($unread)" : 'Messages', 'mail'],
+            ['customers',   'Customers', 'users'],
             ['subscribers', 'Subscribers', 'users'],
         ]],
         ['Site', [
