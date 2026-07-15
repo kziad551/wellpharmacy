@@ -41,8 +41,10 @@ if ($acct) {
     if ($name === '')  $name  = trim($acct['first_name'] . ' ' . $acct['last_name']);
 }
 
+/* The browser checks these too, but never trust it — a bypassed form must not
+   create an order, move stock or send any email. */
 if ($name === '' || $phone === '' || $address === '') fail('Please fill in your name, phone and address.');
-if ($gov !== '' && !in_array($gov, lebanon_governorates(), true)) $gov = '';
+if ($gov === '' || !in_array($gov, lebanon_governorates(), true)) fail('Please choose a valid delivery area.');
 
 /* ---- payment method ---- */
 $pay = ($in['payment_method'] ?? 'cod') === 'areeba' && setting('areeba_enabled') === '1' ? 'areeba' : 'cod';

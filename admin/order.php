@@ -23,8 +23,10 @@ if (is_post()) {
         $pdo = db();
         $pdo->beginTransaction();
         try {
-            q("UPDATE orders SET order_status = ?, payment_status = ?, notes = ? WHERE id = ?",
-              [$os, $ps, trim((string) input('notes')), $id]);
+            /* `notes` is the CUSTOMER's own note from checkout — never overwrite it.
+               Staff notes go in admin_notes. */
+            q("UPDATE orders SET order_status = ?, payment_status = ?, admin_notes = ? WHERE id = ?",
+              [$os, $ps, trim((string) input('admin_notes')), $id]);
 
             if ($was !== 'cancelled' && $os === 'cancelled') {
                 foreach (rows("SELECT product_id, qty FROM order_items WHERE order_id = ?", [$id]) as $li) {
@@ -93,7 +95,14 @@ admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime
         <div class="field"><label>Payment status</label><select class="input" name="payment_status">
           <?php foreach ($PAY_STATUSES as $ps): ?><option value="<?= e($ps) ?>" <?= $ps===$o['payment_status']?'selected':'' ?>><?= ucfirst($ps) ?></option><?php endforeach; ?>
         </select></div>
-        <div class="field"><label>Internal notes</label><textarea class="input" name="notes" rows="3"><?= e($o['notes']) ?></textarea></div>
+        <?php if (trim((string) $o['notes']) !== ''): ?>
+          <div class="field">
+            <label>Customer's note <span class="muted" style="font-weight:400">(read-only — their words)</span></label>
+            <div style="background:var(--cream,#F4F1E9);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5"><?= e($o['notes']) ?></div>
+          </div>
+        <?php endif; ?>
+        <div class="field"><label>Internal notes <span class="muted" style="font-weight:400">(staff only)</span></label>
+          <textarea class="input" name="admin_notes" rows="3" placeholder="Notes for your team…"><?= e($o['admin_notes'] ?? '') ?></textarea></div>
         <button class="btn btn-primary btn-block">Save changes</button>
       </div></div>
     </form>

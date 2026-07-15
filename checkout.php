@@ -131,6 +131,7 @@ ob_start(); ?>
   };
   var form = document.getElementById('coForm'), empty = document.getElementById('coEmpty');
   var applied = null;   // {code, discount, freeship}
+  var skipCouponWarn = false;   // set once the shopper knowingly places an order without applying a typed code
 
   function items() { return W.cart().map(function (l) { var p = W.BY_ID[l.id]; return p ? { p: p, qty: l.qty } : null; }).filter(Boolean); }
   function subtotal() { return items().reduce(function (s, x) { return s + x.p.price * x.qty; }, 0); }
@@ -187,9 +188,44 @@ ob_start(); ?>
     var btn = document.getElementById('coPlace'), err = document.getElementById('coErr');
     err.textContent = '';
     var f = form;
-    if (!f.name.value.trim() || !f.phone.value.trim() || !f.address.value.trim() || !f.governorate.value) {
-      err.textContent = 'Please fill in name, phone, address and area.'; return;
+
+    /* Required-field gate. Nothing below this runs unless it passes — so a failed
+       check means NO order row, NO stock change and NO emails. */
+    var required = [
+      ['name',        'Please enter your full name.'],
+      ['phone',       'Please enter a phone number so we can confirm delivery.'],
+      ['address',     'Please enter your delivery address.'],
+      ['governorate', 'Please choose your area.']
+    ];
+    form.querySelectorAll('.input, .select').forEach(function (el) { el.classList.remove('err'); });
+    var bad = null;
+    required.forEach(function (r) {
+      var el = f[r[0]];
+      if (el && !String(el.value).trim()) { el.classList.add('err'); if (!bad) bad = [el, r[1]]; }
+    });
+    if (bad) {
+      err.textContent = bad[1];
+      W.toast(bad[1]);
+      bad[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { bad[0].focus({ preventScroll: true }); } catch (e) { bad[0].focus(); }
+      return;
     }
+    /* Coupon typed but never applied → don't silently ignore it and charge full price.
+       Ask once; if they choose to continue we remember and won't nag again. */
+    var codeEl = document.getElementById('coCode');
+    var typed = codeEl ? codeEl.value.trim() : '';
+    if (typed && (!applied || applied.code.toUpperCase() !== typed.toUpperCase()) && !skipCouponWarn) {
+      err.textContent = '';
+      if (!confirm('You typed the coupon "' + typed + '" but didn\'t press Apply, so it will NOT be discounted.\n\nOK = place the order anyway without it\nCancel = go back and press Apply')) {
+        skipCouponWarn = false;
+        codeEl.classList.add('err');
+        codeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        W.toast('Press Apply to use your coupon');
+        return;
+      }
+      skipCouponWarn = true;   // they knowingly chose to continue
+    }
+
     var pm = form.querySelector('input[name="payment_method"]:checked');
     var payload = {
       csrf: CFG.csrf,
