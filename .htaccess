@@ -6,8 +6,9 @@ RewriteEngine On
 # No "RewriteBase /": letting Apache auto-detect the base keeps clean URLs working
 # whether the site is served from the domain root or from a subfolder like /wellpharmacy/.
 
-# never expose includes / db scripts / config
-RewriteRule ^(inc|db)(/|$) - [F,L]
+# never expose includes / db scripts / config / dev mail dumps
+# (storage/mail holds OTP codes + customer names, addresses and phones — must never be fetchable)
+RewriteRule ^(inc|db|storage)(/|$) - [F,L]
 
 # redirect *.php -> clean URL, but leave assets/ + actions/ PHP endpoints (data.php, POST handlers) executing directly
 RewriteCond %{THE_REQUEST} !\s[^?\s]*/(assets|actions)/[^?\s]+\.php[\s?] [NC]
