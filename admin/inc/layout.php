@@ -129,14 +129,14 @@ function admin_foot(): void {
     document.querySelectorAll('[data-live]').forEach(function (el) {
       var key = el.dataset.live;
       if (!(key in d)) return;
-      var val = d[key], badge = el.classList.contains('a-badge');
+      var val = d[key];
+      /* badges and count-pills disappear at zero; stat numbers always show */
+      var hideAtZero = el.classList.contains('a-badge') || el.classList.contains('pill');
       var text = (key === 'revenue') ? '$' + Number(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : val;
       var changed = el.textContent !== String(text);
       el.textContent = text;
-      if (badge) {
-        el.hidden = !val;
-        if (changed && val && !first) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
-      }
+      if (hideAtZero) el.hidden = !val;
+      if (changed && !first) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
     });
     first = false;
   }

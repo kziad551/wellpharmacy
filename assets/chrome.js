@@ -488,6 +488,64 @@
     const rm = e.target.closest('[data-rm]'); if (rm) { W.removeFromCart(rm.dataset.rm); }
   });
 
+  /* ---------- phone country picker ----------
+     Drives the custom dial dropdown (see inc/phone.php). The chosen dial lives in a
+     hidden input, so every form posts exactly as it did with the old <select>. */
+  function initDialPickers() {
+    document.querySelectorAll('[data-dialpick]').forEach(function (pick) {
+      if (pick.dataset.ready) return;
+      pick.dataset.ready = '1';
+      const btn = pick.querySelector('.dial-btn'),
+            pop = pick.querySelector('.dial-pop'),
+            search = pick.querySelector('.dial-search'),
+            hidden = pick.querySelector('[data-dial-value]'),
+            none = pick.querySelector('.dial-none'),
+            opts = [].slice.call(pick.querySelectorAll('.dial-opt'));
+
+      function open(o) {
+        pop.hidden = !o;
+        btn.setAttribute('aria-expanded', o ? 'true' : 'false');
+        if (o) { search.value = ''; filter(''); search.focus(); }
+      }
+      function filter(q) {
+        q = q.trim().toLowerCase();
+        let shown = 0;
+        opts.forEach(function (o) {
+          const hit = !q || o.dataset.s.indexOf(q) >= 0 || ('+' + o.dataset.d).indexOf(q) === 0;
+          o.parentNode.hidden = !hit;
+          if (hit) shown++;
+        });
+        none.hidden = shown > 0;
+      }
+      function choose(o) {
+        hidden.value = o.dataset.d;
+        btn.querySelector('.dial').textContent = '+' + o.dataset.d;
+        const f = btn.querySelector('.flag'), iso = o.dataset.iso;
+        f.src = 'https://flagcdn.com/24x18/' + iso + '.png';
+        f.srcset = 'https://flagcdn.com/48x36/' + iso + '.png 2x';
+        opts.forEach(function (x) { x.removeAttribute('aria-selected'); });
+        o.setAttribute('aria-selected', 'true');
+        open(false); btn.focus();
+      }
+
+      btn.addEventListener('click', function () { open(pop.hidden); });
+      search.addEventListener('input', function () { filter(search.value); });
+      pick.addEventListener('click', function (e) {
+        const o = e.target.closest('.dial-opt'); if (o) choose(o);
+      });
+      document.addEventListener('click', function (e) { if (!pick.contains(e.target)) open(false); });
+      pick.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !pop.hidden) { open(false); btn.focus(); } });
+      // Enter in the search box picks the first visible match
+      search.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const first = opts.filter(function (o) { return !o.parentNode.hidden; })[0];
+        if (first) choose(first);
+      });
+    });
+  }
+  W.initDialPickers = initDialPickers;
+
   /* ---------- header scroll condense ---------- */
   function scrollHeader() {
     const h = $('#siteHeader'); if (!h) return;
@@ -521,6 +579,7 @@
     }
     drawerShell();
     syncBadges();
+    initDialPickers();
     scrollHeader();
     W.guardImages(document);
     W.reveal();

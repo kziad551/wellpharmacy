@@ -95,6 +95,10 @@ img{max-width:100%;display:block}
 .a-badge[hidden]{display:none}
 @keyframes aPop{0%{transform:scale(1)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
 .a-badge.pop{animation:aPop .45s ease}
+/* stat numbers pulse when they change so a new order is noticeable without a refresh */
+@keyframes aFlash{0%{color:inherit}30%{color:var(--a-primary,#8a6a3e)}100%{color:inherit}}
+.stat .k.pop{animation:aFlash .9s ease}
+.pill.pop{animation:aPop .45s ease}
 
 /* forms */
 .field{margin-bottom:16px}

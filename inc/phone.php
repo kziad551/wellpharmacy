@@ -10,86 +10,86 @@
    ============================================================ */
 
 function phone_countries(): array {
-    /* [dial, label] — Lebanon + the Gulf/Levant it actually ships to most, then the rest.
+    /* [dial, iso2, name] — Lebanon + the Gulf/Levant it ships to most, then the rest.
        Longest dial codes must be tried first when splitting (see phone_split). */
     return [
-        ['961', '🇱🇧 +961', 'Lebanon'],
-        ['971', '🇦🇪 +971', 'UAE'],
-        ['966', '🇸🇦 +966', 'Saudi Arabia'],
-        ['974', '🇶🇦 +974', 'Qatar'],
-        ['965', '🇰🇼 +965', 'Kuwait'],
-        ['973', '🇧🇭 +973', 'Bahrain'],
-        ['968', '🇴🇲 +968', 'Oman'],
-        ['962', '🇯🇴 +962', 'Jordan'],
-        ['963', '🇸🇾 +963', 'Syria'],
-        ['964', '🇮🇶 +964', 'Iraq'],
-        ['20', '🇪🇬 +20', 'Egypt'],
-        ['90', '🇹🇷 +90', 'Turkey'],
-        ['357', '🇨🇾 +357', 'Cyprus'],
-        ['1', '🇺🇸 +1', 'USA / Canada'],
-        ['44', '🇬🇧 +44', 'United Kingdom'],
-        ['33', '🇫🇷 +33', 'France'],
-        ['49', '🇩🇪 +49', 'Germany'],
-        ['39', '🇮🇹 +39', 'Italy'],
-        ['34', '🇪🇸 +34', 'Spain'],
-        ['31', '🇳🇱 +31', 'Netherlands'],
-        ['32', '🇧🇪 +32', 'Belgium'],
-        ['41', '🇨🇭 +41', 'Switzerland'],
-        ['43', '🇦🇹 +43', 'Austria'],
-        ['46', '🇸🇪 +46', 'Sweden'],
-        ['47', '🇳🇴 +47', 'Norway'],
-        ['45', '🇩🇰 +45', 'Denmark'],
-        ['351', '🇵🇹 +351', 'Portugal'],
-        ['30', '🇬🇷 +30', 'Greece'],
-        ['48', '🇵🇱 +48', 'Poland'],
-        ['40', '🇷🇴 +40', 'Romania'],
-        ['7', '🇷🇺 +7', 'Russia / Kazakhstan'],
-        ['380', '🇺🇦 +380', 'Ukraine'],
-        ['61', '🇦🇺 +61', 'Australia'],
-        ['64', '🇳🇿 +64', 'New Zealand'],
-        ['91', '🇮🇳 +91', 'India'],
-        ['92', '🇵🇰 +92', 'Pakistan'],
-        ['880', '🇧🇩 +880', 'Bangladesh'],
-        ['63', '🇵🇭 +63', 'Philippines'],
-        ['62', '🇮🇩 +62', 'Indonesia'],
-        ['60', '🇲🇾 +60', 'Malaysia'],
-        ['65', '🇸🇬 +65', 'Singapore'],
-        ['66', '🇹🇭 +66', 'Thailand'],
-        ['84', '🇻🇳 +84', 'Vietnam'],
-        ['86', '🇨🇳 +86', 'China'],
-        ['81', '🇯🇵 +81', 'Japan'],
-        ['82', '🇰🇷 +82', 'South Korea'],
-        ['852', '🇭🇰 +852', 'Hong Kong'],
-        ['27', '🇿🇦 +27', 'South Africa'],
-        ['234', '🇳🇬 +234', 'Nigeria'],
-        ['254', '🇰🇪 +254', 'Kenya'],
-        ['233', '🇬🇭 +233', 'Ghana'],
-        ['212', '🇲🇦 +212', 'Morocco'],
-        ['213', '🇩🇿 +213', 'Algeria'],
-        ['216', '🇹🇳 +216', 'Tunisia'],
-        ['218', '🇱🇾 +218', 'Libya'],
-        ['249', '🇸🇩 +249', 'Sudan'],
-        ['251', '🇪🇹 +251', 'Ethiopia'],
-        ['55', '🇧🇷 +55', 'Brazil'],
-        ['54', '🇦🇷 +54', 'Argentina'],
-        ['56', '🇨🇱 +56', 'Chile'],
-        ['57', '🇨🇴 +57', 'Colombia'],
-        ['52', '🇲🇽 +52', 'Mexico'],
-        ['51', '🇵🇪 +51', 'Peru'],
-        ['58', '🇻🇪 +58', 'Venezuela'],
-        ['98', '🇮🇷 +98', 'Iran'],
-        ['93', '🇦🇫 +93', 'Afghanistan'],
-        ['994', '🇦🇿 +994', 'Azerbaijan'],
-        ['995', '🇬🇪 +995', 'Georgia'],
-        ['374', '🇦🇲 +374', 'Armenia'],
-        ['972', '🇮🇱 +972', 'Israel'],
-        ['353', '🇮🇪 +353', 'Ireland'],
-        ['358', '🇫🇮 +358', 'Finland'],
-        ['420', '🇨🇿 +420', 'Czechia'],
-        ['36', '🇭🇺 +36', 'Hungary'],
-        ['359', '🇧🇬 +359', 'Bulgaria'],
-        ['385', '🇭🇷 +385', 'Croatia'],
-        ['381', '🇷🇸 +381', 'Serbia'],
+        ['961', 'lb', 'Lebanon'],
+        ['971', 'ae', 'UAE'],
+        ['966', 'sa', 'Saudi Arabia'],
+        ['974', 'qa', 'Qatar'],
+        ['965', 'kw', 'Kuwait'],
+        ['973', 'bh', 'Bahrain'],
+        ['968', 'om', 'Oman'],
+        ['962', 'jo', 'Jordan'],
+        ['963', 'sy', 'Syria'],
+        ['964', 'iq', 'Iraq'],
+        ['20', 'eg', 'Egypt'],
+        ['90', 'tr', 'Turkey'],
+        ['357', 'cy', 'Cyprus'],
+        ['1', 'us', 'USA / Canada'],
+        ['44', 'gb', 'United Kingdom'],
+        ['33', 'fr', 'France'],
+        ['49', 'de', 'Germany'],
+        ['39', 'it', 'Italy'],
+        ['34', 'es', 'Spain'],
+        ['31', 'nl', 'Netherlands'],
+        ['32', 'be', 'Belgium'],
+        ['41', 'ch', 'Switzerland'],
+        ['43', 'at', 'Austria'],
+        ['46', 'se', 'Sweden'],
+        ['47', 'no', 'Norway'],
+        ['45', 'dk', 'Denmark'],
+        ['351', 'pt', 'Portugal'],
+        ['30', 'gr', 'Greece'],
+        ['48', 'pl', 'Poland'],
+        ['40', 'ro', 'Romania'],
+        ['7', 'ru', 'Russia / Kazakhstan'],
+        ['380', 'ua', 'Ukraine'],
+        ['61', 'au', 'Australia'],
+        ['64', 'nz', 'New Zealand'],
+        ['91', 'in', 'India'],
+        ['92', 'pk', 'Pakistan'],
+        ['880', 'bd', 'Bangladesh'],
+        ['63', 'ph', 'Philippines'],
+        ['62', 'id', 'Indonesia'],
+        ['60', 'my', 'Malaysia'],
+        ['65', 'sg', 'Singapore'],
+        ['66', 'th', 'Thailand'],
+        ['84', 'vn', 'Vietnam'],
+        ['86', 'cn', 'China'],
+        ['81', 'jp', 'Japan'],
+        ['82', 'kr', 'South Korea'],
+        ['852', 'hk', 'Hong Kong'],
+        ['27', 'za', 'South Africa'],
+        ['234', 'ng', 'Nigeria'],
+        ['254', 'ke', 'Kenya'],
+        ['233', 'gh', 'Ghana'],
+        ['212', 'ma', 'Morocco'],
+        ['213', 'dz', 'Algeria'],
+        ['216', 'tn', 'Tunisia'],
+        ['218', 'ly', 'Libya'],
+        ['249', 'sd', 'Sudan'],
+        ['251', 'et', 'Ethiopia'],
+        ['55', 'br', 'Brazil'],
+        ['54', 'ar', 'Argentina'],
+        ['56', 'cl', 'Chile'],
+        ['57', 'co', 'Colombia'],
+        ['52', 'mx', 'Mexico'],
+        ['51', 'pe', 'Peru'],
+        ['58', 've', 'Venezuela'],
+        ['98', 'ir', 'Iran'],
+        ['93', 'af', 'Afghanistan'],
+        ['994', 'az', 'Azerbaijan'],
+        ['995', 'ge', 'Georgia'],
+        ['374', 'am', 'Armenia'],
+        ['972', 'il', 'Israel'],
+        ['353', 'ie', 'Ireland'],
+        ['358', 'fi', 'Finland'],
+        ['420', 'cz', 'Czechia'],
+        ['36', 'hu', 'Hungary'],
+        ['359', 'bg', 'Bulgaria'],
+        ['385', 'hr', 'Croatia'],
+        ['381', 'rs', 'Serbia'],
     ];
 }
 
@@ -130,19 +130,44 @@ function phone_join($dial, $national): string {
  * Render the paired field. $name is the base; posts as {$name}_dial + {$name}.
  * Server code should call phone_join(input($name.'_dial'), input($name)).
  */
+/** 24x18 flag bitmap. Windows renders NO flag emoji (it shows "LB"/"AE" letters instead),
+ *  and a native <option> can't hold an image — hence real images + a custom dropdown. */
+function phone_flag(string $iso, string $cls = 'flag'): string {
+    $iso = strtolower($iso);
+    return '<img class="' . e($cls) . '" loading="lazy" alt="" width="24" height="18"'
+         . ' src="https://flagcdn.com/24x18/' . e($iso) . '.png"'
+         . ' srcset="https://flagcdn.com/48x36/' . e($iso) . '.png 2x">';
+}
+
 function phone_field(string $name, string $stored = '', bool $required = true, string $label = 'Phone'): string {
     [$dial, $nat] = phone_split($stored);
-    $opts = '';
-    foreach (phone_countries() as [$d, $lbl, $name]) {
-        /* the option shows only "🇱🇧 +961" so the closed select stays narrow;
-           the country name rides along as a title for hover findability */
-        $opts .= '<option value="' . e($d) . '" title="' . e($name) . '"' . ($d === $dial ? ' selected' : '') . '>' . e($lbl) . '</option>';
+    $cur = null;
+    $list = '';
+    foreach (phone_countries() as [$d, $iso, $cname]) {
+        if ($d === $dial && $cur === null) $cur = [$d, $iso, $cname];
+        $list .= '<li><button type="button" class="dial-opt" role="option" data-d="' . e($d) . '" data-iso="' . e($iso) . '"'
+               . ' data-s="' . e(strtolower($cname . ' ' . $d)) . '"' . ($d === $dial ? ' aria-selected="true"' : '') . '>'
+               . phone_flag($iso) . '<span class="nm">' . e($cname) . '</span><span class="dl">+' . e($d) . '</span></button></li>';
     }
+    if (!$cur) $cur = ['961', 'lb', 'Lebanon'];
     $req = $required ? ' required' : '';
+
     return '<div class="field">
-        <label for="' . e($name) . '">' . e($label) . ($required ? ' *' : ' <span class="muted" style="font-weight:400">(optional)</span>') . '</label>
+        <label for="' . e($name) . '">' . e($label)
+        . ($required ? ' *' : ' <span class="muted" style="font-weight:400">(optional)</span>') . '</label>
         <div class="phone-row">
-          <select class="input phone-dial" name="' . e($name) . '_dial" aria-label="Country code">' . $opts . '</select>
+          <div class="dialpick" data-dialpick>
+            <input type="hidden" name="' . e($name) . '_dial" value="' . e($cur[0]) . '" data-dial-value>
+            <button type="button" class="input dial-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Country code">
+              ' . phone_flag($cur[1]) . '<span class="dial">+' . e($cur[0]) . '</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chev"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="dial-pop" hidden>
+              <input type="text" class="dial-search" placeholder="Search country…" aria-label="Search country">
+              <ul role="listbox">' . $list . '</ul>
+              <p class="dial-none" hidden>No match</p>
+            </div>
+          </div>
           <input class="input phone-nat" type="tel" id="' . e($name) . '" name="' . e($name) . '"
                  value="' . e($nat) . '" placeholder="70 123 456" inputmode="tel" autocomplete="tel-national"' . $req . '>
         </div>

@@ -67,8 +67,6 @@ $HEAD_CSS = <<<CSS
   .ask-card .code{font-weight:700;color:var(--coral-deep)}
   .ask-btns{display:flex;gap:10px;flex-wrap:wrap}
   .ask-btns .btn{flex:1;min-width:150px}
-  .phone-row{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px}
-  @media(max-width:640px){.phone-row{grid-template-columns:106px minmax(0,1fr)}}
   @media(max-width:820px){.co-layout{grid-template-columns:1fr}.co-sum{position:static}.co-two{grid-template-columns:1fr}}
 </style>
 CSS;

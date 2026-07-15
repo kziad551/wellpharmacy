@@ -41,8 +41,6 @@ $AUTH_CSS = <<<CSS
   .pill.cancelled{background:#F7E9E2;color:var(--coral-deep)}
   .empty{text-align:center;padding:44px 20px;color:var(--text-muted)}
   .empty b{display:block;font-family:var(--fp);font-size:20px;color:var(--ink);margin-bottom:6px}
-  .phone-row{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px}
-  .phone-row .phone-dial{padding-inline:10px}
-  @media(max-width:640px){.two{grid-template-columns:1fr}.phone-row{grid-template-columns:106px minmax(0,1fr)}}
+  @media(max-width:640px){.two{grid-template-columns:1fr}}
 </style>
 CSS;

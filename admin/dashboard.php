@@ -15,10 +15,10 @@ $STATUS_PILL = ['new'=>'info','confirmed'=>'info','processing'=>'warn','shipped'
 admin_head('Dashboard', 'dashboard', 'Welcome back — here\'s your store at a glance.');
 ?>
 <div class="a-grid a-stats" style="margin-bottom:18px">
-  <div class="stat"><div class="ic"><?= aicon('cart') ?></div><div class="k"><?= $nOrders ?></div><div class="l">Total orders</div></div>
-  <div class="stat"><div class="ic"><?= aicon('tag') ?></div><div class="k"><?= money($revenue) ?></div><div class="l">Revenue</div></div>
-  <div class="stat"><div class="ic"><?= aicon('box') ?></div><div class="k"><?= $nActive ?>/<?= $nProducts ?></div><div class="l">Active products</div></div>
-  <div class="stat"><div class="ic"><?= aicon('ticket') ?></div><div class="k"><?= $nNew ?></div><div class="l">New orders</div></div>
+  <div class="stat"><div class="ic"><?= aicon('cart') ?></div><div class="k" data-live="orders"><?= $nOrders ?></div><div class="l">Total orders</div></div>
+  <div class="stat"><div class="ic"><?= aicon('tag') ?></div><div class="k" data-live="revenue"><?= money($revenue) ?></div><div class="l">Revenue</div></div>
+  <div class="stat"><div class="ic"><?= aicon('box') ?></div><div class="k"><span data-live="products"><?= $nActive ?></span>/<?= $nProducts ?></div><div class="l">Active products</div></div>
+  <div class="stat"><div class="ic"><?= aicon('ticket') ?></div><div class="k" data-live="new_orders"><?= $nNew ?></div><div class="l">New orders</div></div>
 </div>
 
 <div class="a-grid" style="grid-template-columns:1.6fr 1fr">
@@ -47,7 +47,7 @@ admin_head('Dashboard', 'dashboard', 'Welcome back — here\'s your store at a g
   </div>
 
   <div class="a-card">
-    <div class="hd"><h2>Low stock <?php if($lowStock): ?><span class="pill pill-warn"><?= $lowStock ?></span><?php endif; ?></h2><a class="btn btn-ghost btn-sm" href="products">Manage</a></div>
+    <div class="hd"><h2>Low stock <span class="pill pill-warn" data-live="low_stock" <?= $lowStock ? '' : 'hidden' ?>><?= $lowStock ?></span></h2><a class="btn btn-ghost btn-sm" href="products">Manage</a></div>
     <div class="bd" style="padding:0">
       <?php if (!$lowList): ?>
         <div class="empty">All products are well stocked. 🎉</div>
