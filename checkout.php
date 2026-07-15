@@ -1,5 +1,18 @@
 <?php
 require __DIR__ . '/inc/functions.php';
+require __DIR__ . '/inc/customer.php';   // login stays OPTIONAL — this only prefills
+
+/* Signed in? Pre-fill from the saved profile so checkout is a formality.
+   Everything stays editable — this order might be going somewhere else. */
+$me = current_customer();
+$pf = [
+    'name' => $me ? trim($me['first_name'] . ' ' . $me['last_name']) : '',
+    'phone' => $me['phone'] ?? '',
+    'email' => $me['email'] ?? '',
+    'address' => $me['address'] ?? '',
+    'governorate' => $me['governorate'] ?? '',
+    'city' => $me['city'] ?? '',
+];
 
 $PAGE_TITLE = 'Checkout — ' . setting('store_name', 'WELL SHOP');
 $ACTIVE = 'Shop All';
@@ -62,19 +75,19 @@ include __DIR__ . '/inc/head.php';
       <div class="co-card">
         <h3>Delivery details</h3>
         <div class="co-two">
-          <div class="field"><label>Full name *</label><input class="input" name="name" required></div>
-          <div class="field"><label>Phone *</label><input class="input" name="phone" placeholder="+961 …" required></div>
+          <div class="field"><label>Full name *</label><input class="input" name="name" value="<?= e($pf['name']) ?>" required></div>
+          <div class="field"><label>Phone *</label><input class="input" name="phone" value="<?= e($pf['phone']) ?>" placeholder="+961 …" required></div>
         </div>
-        <div class="field"><label>Email <span class="muted">(optional — for the receipt)</span></label><input class="input" type="email" name="email"></div>
-        <div class="field"><label>Address *</label><input class="input" name="address" placeholder="Street, building, floor" required></div>
+        <div class="field"><label>Email <span class="muted">(optional — for the receipt)</span></label><input class="input" type="email" name="email" value="<?= e($pf['email']) ?>"></div>
+        <div class="field"><label>Address *</label><input class="input" name="address" value="<?= e($pf['address']) ?>" placeholder="Street, building, floor" required></div>
         <div class="co-two">
           <div class="field"><label>Governorate *</label>
             <select class="input" name="governorate" id="coGov" required>
               <option value="">Select area…</option>
-              <?php foreach ($govs as $g): ?><option value="<?= e($g) ?>"><?= e($g) ?></option><?php endforeach; ?>
+              <?php foreach ($govs as $g): ?><option value="<?= e($g) ?>" <?= $pf['governorate'] === $g ? 'selected' : '' ?>><?= e($g) ?></option><?php endforeach; ?>
             </select>
           </div>
-          <div class="field"><label>City / town</label><input class="input" name="city"></div>
+          <div class="field"><label>City / town</label><input class="input" name="city" value="<?= e($pf['city']) ?>"></div>
         </div>
         <div class="field"><label>Order notes <span class="muted">(optional)</span></label><textarea class="input" name="notes" rows="2" placeholder="Delivery instructions, landmark…"></textarea></div>
         <p class="muted" style="font-size:12.5px;margin:6px 0 0">🚚 <?= e($deliveryBeirut) ?> &nbsp;·&nbsp; <?= e($deliveryOutside) ?></p>

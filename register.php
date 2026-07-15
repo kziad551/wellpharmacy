@@ -34,8 +34,9 @@ include __DIR__ . '/inc/head.php';
         <input class="input" type="email" id="email" name="email" value="<?= e($email) ?>" required autocomplete="email">
       </div>
       <div class="field">
-        <label for="phone">Phone <span class="muted" style="font-weight:400">(optional)</span></label>
-        <input class="input" id="phone" name="phone" autocomplete="tel">
+        <label for="phone">Phone</label>
+        <input class="input" id="phone" name="phone" placeholder="+961 …" required autocomplete="tel">
+        <span class="caption">Include your country code — we use this to confirm delivery.</span>
       </div>
       <div class="field">
         <label for="password">Password</label>

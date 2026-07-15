@@ -321,7 +321,7 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 .hdr-acct .t span{font-size:11px; color:var(--text-muted); white-space:nowrap}
 
 /* favourites · account · bag cluster — row 2 (nav) on desktop, row 1 on phones */
-.shop-icons{display:flex; align-items:center; gap:4px; flex:none}
+.shop-icons{display:flex; align-items:center; gap:4px; flex:none; margin-right:25px}
 .nav-wrap{display:flex; align-items:center; justify-content:space-between; gap:20px}
 .nav-wrap .nav-list{flex:1; min-width:0}
 .mobile-icons{display:none}

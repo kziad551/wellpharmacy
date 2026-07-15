@@ -65,6 +65,16 @@ foreach (rows("SELECT name, image, is_cross FROM categories ORDER BY sort") as $
 }
 $brands = array_column(rows("SELECT name FROM brands ORDER BY featured DESC, sort"), 'name');
 
+/* Coupons advertised on the Offers menu: live, unexpired and PUBLIC only.
+   Private ones are deliberately absent here but still redeem fine at checkout. */
+$pubCoupons = [];
+foreach (rows("SELECT code, type, value FROM coupons WHERE active = 1 AND is_public = 1
+               AND (expires_at IS NULL OR expires_at = '' OR expires_at >= CURDATE()) ORDER BY id") as $c) {
+    $pubCoupons[] = $c['code'] . ' — ' . ($c['type'] === 'percent'
+        ? rtrim(rtrim(number_format((float) $c['value'], 2, '.', ''), '0'), '.') . '% off'
+        : money($c['value']) . ' off');
+}
+
 $SET = [
     'store_name'   => setting('store_name', 'WELL SHOP'),
     'tagline'      => setting('store_tagline', 'where Wellness meets You!'),
@@ -140,6 +150,7 @@ $SET = [
   W.NAV        = <?= json_encode($NAV, $JE) ?>;
   W.CATEGORIES = <?= json_encode($cats, $JE) ?>;
   W.BRANDS     = <?= json_encode($brands, $JE) ?>;
+  W.COUPONS    = <?= json_encode($pubCoupons, $JE) ?>;   // public coupons only (private ones still redeem)
   W.SETTINGS   = <?= json_encode($SET, $JE) ?>;
   W.USER       = <?= json_encode($USER, $JE) ?>;   // null = guest (guests can still order)
   W.FLUSH_LOCAL = <?= $FLUSH ? 'true' : 'false' ?>;  // just signed out → clear this device's bag/favourites

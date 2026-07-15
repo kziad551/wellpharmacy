@@ -24,6 +24,7 @@ if (is_post()) {
         'expires_at'  => $expires !== '' ? $expires : null,
         'usage_limit' => $limit,
         'active'      => input('active') ? 1 : 0,
+        'is_public'   => input('is_public') ? 1 : 0,
     ];
 
     // enforce unique code
@@ -34,16 +35,16 @@ if (is_post()) {
 
     if ($editing) {
         $data['id'] = $id;
-        q("UPDATE coupons SET code=:code, type=:type, value=:value, min_spend=:min_spend, expires_at=:expires_at, usage_limit=:usage_limit, active=:active WHERE id=:id", $data);
+        q("UPDATE coupons SET code=:code, type=:type, value=:value, min_spend=:min_spend, expires_at=:expires_at, usage_limit=:usage_limit, active=:active, is_public=:is_public WHERE id=:id", $data);
         flash('Coupon updated.');
     } else {
-        q("INSERT INTO coupons (code,type,value,min_spend,expires_at,usage_limit,active) VALUES (:code,:type,:value,:min_spend,:expires_at,:usage_limit,:active)", $data);
+        q("INSERT INTO coupons (code,type,value,min_spend,expires_at,usage_limit,active,is_public) VALUES (:code,:type,:value,:min_spend,:expires_at,:usage_limit,:active,:is_public)", $data);
         flash('Coupon created.');
     }
     redirect('coupons');
 }
 
-$v = $editing ? $c : ['id'=>0,'code'=>'','type'=>'percent','value'=>'10','min_spend'=>'0','expires_at'=>'','usage_limit'=>'','active'=>1];
+$v = $editing ? $c : ['id'=>0,'code'=>'','type'=>'percent','value'=>'10','min_spend'=>'0','expires_at'=>'','usage_limit'=>'','active'=>1,'is_public'=>1];
 admin_head($editing ? 'Edit coupon' : 'Add coupon', 'coupons', $editing ? $v['code'] : 'New coupon');
 ?>
 <form method="post" action="<?= $editing ? "coupon-edit?id=".e($id) : "coupon-edit" ?>">
@@ -66,6 +67,8 @@ admin_head($editing ? 'Edit coupon' : 'Add coupon', 'coupons', $editing ? $v['co
       <div class="field"><label>Usage limit <span class="faint">(optional)</span></label><input class="input" type="number" name="usage_limit" value="<?= e($v['usage_limit']) ?>" placeholder="blank = unlimited"></div>
     </div>
     <label class="switch"><input type="checkbox" name="active" value="1" <?= $v['active']?'checked':'' ?>> Active</label>
+    <label class="switch" style="margin-top:8px"><input type="checkbox" name="is_public" value="1" <?= $v['is_public']??1?'checked':'' ?>> Show publicly on the Offers page
+      <span class="muted" style="display:block;font-size:12px;font-weight:400">Off = private: hidden from Offers, but still works when someone types the code.</span></label>
   </div></div>
   <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save coupon</button></div>
 </form>

@@ -65,6 +65,8 @@ function customer_register(string $first, string $last, string $email, string $p
     $first = trim($first); $last = trim($last); $email = strtolower(trim($email)); $phone = trim($phone);
     if ($first === '' || $last === '')                     return ['ok' => false, 'err' => 'Please enter your first and last name.'];
     if (!filter_var($email, FILTER_VALIDATE_EMAIL))        return ['ok' => false, 'err' => 'Please enter a valid email address.'];
+    /* required: the shop needs a way to reach the customer about their delivery */
+    if (strlen(preg_replace('/\D/', '', $phone)) < 6)      return ['ok' => false, 'err' => 'Please enter a valid phone number (with country code).'];
     if (strlen($pass) < 8)                                 return ['ok' => false, 'err' => 'Password must be at least 8 characters.'];
     if (row("SELECT id FROM customers WHERE email = ?", [$email])) {
         return ['ok' => false, 'err' => 'An account with that email already exists — try logging in.'];
