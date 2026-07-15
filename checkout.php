@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/inc/functions.php';
 require __DIR__ . '/inc/customer.php';   // login stays OPTIONAL — this only prefills
+require __DIR__ . '/inc/phone.php';
 
 /* Signed in? Pre-fill from the saved profile so checkout is a formality.
    Everything stays editable — this order might be going somewhere else. */
@@ -54,6 +55,8 @@ $HEAD_CSS = <<<CSS
   .co-msg{font-size:12.5px;margin-top:6px}
   .co-msg.ok{color:#4a7a3a} .co-msg.err{color:var(--coral-deep,#b04a2f)}
   .co-empty{text-align:center;padding:50px 20px}
+  .phone-row{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr);gap:8px}
+  @media(max-width:640px){.phone-row{grid-template-columns:minmax(0,120px) minmax(0,1fr)}}
   @media(max-width:820px){.co-layout{grid-template-columns:1fr}.co-sum{position:static}.co-two{grid-template-columns:1fr}}
 </style>
 CSS;
@@ -76,7 +79,7 @@ include __DIR__ . '/inc/head.php';
         <h3>Delivery details</h3>
         <div class="co-two">
           <div class="field"><label>Full name *</label><input class="input" name="name" value="<?= e($pf['name']) ?>" required></div>
-          <div class="field"><label>Phone *</label><input class="input" name="phone" value="<?= e($pf['phone']) ?>" placeholder="+961 …" required></div>
+          <?= phone_field('phone', $pf['phone'], true) ?>
         </div>
         <div class="field"><label>Email <span class="muted">(optional — for the receipt)</span></label><input class="input" type="email" name="email" value="<?= e($pf['email']) ?>"></div>
         <div class="field"><label>Address *</label><input class="input" name="address" value="<?= e($pf['address']) ?>" placeholder="Street, building, floor" required></div>
@@ -201,6 +204,12 @@ ob_start(); ?>
     var btn = document.getElementById('coPlace'), err = document.getElementById('coErr');
     err.textContent = '';
     var f = form;
+    /* the phone is two controls (dial + national) but travels as one E.164 string */
+    function fullPhone() {
+      var d = String(f.phone_dial.value || '').replace(/\D/g, '');
+      var n = String(f.phone.value || '').replace(/\D/g, '').replace(/^0+/, '');
+      return (d && n) ? '+' + d + n : '';
+    }
 
     /* Required-field gate. Nothing below this runs unless it passes — so a failed
        check means NO order row, NO stock change and NO emails. */
@@ -243,7 +252,7 @@ ob_start(); ?>
     var payload = {
       csrf: CFG.csrf,
       items: W.cart().map(function (l) { return { id: l.id, qty: l.qty }; }),
-      customer: { name: f.name.value, phone: f.phone.value, email: f.email.value, address: f.address.value, governorate: f.governorate.value, city: f.city.value, notes: f.notes.value },
+      customer: { name: f.name.value, phone: fullPhone(), email: f.email.value, address: f.address.value, governorate: f.governorate.value, city: f.city.value, notes: f.notes.value },
       payment_method: pm ? pm.value : 'cod',
       coupon_code: applied ? applied.code : ''
     };

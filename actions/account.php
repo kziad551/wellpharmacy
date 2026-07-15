@@ -6,6 +6,7 @@
    ============================================================ */
 require __DIR__ . '/../inc/functions.php';
 require __DIR__ . '/../inc/customer.php';
+require __DIR__ . '/../inc/phone.php';
 
 /* This file lives in /actions/, so a bare relative Location ("account") would resolve to
    /actions/account. Step one level up instead — that keeps working both at the domain
@@ -55,7 +56,7 @@ $next = (string) input('next', '');
 
 switch ($do) {
     case 'register': {
-        $r = customer_register(input('first_name'), input('last_name'), input('email'), (string) input('password'), (string) input('phone'));
+        $r = customer_register(input('first_name'), input('last_name'), input('email'), (string) input('password'), phone_join(input('phone_dial'), input('phone')));
         if (!$r['ok']) { cflash($r['err'], 'err'); $_SESSION['form_email'] = input('email'); go('register'); }
         $_SESSION['pending_verify'] = (int) $r['customer']['id'];
         cflash('We sent a 6-digit code to ' . $r['customer']['email'] . '.');
@@ -97,7 +98,7 @@ switch ($do) {
     case 'profile': {
         require_customer(); $cid = customer_id();
         q("UPDATE customers SET first_name=?, last_name=?, phone=?, address=?, governorate=?, city=? WHERE id=?", [
-            trim((string) input('first_name')), trim((string) input('last_name')), trim((string) input('phone')),
+            trim((string) input('first_name')), trim((string) input('last_name')), phone_join(input('phone_dial'), input('phone')),
             trim((string) input('address')), trim((string) input('governorate')), trim((string) input('city')), $cid,
         ]);
         cflash('Your details were saved.');

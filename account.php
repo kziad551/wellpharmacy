@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/inc/functions.php';
 require __DIR__ . '/inc/customer.php';
+require __DIR__ . '/inc/phone.php';
 require_customer();
 
 $c   = current_customer();
@@ -51,7 +52,7 @@ include __DIR__ . '/inc/head.php';
         </div>
         <div class="field"><label>Email</label><input class="input" value="<?= e($c['email']) ?>" disabled>
           <span class="caption">Contact us if you need to change your email.</span></div>
-        <div class="field"><label>Phone</label><input class="input" name="phone" value="<?= e($c['phone']) ?>"></div>
+        <?= phone_field('phone', $c['phone'], true) ?>
         <div class="field"><label>Address</label><input class="input" name="address" value="<?= e($c['address']) ?>"></div>
         <div class="two">
           <div class="field"><label>Governorate</label>

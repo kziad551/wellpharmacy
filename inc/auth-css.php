@@ -38,6 +38,8 @@ $AUTH_CSS = <<<CSS
   .pill.cancelled{background:#F7E9E2;color:var(--coral-deep)}
   .empty{text-align:center;padding:44px 20px;color:var(--text-muted)}
   .empty b{display:block;font-family:var(--fp);font-size:20px;color:var(--ink);margin-bottom:6px}
-  @media(max-width:640px){.two{grid-template-columns:1fr}}
+  .phone-row{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:8px}
+  .phone-row .phone-dial{padding-inline:10px}
+  @media(max-width:640px){.two{grid-template-columns:1fr}.phone-row{grid-template-columns:minmax(0,130px) minmax(0,1fr)}}
 </style>
 CSS;

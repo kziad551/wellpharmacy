@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/inc/functions.php';
 require __DIR__ . '/inc/customer.php';
+require __DIR__ . '/inc/phone.php';
 if (logged_in()) redirect('account');
 
 $PAGE_TITLE = 'Create an account — ' . setting('store_name', 'WELL SHOP');
@@ -33,11 +34,7 @@ include __DIR__ . '/inc/head.php';
         <label for="email">Email</label>
         <input class="input" type="email" id="email" name="email" value="<?= e($email) ?>" required autocomplete="email">
       </div>
-      <div class="field">
-        <label for="phone">Phone</label>
-        <input class="input" id="phone" name="phone" placeholder="+961 …" required autocomplete="tel">
-        <span class="caption">Include your country code — we use this to confirm delivery.</span>
-      </div>
+      <?= phone_field('phone', '', true) ?>
       <div class="field">
         <label for="password">Password</label>
         <input class="input" type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
