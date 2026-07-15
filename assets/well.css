@@ -289,7 +289,9 @@ textarea.input{height:auto; padding:14px 16px; min-height:120px; resize:vertical
 /* margin-left:auto pins this to the container's right edge. Without it the capped
    search box leaves dead space to its right, so the row-1 icons stop short and no
    longer line up with the row-2 cluster below them. */
-.hdr-right{display:flex; align-items:center; gap:8px; flex:none; margin-left:auto}
+/* margin-left:auto pins this to the right; the 25px right margin matches .shop-icons
+   on the nav row below, so the two icon clusters line up vertically. */
+.hdr-right{display:flex; align-items:center; gap:8px; flex:none; margin-left:auto; margin-right:25px}
 .hdr-expert{display:flex; align-items:center; gap:10px; padding:6px 12px; border-radius:var(--r-pill); transition:background .2s}
 .hdr-expert:hover{background:var(--cream)}
 .hdr-expert .av{width:36px; height:36px; border-radius:var(--r-pill); object-fit:cover; border:2px solid var(--mint-tint)}

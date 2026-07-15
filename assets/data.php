@@ -70,9 +70,12 @@ $brands = array_column(rows("SELECT name FROM brands ORDER BY featured DESC, sor
 $pubCoupons = [];
 foreach (rows("SELECT code, type, value FROM coupons WHERE active = 1 AND is_public = 1
                AND (expires_at IS NULL OR expires_at = '' OR expires_at >= CURDATE()) ORDER BY id") as $c) {
-    $pubCoupons[] = $c['code'] . ' — ' . ($c['type'] === 'percent'
-        ? rtrim(rtrim(number_format((float) $c['value'], 2, '.', ''), '0'), '.') . '% off'
-        : money($c['value']) . ' off');
+    $label = match ($c['type']) {
+        'percent'  => rtrim(rtrim(number_format((float) $c['value'], 2, '.', ''), '0'), '.') . '% off',
+        'freeship' => 'Free shipping',                 // a freeship coupon has no money value to show
+        default    => money($c['value']) . ' off',
+    };
+    $pubCoupons[] = $c['code'] . ' — ' . $label;
 }
 
 $SET = [

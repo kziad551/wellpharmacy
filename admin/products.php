@@ -11,13 +11,37 @@ if (is_post() && input('action') === 'delete') {
 $search = trim((string) input('q'));
 $where = ''; $args = [];
 if ($search !== '') { $where = "WHERE name LIKE ? OR brand LIKE ? OR id LIKE ?"; $s = "%$search%"; $args = [$s, $s, $s]; }
-$list = rows("SELECT * FROM products $where ORDER BY sort, name", $args);
 
-admin_head('Products', 'products', count($list) . ' product' . (count($list) === 1 ? '' : 's'));
+/* Sort options. Whitelisted → the value can never reach SQL unchecked. */
+$SORTS = [
+    'default'   => ['Default order',        'sort, name'],
+    'stock_asc' => ['Stock: low → high',    'stock ASC, name'],      // what to reorder
+    'stock_desc'=> ['Stock: high → low',    'stock DESC, name'],     // what you're sitting on
+    'price_asc' => ['Price: low → high',    'price ASC, name'],
+    'price_desc'=> ['Price: high → low',    'price DESC, name'],
+    'name'      => ['Name: A → Z',          'name ASC'],
+    'newest'    => ['Newest first',         'created_at DESC, id DESC'],
+];
+$sort = (string) input('sort', 'default');
+if (!isset($SORTS[$sort])) $sort = 'default';
+$list = rows("SELECT * FROM products $where ORDER BY {$SORTS[$sort][1]}", $args);
+
+$lowCount = 0;
+foreach ($list as $p) if ((int) $p['stock'] <= (int) ($p['low_stock'] ?: 5)) $lowCount++;
+
+$sub = count($list) . ' product' . (count($list) === 1 ? '' : 's');
+if ($lowCount) $sub .= ' · ' . $lowCount . ' low on stock';
+admin_head('Products', 'products', $sub);
 ?>
 <div class="page-actions">
-  <form method="get" action="products" style="flex:1;max-width:420px">
-    <input class="input" name="q" value="<?= e($search) ?>" placeholder="Search products, brands…">
+  <form method="get" action="products" style="flex:1;max-width:660px;display:flex;gap:8px">
+    <input class="input" name="q" value="<?= e($search) ?>" placeholder="Search products, brands…" style="flex:1">
+    <select class="input" name="sort" style="width:190px" onchange="this.form.submit()">
+      <?php foreach ($SORTS as $k => [$lbl]): ?>
+        <option value="<?= e($k) ?>" <?= $sort === $k ? 'selected' : '' ?>><?= e($lbl) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <noscript><button class="btn btn-ghost btn-sm">Go</button></noscript>
   </form>
   <div class="spacer"></div>
   <a class="btn btn-primary" href="product-edit"><?= aicon('plus') ?> Add product</a>
