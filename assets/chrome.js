@@ -64,6 +64,35 @@
   let WISH = read(LS.wish, []);
   if (!Array.isArray(WISH)) WISH = [];
 
+  /* Signed in? The ACCOUNT is the source of truth — seed from it and mirror every
+     change back to the DB, so a shopper's bag/favourites follow them to any device.
+     Guests keep everything in localStorage on this device only. */
+  const ME = W.USER || null;
+  function post(action, body) {
+    return fetch('actions/account.php?do=' + action, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}), credentials: 'same-origin'
+    }).catch(function () { /* offline — localStorage still holds it */ });
+  }
+  if (ME) {
+    // merge anything built as a guest, then adopt the account's saved state
+    const guestCart = CART.slice(), guestWish = WISH.slice();
+    const byId = {};
+    (ME.cart || []).forEach(function (r) { byId[r.product_id] = (r.qty | 0) || 1; });
+    guestCart.forEach(function (l) { byId[l.id] = Math.max(byId[l.id] || 0, l.qty | 0); });
+    CART = Object.keys(byId).map(function (id) { return { id: id, qty: byId[id] }; });
+    WISH = (ME.wish || []).slice();
+    guestWish.forEach(function (id) { if (WISH.indexOf(id) < 0) WISH.push(id); });
+    write(LS.cart, CART); write(LS.wish, WISH);
+    if (guestCart.length || guestWish.length) {          // push the merged result up once
+      post('cart', { cart: CART });
+      guestWish.forEach(function (id) { post('wish', { id: id, on: true }); });
+    }
+  } else if ((CART.length || WISH.length) && /\/(login|register|verify)\b/.test(location.pathname)) {
+    // guest is about to sign in — stash what they built so it merges into the account
+    post('handoff', { cart: CART, wish: WISH });
+  }
+
   const stockOf = (id) => { const p = W.BY_ID[id]; return p ? (p.stock | 0) : 0; };
 
   // keep the saved bag honest against live stock (product removed / out of stock / qty too high)
@@ -89,8 +118,8 @@
   W.cartCount = cartCount; W.cartSubtotal = cartSubtotal;
   W.stockOf = stockOf; W.cartQtyOf = qtyInCart;
 
-  function saveCart() { write(LS.cart, CART); syncBadges(); renderDrawer(); }
-  function saveWish() { write(LS.wish, WISH); syncBadges(); }
+  function saveCart() { write(LS.cart, CART); syncBadges(); renderDrawer(); if (ME) post('cart', { cart: CART }); }
+  function saveWish() { write(LS.wish, WISH); syncBadges(); window.dispatchEvent(new CustomEvent('well:wish')); }
 
   // add `add` more of an item, never exceeding available stock
   W.addToCart = function (id, add) {
@@ -128,7 +157,10 @@
   W.toggleWish = function (id) {
     const i = WISH.indexOf(id);
     if (i >= 0) { WISH.splice(i, 1); } else { WISH.push(id); }
-    saveWish(); return WISH.indexOf(id) >= 0;
+    saveWish();
+    const on = WISH.indexOf(id) >= 0;
+    if (ME) post('wish', { id: id, on: on });
+    return on;
   };
 
   function syncBadges() {
@@ -219,7 +251,6 @@
         <span>${(W.SETTINGS&&W.SETTINGS.announce_2)||'Authentic Products • Expert Care • Secure Checkout'}</span>
       </div>
       <div class="right">
-        <a href="order-tracking">Track Order</a><span class="dot">·</span>
         <a href="contact">Help</a><span class="dot">·</span>
         <span>EN | ${(W.SETTINGS&&W.SETTINGS.currency)||'$ USD'}</span>
       </div>
@@ -255,7 +286,8 @@
           </a>
           <a class="icon-btn ig" href="${ig}" target="_blank" rel="noopener" aria-label="Instagram">${I.ig}</a>
           <a class="icon-btn tt" href="${tt}" target="_blank" rel="noopener" aria-label="TikTok">${I.tiktok}</a>
-          <a class="icon-btn" href="order-tracking" aria-label="Track order">${I.truck}</a>
+          <a class="icon-btn" href="wishlist" aria-label="My favourites">${I.heart}<span class="count wishc" data-wish-count hidden>0</span></a>
+          <a class="icon-btn" href="${W.USER ? 'account' : 'login'}" aria-label="${W.USER ? 'My account' : 'Sign in or register'}" title="${W.USER ? 'My account' : 'Sign in / register'}">${I.user}</a>
           <button class="icon-btn" data-open-cart aria-label="Cart">${I.bag}<span class="count" data-cart-count>0</span></button>
         </div>
       </div>
@@ -331,15 +363,8 @@
     return b;
   }
 
-  /* ---------- account sidebar nav (Dashboard/Orders/Wishlist…) ---------- */
-  W.accountNavHTML = function (active) {
-    const items = [
-      ['Dashboard','account'],['My Orders','orders'],['Track Order','order-tracking'],
-      ['Saved Addresses','account'],['Wishlist','wishlist'],['Well Rewards','account'],
-      ['My Skin Quiz','quiz'],['Payment Methods','account'],['Profile & Password','account'],['Sign Out','login'],
-    ];
-    return `<aside class="acct-nav"><div class="acct-nav-card">${items.map(([t,h]) => `<a href="${h}" class="${active===t?'on':''}">${t}</a>`).join('')}</div></aside>`;
-  };
+  /* (the old accountNavHTML lived here — it was never rendered and pointed at pages
+      that don't exist; account.php owns its own tabs now) */
 
   /* ---------- USP strip ---------- */
   W.uspHTML = function () {
@@ -367,10 +392,10 @@
   function footer() {
     const cols = [
       ['Shop',['Skincare','Haircare','Wellness','Makeup','Offers & Sale','Brands']],
-      ['Help & Support',['Track Order','Shipping & Delivery','Returns & Refunds','FAQ','Contact Us']],
+      ['Help & Support',['My Account','My Favourites','Shipping & Delivery','Returns & Refunds','FAQ','Contact Us']],
       ['About The Well',['Our Story','Wellness Journal','Authenticity Promise','Careers','The Well Community']],
     ];
-    const hrefs = { 'Track Order':'order-tracking','Contact Us':'contact','Our Story':'about','Wellness Journal':'journal','Offers & Sale':'offers','Brands':'brands','Skincare':'skincare','Haircare':'skincare?cat=Haircare','Wellness':'skincare?cat=Wellness','Makeup':'skincare?cat=Makeup','FAQ':'faq','Shipping & Delivery':'shipping-delivery','Returns & Refunds':'returns-refunds','Authenticity Promise':'about','The Well Community':'about','Careers':'about' };
+    const hrefs = { 'My Account':'account','My Favourites':'wishlist','Contact Us':'contact','Our Story':'about','Wellness Journal':'journal','Offers & Sale':'offers','Brands':'brands','Skincare':'skincare','Haircare':'skincare?cat=Haircare','Wellness':'skincare?cat=Wellness','Makeup':'skincare?cat=Makeup','FAQ':'faq','Shipping & Delivery':'shipping-delivery','Returns & Refunds':'returns-refunds','Authenticity Promise':'about','The Well Community':'about','Careers':'about' };
     const soc = (W.SETTINGS && W.SETTINGS.social) || {};
     const socIcons = { instagram:I.ig, tiktok:I.tiktok, facebook:I.fb, youtube:I.yt, pinterest:I.pin };
     const socialHTML = Object.keys(socIcons).filter(k => soc[k]).map(k => `<a href="${soc[k]}" target="_blank" rel="noopener" aria-label="${k}">${socIcons[k]}</a>`).join('') || `<a href="#">${I.ig}</a><a href="#">${I.tiktok}</a>`;

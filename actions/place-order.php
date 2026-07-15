@@ -6,6 +6,7 @@
    All prices, discounts and shipping are recomputed server-side from the DB.
    ============================================================ */
 require __DIR__ . '/../inc/functions.php';
+require __DIR__ . '/../inc/customer.php';   // optional: login is NEVER required to order
 header('Content-Type: application/json; charset=utf-8');
 
 function fail(string $msg, int $code = 422): void { http_response_code($code); echo json_encode(['ok' => false, 'err' => $msg]); exit; }
@@ -30,6 +31,15 @@ $gov     = trim((string) ($c['governorate'] ?? ''));
 $city    = trim((string) ($c['city'] ?? ''));
 $email   = trim((string) ($c['email'] ?? ''));
 $notes   = trim((string) ($c['notes'] ?? ''));
+
+/* Logged in? Attach the order to the account (still totally optional — guests order fine).
+   Fall back to the account's own email/name if the form left them blank. */
+$cid  = customer_id();
+$acct = $cid ? current_customer() : null;
+if ($acct) {
+    if ($email === '') $email = (string) $acct['email'];
+    if ($name === '')  $name  = trim($acct['first_name'] . ' ' . $acct['last_name']);
+}
 
 if ($name === '' || $phone === '' || $address === '') fail('Please fill in your name, phone and address.');
 if ($gov !== '' && !in_array($gov, lebanon_governorates(), true)) $gov = '';
@@ -79,9 +89,9 @@ try {
     $total    = round(max(0, $subtotal - $discount) + $shipping, 2);
 
     q("INSERT INTO orders
-        (order_no,customer_name,email,phone,address,governorate,city,payment_method,payment_status,order_status,subtotal,discount,shipping,total,coupon_code,notes)
-        VALUES (?,?,?,?,?,?,?,?, 'pending', 'new', ?,?,?,?,?,?)",
-        [$order_no, $name, $email, $phone, $address, $gov, $city, $pay, $subtotal, $discount, $shipping, $total, $couponCode, $notes]);
+        (order_no,customer_id,customer_name,email,phone,address,governorate,city,payment_method,payment_status,order_status,subtotal,discount,shipping,total,coupon_code,notes)
+        VALUES (?,?,?,?,?,?,?,?,?, 'pending', 'new', ?,?,?,?,?,?)",
+        [$order_no, $cid, $name, $email, $phone, $address, $gov, $city, $pay, $subtotal, $discount, $shipping, $total, $couponCode, $notes]);
     $oid = (int) last_id();
     foreach ($lines as $l) {
         $p = $l['p'];
@@ -94,6 +104,19 @@ try {
     if (db()->inTransaction()) db()->rollBack();
     fail('Sorry — we could not place your order. Please try again.', 500);
 }
+
+/* ---- notifications ----
+   Best-effort and deliberately AFTER the commit: the order is already safe, so a
+   mail server hiccup must never lose it or show the shopper an error. */
+try {
+    $order  = row("SELECT * FROM orders WHERE id = ?", [$oid]);
+    $oitems = rows("SELECT * FROM order_items WHERE order_id = ?", [$oid]);
+    send_order_confirmation($order, $oitems);   // no-op if a guest left email blank
+    send_admin_order_alert($order, $oitems);    // admin hears about guest AND account orders
+} catch (Throwable $e) { /* ignore — the order stands */ }
+
+/* the saved bag has become an order */
+if ($cid) { try { q("DELETE FROM customer_cart WHERE customer_id = ?", [$cid]); } catch (Throwable $e) {} }
 
 /* remember for the confirmation page (scoped to this visitor's session) */
 $_SESSION['last_order'] = $order_no;

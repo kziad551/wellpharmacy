@@ -7,7 +7,24 @@
    ============================================================ */
 require_once __DIR__ . '/../inc/db.php';
 require_once __DIR__ . '/../inc/functions.php';
+require_once __DIR__ . '/../inc/customer.php';
 header('Content-Type: application/javascript; charset=utf-8');
+header('Cache-Control: private, no-store');   // carries who is signed in — never cache publicly
+
+/* who's shopping (null for guests) + whatever they've saved to their account */
+$me = current_customer();
+$USER = $me ? [
+    'id'    => (int) $me['id'],
+    'first' => $me['first_name'],
+    'name'  => trim($me['first_name'] . ' ' . $me['last_name']),
+    'email' => $me['email'],
+    'phone' => $me['phone'],
+    'address' => $me['address'],
+    'governorate' => $me['governorate'],
+    'city'  => $me['city'],
+    'wish'  => wishlist_ids((int) $me['id']),
+    'cart'  => cart_rows((int) $me['id']),
+] : null;
 
 $JE = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
 
@@ -120,6 +137,7 @@ $SET = [
   W.CATEGORIES = <?= json_encode($cats, $JE) ?>;
   W.BRANDS     = <?= json_encode($brands, $JE) ?>;
   W.SETTINGS   = <?= json_encode($SET, $JE) ?>;
+  W.USER       = <?= json_encode($USER, $JE) ?>;   // null = guest (guests can still order)
 
   W.IMG = IMG; W.BADGE = BADGE; W.AV = AV; W.shot = shot; W.U = U;
 })(window.WELL = window.WELL || {});
