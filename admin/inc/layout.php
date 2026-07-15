@@ -40,7 +40,7 @@ function aicon(string $n): string {
 function admin_head(string $title, string $current = '', string $subtitle = ''): void {
     require_login();
     $me = current_admin();
-    $unread = (int) val("SELECT COUNT(*) FROM messages WHERE is_read = 0");
+    /* unread/new counts are no longer queried here — live.php polls them into the badges */
     $nav = [
         ['Main', [
             ['dashboard', 'Dashboard', 'dash'],
@@ -54,7 +54,7 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
             ['journal',   'Journal',   'pen'],
         ]],
         ['Inbox', [
-            ['messages',    $unread ? "Messages ($unread)" : 'Messages', 'mail'],
+            ['messages',    'Messages', 'mail'],
             ['customers',   'Customers', 'users'],
             ['subscribers', 'Subscribers', 'users'],
         ]],
@@ -84,7 +84,7 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
       <?php foreach ($nav as [$grp, $items]): ?>
         <div class="lbl"><?= e($grp) ?></div>
         <?php foreach ($items as [$slug, $label, $ic]): ?>
-          <a href="<?= e($slug) ?>" class="<?= $current === $slug ? 'on' : '' ?>"><?= aicon($ic) ?><?= e($label) ?></a>
+          <a href="<?= e($slug) ?>" class="<?= $current === $slug ? 'on' : '' ?>"><?= aicon($ic) ?><?= e($label) ?><?php if ($slug === 'orders'): ?><span class="a-badge" data-live="unseen" hidden>0</span><?php endif; ?><?php if ($slug === 'messages'): ?><span class="a-badge" data-live="unread" hidden>0</span><?php endif; ?></a>
         <?php endforeach; ?>
       <?php endforeach; ?>
       <div class="lbl">Session</div>
@@ -116,6 +116,45 @@ function admin_foot(): void {
     </div>
   </main>
 </div>
+
+<script>
+/* Live admin counters — polls a tiny JSON endpoint so new orders / messages / low stock
+   appear without a refresh. Polling beats websockets here: shared hosting can't hold
+   persistent sockets, and this costs a few COUNT()s every 10s.
+   Pauses while the tab is hidden so a parked tab isn't hammering the DB. */
+(function () {
+  var EVERY = 10000, timer = null, first = true;
+
+  function paint(d) {
+    document.querySelectorAll('[data-live]').forEach(function (el) {
+      var key = el.dataset.live;
+      if (!(key in d)) return;
+      var val = d[key], badge = el.classList.contains('a-badge');
+      var text = (key === 'revenue') ? '$' + Number(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : val;
+      var changed = el.textContent !== String(text);
+      el.textContent = text;
+      if (badge) {
+        el.hidden = !val;
+        if (changed && val && !first) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+      }
+    });
+    first = false;
+  }
+
+  function tick() {
+    fetch('live.php', { credentials: 'same-origin', cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.ok) paint(d); })
+      .catch(function () { /* offline / logged out — try again next tick */ });
+  }
+
+  function start() { stop(); tick(); timer = setInterval(tick, EVERY); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+  document.addEventListener('visibilitychange', function () { document.hidden ? stop() : start(); });
+  start();
+})();
+</script>
 
 <style>
   .rt{border:1px solid var(--a-border2,#e6e1d6);border-radius:10px;overflow:hidden;background:#fff}

@@ -80,10 +80,20 @@ img{max-width:100%;display:block}
 .a-table .br{font-size:12px;color:var(--a-soft)}
 
 /* badges/pills */
-.pill{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:9999px;font-size:11.5px;font-weight:600}
+/* nowrap: the height is fixed, so wrapping text ("Only 3 left") burst out of the pill.
+   currentColor border: each pill outlines itself in its own status colour, so a status
+   like "confirmed" reads clearly instead of being a faint tint. */
+.pill{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:9999px;font-size:11.5px;font-weight:600;
+  white-space:nowrap;flex:none;border:1px solid currentColor}
 .pill-good{background:var(--a-good-tint);color:var(--a-good)} .pill-warn{background:var(--a-warn-tint);color:var(--a-warn)}
 .pill-bad{background:var(--a-bad-tint);color:var(--a-bad)} .pill-info{background:var(--a-info-tint);color:var(--a-info)}
 .pill-muted{background:var(--a-border2);color:var(--a-soft)}
+/* live counters in the sidebar (new orders / unread messages) */
+.a-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:9999px;background:#c0392b;color:#fff;
+  font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+.a-badge[hidden]{display:none}
+@keyframes aPop{0%{transform:scale(1)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
+.a-badge.pop{animation:aPop .45s ease}
 
 /* forms */
 .field{margin-bottom:16px}

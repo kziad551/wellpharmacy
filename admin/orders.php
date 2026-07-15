@@ -17,6 +17,10 @@ $counts = [];
 foreach (rows("SELECT order_status, COUNT(*) n FROM orders GROUP BY order_status") as $r) $counts[$r['order_status']] = (int)$r['n'];
 $total = array_sum($counts);
 
+/* opening this page marks every existing order as seen, so the sidebar badge clears;
+   anything that arrives afterwards will show up again on the next poll */
+$_SESSION['orders_seen_id'] = (int) val("SELECT COALESCE(MAX(id),0) FROM orders");
+
 admin_head('Orders', 'orders', $total . ' order' . ($total === 1 ? '' : 's'));
 ?>
 <div class="page-actions" style="flex-wrap:wrap;gap:8px">
