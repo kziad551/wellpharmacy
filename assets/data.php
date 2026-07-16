@@ -47,7 +47,7 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
         'hover'   => $p['hover_image'],
         'gallery' => array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($p['gallery'] ?? ''))))),
         'kw'      => $p['kw'],
-        'desc'    => $p['descr'],
+        'desc'    => trim(preg_replace('/\s+/', ' ', strip_tags((string)$p['descr']))),   // card blurb: never render stray HTML
         'keywords'=> $p['keywords'] ?? '',
         'size'    => $p['size'] ?? '',
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
