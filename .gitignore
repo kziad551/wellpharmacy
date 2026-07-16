@@ -39,3 +39,6 @@ NEXT-STEPS.md
 # PFDC import source (keep out of git)
 Updated PFDC full e-comm catalogue.xlsx
 vichy-LRP-CeraVe*.xlsx
+
+# local handoff runbook (do not publish)
+HANDOFF-CATALOG-DEPLOY.md
