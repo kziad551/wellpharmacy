@@ -42,3 +42,6 @@ vichy-LRP-CeraVe*.xlsx
 
 # local handoff runbook (do not publish)
 HANDOFF-CATALOG-DEPLOY.md
+
+# product audit working docs (local only)
+WELL-PHARMACY-*.csv
