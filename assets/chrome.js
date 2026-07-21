@@ -205,7 +205,6 @@
     const b = p.badge ? W.BADGE[p.badge] : null;
     const saleBadge = p.sale ? `<span class="badge badge-sale">-${p.sale}%</span>` : '';
     const hover = p.hover || p.img2;   // 2nd image for the rhode hover-swap
-    const kw = p.kw || (p.name || '').split(' ')[0].toLowerCase();  // big overlaid title
     const buyPrice = `${money(p.price)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
     const priceHtml = p.was   // desktop price row (old box)
       ? `<span class="price sale"><span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span></span>`
@@ -218,7 +217,7 @@
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>
-        <div class="pc-top"><h3 class="pc-kw">${kw}</h3><div class="badge-slot">${soldBadge}${saleBadge}${b ? `<span class="badge ${b.cls}">${b.label}</span>` : ''}</div></div>
+        <div class="pc-top"><div class="badge-slot">${soldBadge}${saleBadge}${b ? `<span class="badge ${b.cls}">${b.label}</span>` : ''}</div></div>
         <img class="gimg pc-a" data-grade src="${p.img}" alt="${p.brand} ${p.name}" loading="lazy">
         ${hover ? `<img class="gimg pc-b" data-grade src="${hover}" alt="" loading="lazy">` : ''}
         <div class="add">${addBtn}</div>
@@ -226,7 +225,6 @@
       <div class="body">
         <span class="stars">${p.reviews > 0 ? `<span class="s">${I.star}</span> ${p.rating.toFixed(1)} <span class="muted">(${p.reviews.toLocaleString()})</span>` : `<span class="muted" style="font-size:12px">No reviews yet</span>`}${stockNote}</span>
         <a class="name" href="product?id=${p.id}">${p.name}</a>
-        ${p.desc ? `<span class="desc">${p.desc}</span>` : ''}
         <div class="pprice">${priceHtml}</div>
         ${buyBtn}
       </div>
