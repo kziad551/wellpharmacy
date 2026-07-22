@@ -45,7 +45,7 @@ HANDOFF-CATALOG-DEPLOY.md
 
 # product audit working docs (local only)
 WELL-PHARMACY-*.csv
-MESSAGE-TO-CLIENT.md
+MESSAGE-TO-CLIENT*.md
 
 # Beesline brand package (local source — not for git)
 wetransfer_beesline-packshots_2026-07-21_1234/
