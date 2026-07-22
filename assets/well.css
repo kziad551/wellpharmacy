@@ -250,6 +250,7 @@ select.input,.select{padding-right:34px}
 .pcard .price{font-family:var(--fp); font-weight:600; letter-spacing:.01em; font-size:23px; color:var(--cocoa); white-space:nowrap; display:flex; align-items:baseline; gap:7px; flex:none}
 .pcard .price .was{font-size:13px; color:var(--text-faint); text-decoration:line-through; font-weight:400}
 .pcard .price.sale .now{color:var(--coral-deep); font-weight:700}
+.pcard .price.price-tba{font-size:15px; font-weight:500; color:var(--text-muted); font-style:italic}   /* price not set yet */
 .pcard .desc{font-family:var(--fs); font-size:13.5px; color:var(--text-muted); line-height:1.35; min-height:1.35em;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}   /* max 2 lines then … */
 /* rhode shop "BUY — $price" pill (replaces hover add-to-bag); margin-top:auto keeps buttons aligned across the row */

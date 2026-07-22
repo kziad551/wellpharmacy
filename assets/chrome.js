@@ -129,6 +129,7 @@
   // add `add` more of an item, never exceeding available stock
   W.addToCart = function (id, add) {
     const p = W.BY_ID[id]; if (!p) return;
+    if (!(p.price > 0)) { toast('Price coming soon — this item isn’t available to order yet'); return; }
     const stock = stockOf(id);
     if (stock <= 0) { toast('Sorry — this item is out of stock'); return; }
     const l = CART.find(x => x.id === id);
@@ -144,6 +145,7 @@
   // set the exact quantity of an item (adds if missing, removes if 0), capped at stock. Returns the applied qty.
   W.setCartQty = function (id, qty) {
     const p = W.BY_ID[id]; if (!p) return 0;
+    if (!(p.price > 0) && qty > 0) { toast('Price coming soon — this item isn’t available to order yet'); return 0; }
     qty = Math.max(0, Math.min(qty | 0, stockOf(id)));
     const l = CART.find(x => x.id === id);
     if (qty === 0) { if (l) CART = CART.filter(x => x.id !== id); }
@@ -206,14 +208,17 @@
     const saleBadge = p.sale ? `<span class="badge badge-sale">-${p.sale}%</span>` : '';
     const hover = p.hover || p.img2;   // 2nd image for the rhode hover-swap
     const buyPrice = `${money(p.price)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
-    const priceHtml = p.was   // desktop price row (old box)
+    const noPrice = !(p.price > 0);   // price not set yet (e.g. a new brand awaiting prices) — show "coming soon" & block ordering
+    const priceHtml = noPrice
+      ? `<span class="price price-tba">Price coming soon</span>`
+      : p.was   // desktop price row (old box)
       ? `<span class="price sale"><span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span></span>`
       : `<span class="price">${money(p.price)}</span>`;
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';
-    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
-    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
+    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<button class="btn" disabled>Price coming soon</button>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
+    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<button class="buybtn" disabled>Price coming soon</button>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>

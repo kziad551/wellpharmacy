@@ -46,6 +46,7 @@ $BADGES = ['derm'=>['badge-derm','DERM PICK'],'best'=>['badge-best','BESTSELLER'
 $badge = $p['badge'] && isset($BADGES[$p['badge']]) ? $BADGES[$p['badge']] : null;
 $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
+$noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming soon", block ordering
 
 $related = rows("SELECT id FROM products WHERE status='active' AND category=? AND id<>? ORDER BY reviews DESC LIMIT 4", [$p['category'], $p['id']]);
 if (count($related) < 4) $related = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 4", [$p['id']]);
@@ -75,6 +76,7 @@ $HEAD_CSS = <<<CSS
   .rate-row a{color:var(--rose-deep); text-decoration:underline; font-weight:600}
   .price-row{display:flex; align-items:center; gap:14px; margin-bottom:14px}
   .price-row .p{font-family:var(--fp); font-size:30px; font-weight:600}
+  .price-row .p.p-tba{font-size:22px; font-weight:500; color:var(--text-muted); font-style:italic}
   .price-row .was{font-size:18px; color:var(--text-faint); text-decoration:line-through}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
   .instock .dot{width:8px; height:8px; border-radius:50%; background:var(--mint)}
@@ -226,8 +228,9 @@ include __DIR__ . '/inc/head.php';
       <h1><?= e($p['name']) ?></h1>
       <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a> <span class="muted">·</span> <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);font-weight:600"><?= $myReview ? 'Edit your review' : 'Write a review' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
       <div class="price-row">
-        <span class="p"><?= money($p['price']) ?></span>
-        <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?>
+        <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
+        <?php else: ?><span class="p"><?= money($p['price']) ?></span>
+        <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
       <?php if (!empty($p['size'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px">Size: <b><?= e($p['size']) ?></b></div><?php endif; ?>
@@ -245,7 +248,7 @@ include __DIR__ . '/inc/head.php';
       </div>
       <div class="buy-actions">
         <div class="qty-stepper"><button id="qd">−</button><span class="q" id="qty">1</span><button id="qi">+</button></div>
-        <button class="btn btn-primary" style="flex:1" id="addBtn" <?= $stock===0?'aria-disabled="true"':'' ?>><?= $stock===0?'Out of stock':'Add to Bag' ?></button>
+        <button class="btn btn-primary" style="flex:1" id="addBtn" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':($stock===0?'Out of stock':'Add to Bag') ?></button>
         <button class="btn btn-outline" data-wish="<?= e($p['id']) ?>">♡</button>
       </div>
       <div class="trust-row" id="trustRow"></div>
@@ -343,8 +346,8 @@ include __DIR__ . '/inc/head.php';
   <div class="wrap">
     <img class="gimg mini-img" data-grade id="miniImg">
     <div class="mini-title"><?= e($p['name']) ?></div>
-    <div class="mini-meta"><span class="pr" id="miniPrice"><?= money($p['price']) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
-    <button class="btn btn-primary mini-btn" id="miniAdd" <?= $stock===0?'aria-disabled="true"':'' ?>>Add to Bag</button>
+    <div class="mini-meta"><span class="pr" id="miniPrice"><?= $noPrice?'Price coming soon':money($p['price']) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
+    <button class="btn btn-primary mini-btn" id="miniAdd" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':'Add to Bag' ?></button>
   </div>
 </div>
 <div class="lightbox" id="lightbox"><button class="x" id="lbX">✕</button><img id="lbImg"></div>
@@ -408,18 +411,19 @@ $PAGE_JS = <<<JS
     el.style.color = color;
     el.innerHTML = '<span class="dot" style="background:' + color + '"></span> ' + txt;
   }
+  const NOPRICE = !(p.price > 0);
   function paint(){
     \$('#qty').textContent = qty;
-    \$('#miniPrice').textContent = W.money(p.price*qty);
+    if (!NOPRICE) \$('#miniPrice').textContent = W.money(p.price*qty);
     const inBag = W.cartQtyOf(p.id) > 0;
-    const label = STOCK<=0 ? 'Out of stock' : (inBag ? 'Update bag' : 'Add to Bag');
+    const label = NOPRICE ? 'Price coming soon' : (STOCK<=0 ? 'Out of stock' : (inBag ? 'Update bag' : 'Add to Bag'));
     \$('#addBtn').textContent = label; \$('#miniAdd').textContent = label;
     \$('#qi').disabled = qty >= STOCK; \$('#qd').disabled = qty <= 1;
     updateStock();
   }
   \$('#qi').addEventListener('click',()=>{ if(qty < STOCK){ qty++; paint(); } });
   \$('#qd').addEventListener('click',()=>{ if(qty > 1){ qty--; paint(); } });
-  function add(){ if(STOCK<=0) return; qty = W.setCartQty(p.id, qty) || qty; paint(); W.openCart(); }
+  function add(){ if(NOPRICE){ W.toast&&W.toast('Price coming soon — not available to order yet'); return; } if(STOCK<=0) return; qty = W.setCartQty(p.id, qty) || qty; paint(); W.openCart(); }
   \$('#addBtn').addEventListener('click',add);
   \$('#miniAdd').addEventListener('click',add);
   paint();
