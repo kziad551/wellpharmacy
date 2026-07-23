@@ -3,7 +3,8 @@ require __DIR__ . '/inc/layout.php';
 
 if (is_post() && input('action') === 'delete') {
     csrf_check();
-    q("DELETE FROM home_sections WHERE id = ?", [(int) input('id')]);
+    // New Arrivals & Category are fixed singletons — never delete them (toggle hidden instead)
+    q("DELETE FROM home_sections WHERE id = ? AND type NOT IN ('new_arrivals','category')", [(int) input('id')]);
     flash('Section deleted.');
     redirect('home-sections');
 }
@@ -35,6 +36,7 @@ admin_head('Home Sections', 'home-sections', count($list) . ' section' . (count(
     <tbody>
     <?php foreach ($list as $s):
       $isBrand = $s['type'] === 'brand';
+      $isFixed = in_array($s['type'], ['new_arrivals','category'], true);   // fixed singletons — can't be deleted
       $name = $s['title'] !== '' ? $s['title'] : ($isBrand ? ($s['brand'] ?: '(no brand)') : ($s['type'] === 'category' ? 'Shop by Category' : 'New Arrivals'));
     ?>
       <tr>
@@ -44,7 +46,7 @@ admin_head('Home Sections', 'home-sections', count($list) . ' section' . (count(
           <?php if ($s['eyebrow'] || $s['subtitle']): ?><div class="br"><?= e($s['eyebrow']) ?><?= $s['eyebrow'] && $s['subtitle'] ? ' · ' : '' ?><?= e($s['subtitle']) ?></div><?php endif; ?>
           <?php if (!$s['show_title']): ?><div class="br"><span class="faint">title hidden</span></div><?php endif; ?>
         </td>
-        <td><?php if ($isBrand): ?><span class="pill pill-muted">Brand</span><?php elseif ($s['type']==='category'): ?><span class="pill pill-warn">Category</span><?php else: ?><span class="pill pill-good">New Arrivals</span><?php endif; ?></td>
+        <td><?php if ($isBrand): ?><span class="pill pill-muted">Brand</span><?php elseif ($s['type']==='mixed'): ?><span class="pill pill-muted">Mixed</span><?php elseif ($s['type']==='category'): ?><span class="pill pill-warn">Category</span><?php else: ?><span class="pill pill-good">New Arrivals</span><?php endif; ?></td>
         <td><?= $s['item_count'] > 0 ? (int)$s['item_count'] . ' items' : 'all items' ?></td>
         <td><?= (int)$s['cols'] ?>-up</td>
         <td>
@@ -55,10 +57,12 @@ admin_head('Home Sections', 'home-sections', count($list) . ' section' . (count(
         </td>
         <td style="text-align:right;white-space:nowrap">
           <a class="btn btn-ghost btn-sm" href="home-section-edit?id=<?= (int)$s['id'] ?>">Edit</a>
+          <?php if (!$isFixed): ?>
           <form method="post" action="home-sections" style="display:inline" onsubmit="return confirm('Delete this section?')">
             <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$s['id'] ?>">
             <button class="btn btn-bad btn-sm">Delete</button>
           </form>
+          <?php else: ?><span class="faint" style="font-size:12px" title="Fixed section — toggle it hidden instead of deleting">fixed</span><?php endif; ?>
         </td>
       </tr>
     <?php endforeach; ?>

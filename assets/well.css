@@ -100,6 +100,7 @@ h2{font-weight:600} h3{font-weight:600}
 .stack-8{display:flex; flex-direction:column; gap:8px}
 .row{display:flex; align-items:center; gap:12px}
 .grid{display:grid; gap:24px}
+.g5{grid-template-columns:repeat(5,1fr)}
 .g4{grid-template-columns:repeat(4,1fr)}
 .g3{grid-template-columns:repeat(3,1fr)}
 .g2{grid-template-columns:repeat(2,1fr)}
@@ -555,7 +556,7 @@ select.input,.select{padding-right:34px}
 }
 @media (max-width:900px){
   .hdr-expert .t{display:none}
-  .g4{grid-template-columns:repeat(2,1fr)}
+  .g5,.g4{grid-template-columns:repeat(2,1fr)}
   .h1,.h1{font-size:46px}
 }
 @media (max-width:760px){

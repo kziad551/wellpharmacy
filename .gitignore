@@ -49,3 +49,6 @@ MESSAGE-TO-CLIENT*.md
 
 # Beesline brand package (local source — not for git)
 wetransfer_beesline-packshots_2026-07-21_1234/
+
+# cPanel deploy runbook (local only — internal)
+CPANEL-DEPLOY.md

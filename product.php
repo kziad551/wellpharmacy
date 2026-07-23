@@ -48,8 +48,8 @@ $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
 $noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming soon", block ordering
 
-$related = rows("SELECT id FROM products WHERE status='active' AND category=? AND id<>? ORDER BY reviews DESC LIMIT 4", [$p['category'], $p['id']]);
-if (count($related) < 4) $related = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 4", [$p['id']]);
+$related = rows("SELECT id FROM products WHERE status='active' AND category=? AND id<>? ORDER BY reviews DESC LIMIT 5", [$p['category'], $p['id']]);
+if (count($related) < 5) $related = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 5", [$p['id']]);
 
 $PAGE_TITLE = $p['name'] . ' — ' . setting('store_name','WELL SHOP');
 $ACTIVE = $p['category'];
@@ -330,7 +330,7 @@ include __DIR__ . '/inc/head.php';
 
 <section class="wrap section-tight">
   <div class="sec-head"><h2 class="h2">You may also <span class="script">love</span></h2><a class="view-all" href="skincare">view all</a></div>
-  <div class="grid g4" id="related"></div>
+  <div class="grid g5" id="related"></div>
 </section>
 
 <section class="wrap section-tight"><div id="sp"></div></section>

@@ -5,9 +5,16 @@ $id = (int) input('id');
 $editing = $id > 0 && ($s = row("SELECT * FROM home_sections WHERE id = ?", [$id]));
 if ($id > 0 && !$editing) { flash('Section not found.', 'err'); redirect('home-sections'); }
 
+$FIXED_TYPES = ['new_arrivals','category'];   // singletons: fixed, toggle-able, not addable/deletable
+$ADDABLE_TYPES = ['brand','mixed'];           // the only types you can create
+
 if (is_post()) {
     csrf_check();
-    $type = in_array(input('type'), ['new_arrivals','brand','category','mixed'], true) ? input('type') : 'brand';
+    if ($editing && in_array($s['type'], $FIXED_TYPES, true)) {
+        $type = $s['type'];   // a fixed section keeps its type — can't be switched
+    } else {
+        $type = in_array(input('type'), $ADDABLE_TYPES, true) ? input('type') : 'brand';
+    }
     $brandList = array_values(array_filter(array_map('trim', (array) ($_POST['brand_list'] ?? []))));
     $data = [
         'type'       => $type,
@@ -58,13 +65,18 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
 
   <div class="a-card"><div class="hd"><h2>Section</h2></div><div class="bd">
     <div class="f-row">
+      <?php $isFixed = $editing && in_array($v['type'], $FIXED_TYPES, true); ?>
       <div class="field"><label>Type</label>
-        <select class="input" name="type" id="secType" onchange="secTypeChange(this.value)">
-          <option value="brand" <?= $v['type']==='brand'?'selected':'' ?>>Brand — all products of one brand</option>
-          <option value="mixed" <?= $v['type']==='mixed'?'selected':'' ?>>Mixed — a shuffle of products across brands</option>
-          <option value="new_arrivals" <?= $v['type']==='new_arrivals'?'selected':'' ?>>New Arrivals — products you flag</option>
-          <option value="category" <?= $v['type']==='category'?'selected':'' ?>>Category tiles — like “Find your formula”</option>
-        </select>
+        <?php if ($isFixed): ?>
+          <input class="input" value="<?= $v['type']==='new_arrivals' ? 'New Arrivals' : 'Category tiles' ?>" disabled>
+          <input type="hidden" name="type" value="<?= e($v['type']) ?>">
+          <div class="hint">A fixed section — always here, can’t be deleted or changed to another type. Turn it on or off with “Visible on the homepage” below, and customise its title/count as usual.</div>
+        <?php else: ?>
+          <select class="input" name="type" id="secType" onchange="secTypeChange(this.value)">
+            <option value="brand" <?= $v['type']==='brand'?'selected':'' ?>>Brand — all products of one brand</option>
+            <option value="mixed" <?= $v['type']==='mixed'?'selected':'' ?>>Mixed — a shuffle of products across brands</option>
+          </select>
+        <?php endif; ?>
       </div>
       <div class="field" id="brandRow" style="<?= $v['type']==='brand'?'':'display:none' ?>"><label>Brand</label>
         <select class="input" name="brand">
@@ -73,11 +85,14 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
         </select>
         <div class="hint">A section only appears if the brand has active products.</div>
       </div>
-      <div class="field" id="brandsRow" style="<?= $v['type']==='mixed'?'':'display:none' ?>"><label>Brands to mix <span class="faint">(hold Ctrl/⌘ to pick several — leave empty for ALL brands)</span></label>
-        <select class="input" name="brand_list[]" multiple size="7" style="height:auto">
-          <?php foreach ($brandNames as $bn): ?><option value="<?= e($bn) ?>" <?= in_array($bn,$pickedBrands,true)?'selected':'' ?>><?= e($bn) ?></option><?php endforeach; ?>
-        </select>
-        <div class="hint">Shows a shuffled mix of products from these brands (a few from each). Empty = mix from every brand.</div>
+      <div class="field" id="brandsRow" style="<?= $v['type']==='mixed'?'':'display:none' ?>"><label>Brands to mix <span class="faint">(tick the brands you want — tick none for ALL brands)</span></label>
+        <div class="brand-picker">
+          <label class="bp-all"><input type="checkbox" id="bpAll"> <b>Select all</b></label>
+          <div class="bp-list">
+            <?php foreach ($brandNames as $bn): ?><label class="bp-item"><input type="checkbox" name="brand_list[]" value="<?= e($bn) ?>" <?= in_array($bn,$pickedBrands,true)?'checked':'' ?>> <?= e($bn) ?></label><?php endforeach; ?>
+          </div>
+        </div>
+        <div class="hint">Shows a shuffled mix of products from these brands (a few from each). None ticked = mix from every brand.</div>
       </div>
     </div>
 
@@ -110,11 +125,30 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
   </div></div>
   <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save section</button></div>
 </form>
+<style>
+  .brand-picker{border:1px solid var(--line,#dcd6c9);border-radius:12px;overflow:hidden}
+  .brand-picker .bp-all{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line,#dcd6c9);background:rgba(0,0,0,.03);cursor:pointer;font-size:14px}
+  .brand-picker .bp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 14px;max-height:230px;overflow:auto;padding:10px 14px}
+  .brand-picker .bp-item{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:14px;white-space:nowrap}
+  .brand-picker input[type=checkbox]{width:16px;height:16px;flex:none;cursor:pointer}
+</style>
 <script>
   function secTypeChange(t){
     document.getElementById('brandRow').style.display  = (t==='brand') ? '' : 'none';
     document.getElementById('brandsRow').style.display = (t==='mixed') ? '' : 'none';
   }
-  secTypeChange(document.getElementById('secType').value);
+  var _st = document.getElementById('secType');
+  if (_st) secTypeChange(_st.value);
+
+  // "Select all" tick for the brands-to-mix picker
+  (function(){
+    var all = document.getElementById('bpAll');
+    if (!all) return;
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('#brandsRow .bp-item input[type=checkbox]'));
+    function syncAll(){ all.checked = boxes.length > 0 && boxes.every(function(b){ return b.checked; }); }
+    all.addEventListener('change', function(){ boxes.forEach(function(b){ b.checked = all.checked; }); });
+    boxes.forEach(function(b){ b.addEventListener('change', syncAll); });
+    syncAll();
+  })();
 </script>
 <?php admin_foot();
