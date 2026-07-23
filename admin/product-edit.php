@@ -7,7 +7,9 @@ $brandList = array_column(rows("SELECT name FROM brands ORDER BY name"), 'name')
 
 $id = (string) input('id');
 $editing = $id !== '' && ($p = row("SELECT * FROM products WHERE id = ?", [$id]));
-if ($id !== '' && !$editing) { flash('Product not found.', 'err'); redirect('products'); }
+// only guard when OPENING an edit page for a missing product (GET). On POST the id is the
+// NEW product's slug (which of course doesn't exist yet) — let the insert handler run.
+if (!is_post() && $id !== '' && !$editing) { flash('Product not found.', 'err'); redirect('products'); }
 
 if (is_post()) {
     csrf_check();
