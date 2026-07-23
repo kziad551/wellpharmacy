@@ -7,10 +7,12 @@ if ($id > 0 && !$editing) { flash('Section not found.', 'err'); redirect('home-s
 
 if (is_post()) {
     csrf_check();
-    $type = in_array(input('type'), ['new_arrivals','brand','category'], true) ? input('type') : 'brand';
+    $type = in_array(input('type'), ['new_arrivals','brand','category','mixed'], true) ? input('type') : 'brand';
+    $brandList = array_values(array_filter(array_map('trim', (array) ($_POST['brand_list'] ?? []))));
     $data = [
         'type'       => $type,
         'brand'      => $type === 'brand' ? trim((string) input('brand')) : '',
+        'brands'     => $type === 'mixed' ? implode(',', $brandList) : '',   // blank = all brands
         'eyebrow'    => trim((string) input('eyebrow')),
         'title'      => trim((string) input('title')),
         'subtitle'   => trim((string) input('subtitle')),
@@ -27,18 +29,19 @@ if (is_post()) {
 
     if ($editing) {
         $data['id'] = $id;
-        q("UPDATE home_sections SET type=:type, brand=:brand, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
+        q("UPDATE home_sections SET type=:type, brand=:brand, brands=:brands, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
               show_title=:show_title, item_count=:item_count, cols=:cols, enabled=:enabled, sort=:sort WHERE id=:id", $data);
         flash('Section updated.');
     } else {
-        q("INSERT INTO home_sections (type,brand,eyebrow,title,subtitle,show_title,item_count,cols,enabled,sort)
-           VALUES (:type,:brand,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:enabled,:sort)", $data);
+        q("INSERT INTO home_sections (type,brand,brands,eyebrow,title,subtitle,show_title,item_count,cols,enabled,sort)
+           VALUES (:type,:brand,:brands,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:enabled,:sort)", $data);
         flash('Section created.');
     }
     redirect('home-sections');
 }
 
-$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'enabled'=>1,'sort'=>0];
+$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'enabled'=>1,'sort'=>0];
+$pickedBrands = array_filter(array_map('trim', explode(',', (string)($v['brands'] ?? ''))));   // for the Mixed multi-select
 
 /* brand options: every brand that exists in the brands table OR is used by a product */
 $brandNames = array_values(array_unique(array_merge(
@@ -56,8 +59,9 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
   <div class="a-card"><div class="hd"><h2>Section</h2></div><div class="bd">
     <div class="f-row">
       <div class="field"><label>Type</label>
-        <select class="input" name="type" id="secType" onchange="document.getElementById('brandRow').style.display=this.value==='brand'?'':'none'">
+        <select class="input" name="type" id="secType" onchange="secTypeChange(this.value)">
           <option value="brand" <?= $v['type']==='brand'?'selected':'' ?>>Brand — all products of one brand</option>
+          <option value="mixed" <?= $v['type']==='mixed'?'selected':'' ?>>Mixed — a shuffle of products across brands</option>
           <option value="new_arrivals" <?= $v['type']==='new_arrivals'?'selected':'' ?>>New Arrivals — products you flag</option>
           <option value="category" <?= $v['type']==='category'?'selected':'' ?>>Category tiles — like “Find your formula”</option>
         </select>
@@ -68,6 +72,12 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
           <?php foreach ($brandNames as $bn): ?><option value="<?= e($bn) ?>" <?= $v['brand']===$bn?'selected':'' ?>><?= e($bn) ?></option><?php endforeach; ?>
         </select>
         <div class="hint">A section only appears if the brand has active products.</div>
+      </div>
+      <div class="field" id="brandsRow" style="<?= $v['type']==='mixed'?'':'display:none' ?>"><label>Brands to mix <span class="faint">(hold Ctrl/⌘ to pick several — leave empty for ALL brands)</span></label>
+        <select class="input" name="brand_list[]" multiple size="7" style="height:auto">
+          <?php foreach ($brandNames as $bn): ?><option value="<?= e($bn) ?>" <?= in_array($bn,$pickedBrands,true)?'selected':'' ?>><?= e($bn) ?></option><?php endforeach; ?>
+        </select>
+        <div class="hint">Shows a shuffled mix of products from these brands (a few from each). Empty = mix from every brand.</div>
       </div>
     </div>
 
@@ -100,4 +110,11 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
   </div></div>
   <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save section</button></div>
 </form>
+<script>
+  function secTypeChange(t){
+    document.getElementById('brandRow').style.display  = (t==='brand') ? '' : 'none';
+    document.getElementById('brandsRow').style.display = (t==='mixed') ? '' : 'none';
+  }
+  secTypeChange(document.getElementById('secType').value);
+</script>
 <?php admin_foot();

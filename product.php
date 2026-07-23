@@ -50,7 +50,6 @@ $noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming so
 
 $related = rows("SELECT id FROM products WHERE status='active' AND category=? AND id<>? ORDER BY reviews DESC LIMIT 4", [$p['category'], $p['id']]);
 if (count($related) < 4) $related = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 4", [$p['id']]);
-$fbt = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 2", [$p['id']]);
 
 $PAGE_TITLE = $p['name'] . ' — ' . setting('store_name','WELL SHOP');
 $ACTIVE = $p['category'];
@@ -259,7 +258,7 @@ include __DIR__ . '/inc/head.php';
 <div class="pdp-tabs-wrap">
 <div class="pdp-tabs" id="pdpTabs">
   <div class="wrap pdp-w"><div class="pill-tabs">
-    <button class="pill-tab active" data-tab="desc">Description</button>
+    <button class="pill-tab" data-tab="desc">Description</button>
     <button class="pill-tab" data-tab="use">How to Use</button>
     <button class="pill-tab" data-tab="ingr">Ingredients</button>
     <button class="pill-tab" data-tab="pharm">Pharmacist Note</button>
@@ -267,7 +266,7 @@ include __DIR__ . '/inc/head.php';
   </div></div>
 </div>
 <div class="wrap pdp-w">
-  <div class="tab-panel" data-panel="desc">
+  <div class="tab-panel" data-panel="desc" hidden>
     <h3>About this product</h3>
     <p><?= nl2br(e($p['long_desc'] ?: $p['descr'])) ?></p>
   </div>
@@ -329,13 +328,8 @@ include __DIR__ . '/inc/head.php';
 </div>
 </div>
 
-<section class="wrap section-tight pdp-w">
-  <h2 class="h2" style="margin-bottom:20px">Frequently Bought <span class="script">Together</span></h2>
-  <div class="fbt" id="fbt"></div>
-</section>
-
 <section class="wrap section-tight">
-  <div class="sec-head"><h2 class="h2">You may also <span class="script">love</span></h2><a class="btn btn-ghost" href="skincare">View All</a></div>
+  <div class="sec-head"><h2 class="h2">You may also <span class="script">love</span></h2><a class="view-all" href="skincare">view all</a></div>
   <div class="grid g4" id="related"></div>
 </section>
 
@@ -377,7 +371,6 @@ include __DIR__ . '/inc/head.php';
 <?php
 $pid      = json_encode($p['id']);
 $jrelated = json_encode(array_column($related,'id'), JSON_UNESCAPED_SLASHES);
-$jfbt     = json_encode(array_merge([$p['id']], array_column($fbt,'id')), JSON_UNESCAPED_SLASHES);
 $PAGE_JS = <<<JS
 <script>
   const W = WELL, \$ = s=>document.querySelector(s), \$\$ = s=>[...document.querySelectorAll(s)];
@@ -437,11 +430,18 @@ $PAGE_JS = <<<JS
     paintStars(+ri.value || 5);
   }
 
+  // tabs are collapsed by default — click a tab to open it, click it again to close (accordion)
   function showTab(name){
     \$\$('.pill-tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===name));
     \$\$('.tab-panel').forEach(pn=>pn.hidden = pn.dataset.panel!==name);
   }
-  \$\$('.pill-tab').forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+  function closeTabs(){
+    \$\$('.pill-tab').forEach(x=>x.classList.remove('active'));
+    \$\$('.tab-panel').forEach(pn=>pn.hidden = true);
+  }
+  \$\$('.pill-tab').forEach(t=>t.addEventListener('click',()=>{
+    if (t.classList.contains('active')) closeTabs(); else showTab(t.dataset.tab);
+  }));
   if (location.hash === '#reviews') showTab('rev');
 
   // review write/edit modal
@@ -453,12 +453,6 @@ $PAGE_JS = <<<JS
     revModal.querySelectorAll('[data-review-close]').forEach(x=>x.addEventListener('click', closeRev));
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !revModal.hidden) closeRev(); });
   }
-
-  const fbtItems = {$jfbt}.map(id=>W.BY_ID[id]).filter(Boolean);
-  const fbtTotal = fbtItems.reduce((s,x)=>s+x.price,0);
-  \$('#fbt').innerHTML = fbtItems.map((x,i)=>`\${i?'<span class="plus">+</span>':''}<div class="item"><img class="gimg" data-grade src="\${x.img}"><span class="nm">\${x.brand} \${x.name}</span><span class="pr">\${W.money(x.price)}</span></div>`).join('')
-    + `<div class="tot"><div class="muted" style="font-size:12px">Total for \${fbtItems.length}</div><div class="t">\${W.money(fbtTotal)}</div><button class="btn btn-primary mt8" id="addAll">Add all \${fbtItems.length}</button></div>`;
-  \$('#addAll').addEventListener('click',()=>fbtItems.forEach(x=>W.addToCart(x.id,1)));
 
   W.renderProducts(\$('#related'), {$jrelated}.map(id=>W.BY_ID[id]).filter(Boolean));
 

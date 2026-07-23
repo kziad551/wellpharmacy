@@ -38,6 +38,21 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         $ids = array_column(rows($sql), 'id');
         if (!$ids) continue;
         $default = 'New Arrivals'; $viewAll = 'skincare';
+    } elseif ($hs['type'] === 'mixed') {
+        /* a shuffled mix of products across the chosen brands (blank = all brands).
+           RAND(seed) is seeded by the day so the mix is stable within a day, fresh daily. */
+        $seed = (int) date('Ymd');
+        $brandList = array_values(array_filter(array_map('trim', explode(',', (string) ($hs['brands'] ?? '')))));
+        $where = "status='active' AND price > 0";
+        $args  = [];
+        if ($brandList) {
+            $where .= ' AND brand IN (' . implode(',', array_fill(0, count($brandList), '?')) . ')';
+            $args   = $brandList;
+        }
+        $sql = "SELECT id FROM products WHERE $where ORDER BY RAND($seed)" . ($n > 0 ? " LIMIT $n" : " LIMIT 10");
+        $ids = array_column(rows($sql, $args), 'id');
+        if (!$ids) continue;
+        $default = 'Featured'; $viewAll = $brandList && count($brandList) === 1 ? 'skincare?brand=' . urlencode($brandList[0]) : 'skincare';
     } else {
         $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($n > 0 ? " LIMIT $n" : "");
         $ids = array_column(rows($sql, [$hs['brand']]), 'id');
