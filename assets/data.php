@@ -58,6 +58,12 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
 }
 $navCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
 $NAV = array_merge(['Shop All', 'Brands', 'Offers'], $navCats);
+/* Desktop nav only fits so many shelves before it runs into the account icons.
+   The first NAV_INLINE_CATS categories (by category sort) stay on the bar; the rest
+   drop into a "More" dropdown. To move a shelf in or out of the bar, just change its
+   sort in admin → Categories. Mobile ignores this and lists everything. */
+$NAV_INLINE_CATS = 7;
+$NAV_MORE = array_slice($navCats, $NAV_INLINE_CATS);
 
 $cats = [];
 foreach (rows("SELECT name, image, is_cross FROM categories ORDER BY sort") as $c) {
@@ -151,6 +157,7 @@ $SET = [
   W.PRODUCTS   = <?= json_encode($products, $JE) ?>;
   const byId = {}; W.PRODUCTS.forEach(p => byId[p.id] = p); W.BY_ID = byId;
   W.NAV        = <?= json_encode($NAV, $JE) ?>;
+  W.NAV_MORE   = <?= json_encode($NAV_MORE, $JE) ?>;   // shelves that live under the desktop "More" dropdown
   W.CATEGORIES = <?= json_encode($cats, $JE) ?>;
   W.BRANDS     = <?= json_encode($brands, $JE) ?>;
   W.COUPONS    = <?= json_encode($pubCoupons, $JE) ?>;   // public coupons only (private ones still redeem)

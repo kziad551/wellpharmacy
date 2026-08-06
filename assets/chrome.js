@@ -361,11 +361,35 @@
       : n === 'Brands' ? 'brands'
       : n === 'Offers' ? 'offers'
       : 'skincare?cat=' + encodeURIComponent(n);
-    ul.innerHTML = W.NAV.map(n => {
+    const more = W.NAV_MORE || [];
+    const isMore = (n) => more.indexOf(n) !== -1;
+    const itemHTML = (n) => {
       const cross = n === 'Health Conditions' ? `<span class="x">${I.cross}</span>` : '';
       const cls = n === 'Offers' ? 'offers' : '';
       return `<li class="${active === n ? 'active' : ''}" data-menu="${n}"><a class="${cls}" href="${hrefFor(n)}">${cross}${n}</a></li>`;
-    }).join('');
+    };
+    /* The bar only fits so many shelves. Everything in W.NAV_MORE goes into a "More"
+       dropdown so the nav can never overrun the account icons. On mobile the nav is a
+       vertical panel, so CSS flattens the dropdown back out — nothing is hidden there. */
+    const inline = W.NAV.filter(n => !isMore(n)).map(itemHTML).join('');
+    const moreHTML = more.length ? `<li class="nav-more${more.some(n => n === active) ? ' active' : ''}">
+        <button type="button" class="nav-more-btn" aria-expanded="false" aria-haspopup="true">More<span class="chev">${I.chevron || '▾'}</span></button>
+        <ul class="nav-more-list">${more.map(n => `<li${active === n ? ' class="active"' : ''}><a href="${hrefFor(n)}">${n}</a></li>`).join('')}</ul>
+      </li>` : '';
+    ul.innerHTML = inline + moreHTML;
+
+    const moreLi = ul.querySelector('.nav-more');
+    if (moreLi) {
+      const btn = moreLi.querySelector('.nav-more-btn');
+      const close = () => { moreLi.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const o = moreLi.classList.toggle('open');
+        btn.setAttribute('aria-expanded', o);
+      });
+      document.addEventListener('click', (e) => { if (!moreLi.contains(e.target)) close(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    }
 
     const panel = $('#megaPanel');
     const backdrop = ensureBackdrop();

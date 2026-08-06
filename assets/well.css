@@ -391,6 +391,25 @@ select.input,.select{padding-right:34px}
 .nav-list>li.active>a::after{content:""; position:absolute; left:13px; right:13px; bottom:-1px; height:2px; background:var(--rose); border-radius:2px}
 .nav-list>li>a.offers{color:var(--rose-deep); font-weight:600}
 .nav-list>li>a .x{display:inline-flex; width:15px; height:15px; margin-right:5px; color:var(--mint)}
+/* "More" overflow dropdown — keeps the bar from running into the account icons when
+   there are lots of shelves. Which shelves land here is decided in assets/data.php
+   (first N categories by sort stay inline). Flattened back to a plain list on mobile. */
+.nav-more{position:relative; flex:none}
+.nav-more-btn{display:flex; align-items:center; gap:5px; height:50px; padding:0 13px; border:0; background:transparent;
+  font-family:inherit; font-size:14px; font-weight:500; color:var(--ink-soft); cursor:pointer; white-space:nowrap; transition:color .18s}
+.nav-more-btn:hover,.nav-more.open .nav-more-btn,.nav-more.active .nav-more-btn{color:var(--ink)}
+.nav-more.active .nav-more-btn::after{content:""; position:absolute; left:13px; right:13px; bottom:-1px; height:2px; background:var(--rose); border-radius:2px}
+.nav-more-btn .chev{display:inline-flex; width:14px; height:14px; transition:transform .2s}
+.nav-more-btn .chev svg{width:100%; height:100%}
+.nav-more.open .nav-more-btn .chev{transform:rotate(180deg)}
+.nav-more-list{position:absolute; top:100%; left:0; min-width:212px; background:#fff; border:1px solid var(--border-2);
+  border-radius:0 0 var(--r-card) var(--r-card); box-shadow:var(--sh-lg); padding:8px 0;
+  opacity:0; visibility:hidden; transform:translateY(-6px);
+  transition:opacity .18s ease,transform .18s ease,visibility .18s; z-index:60}
+.nav-more.open .nav-more-list{opacity:1; visibility:visible; transform:translateY(0)}
+.nav-more-list>li>a{display:block; padding:11px 18px; font-size:14px; color:var(--ink-soft); white-space:nowrap; transition:background .15s,color .15s}
+.nav-more-list>li>a:hover{background:var(--cream); color:var(--ink)}
+.nav-more-list>li.active>a{color:var(--ink); font-weight:600}
 /* mega panel */
 .mega{position:absolute; left:0; right:0; top:100%; background:#fff; border-radius:0 0 var(--r-card) var(--r-card);
   box-shadow:var(--sh-lg); border:1px solid var(--border-2); border-top:0; padding:28px var(--gutter) 32px;
@@ -581,6 +600,13 @@ select.input,.select{padding-right:34px}
   .nav-list>li>a{height:auto; padding:15px 20px; font-size:15px; border-bottom:1px solid var(--border-2); width:100%}
   .nav-list>li:last-child>a{border-bottom:0}
   .nav-list>li.active>a::after{display:none}
+  /* the desktop "More" dropdown flattens into plain rows here — nothing is hidden on mobile */
+  .nav-more{position:static}
+  .nav-more-btn{display:none}
+  .nav-more-list{position:static; min-width:0; opacity:1; visibility:visible; transform:none;
+    background:transparent; border:0; border-radius:0; box-shadow:none; padding:0}
+  .nav-more-list>li>a{padding:15px 20px; font-size:15px; border-bottom:1px solid var(--border-2); width:100%}
+  .nav-more-list>li:last-child>a{border-bottom:0}
   .mega{display:none}
   .g3,.g2{grid-template-columns:1fr}
   .foot-cols{grid-template-columns:1fr 1fr; gap:20px}
