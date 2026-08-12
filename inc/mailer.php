@@ -16,6 +16,19 @@ function mail_from_address(): string { return setting('mail_from', setting('stor
 function mail_from_name(): string    { return setting('mail_from_name', setting('store_name', 'Well Pharmacy')); }
 function admin_notify_email(): string { return setting('admin_notify_email', setting('store_email', '')); }
 function smtp_configured(): bool     { return setting('smtp_host') !== '' && setting('smtp_user') !== ''; }
+function mail_reply_to(): string     { return setting('mail_reply_to', mail_from_address()); }
+
+/** Plain-text fallback for the HTML body. Mail with no text part scores as spam. */
+function mail_text_version(string $html): string {
+    $t = preg_replace('#<(style|script)\b[^>]*>.*?</\1>#is', '', $html);
+    $t = preg_replace('#<(br|/p|/div|/tr|/h[1-6]|/table)\b[^>]*>#i', "\n", $t);
+    $t = preg_replace('#</td>#i', "  ", $t);
+    $t = html_entity_decode(strip_tags($t), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $t = preg_replace('/[ \t]+/', ' ', $t);
+    $t = preg_replace('/ *\n */', "\n", $t);
+    $t = preg_replace('/\n{3,}/', "\n\n", $t);
+    return trim($t);
+}
 
 /** Write the message to disk instead of sending (dev / unconfigured). */
 function mail_dev_dump(string $to, string $subject, string $html): bool {
@@ -75,16 +88,27 @@ function send_mail(string $to, string $toName, string $subject, string $html, ?s
     if ($code($cmd("RCPT TO:<$to>"))    !== 250) { $err = 'recipient rejected'; fclose($fp); return false; }
     if ($code($cmd('DATA'))             !== 354) { $err = 'DATA refused'; fclose($fp); return false; }
 
+    $boundary = 'wp' . bin2hex(random_bytes(14));
     $headers = [
         'From: ' . mb_encode_mimeheader($fname) . " <$from>",
         'To: ' . ($toName !== '' ? mb_encode_mimeheader($toName) . " <$to>" : $to),
+        'Reply-To: ' . mail_reply_to(),
+        'Message-ID: <' . bin2hex(random_bytes(16)) . '@' . $ehloHost . '>',
         'Subject: ' . mb_encode_mimeheader($subject),
         'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: 8bit',
+        'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
         'Date: ' . date('r'),
     ];
-    $body = preg_replace('/^\./m', '..', $html);        // dot-stuffing
+    /* text part first — clients pick the last part they can render, so HTML still wins */
+    $body = "--$boundary\r\n"
+          . "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n"
+          . mail_text_version($html) . "\r\n"
+          . "--$boundary\r\n"
+          . "Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n"
+          . $html . "\r\n"
+          . "--$boundary--";
+    $body = preg_replace("/\r\n|\r|\n/", "\r\n", $body);   // SMTP wants CRLF everywhere
+    $body = preg_replace('/^\./m', '..', $body);           // dot-stuffing
     fwrite($fp, implode("\r\n", $headers) . "\r\n\r\n" . $body . "\r\n.\r\n");
     if ($code($read()) !== 250) { $err = 'message rejected'; fclose($fp); return false; }
     $cmd('QUIT'); fclose($fp);
