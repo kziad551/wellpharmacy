@@ -21,7 +21,9 @@ if (is_post()) {
         foreach (['social_sec_enabled' => input('sec_enabled') ? '1' : '0',
                   'social_sec_eyebrow' => trim((string) input('sec_eyebrow')),
                   'social_sec_title'   => trim((string) input('sec_title')),
-                  'social_sec_sub'     => trim((string) input('sec_sub'))] as $k => $v) {
+                  'social_sec_sub'     => trim((string) input('sec_sub')),
+                  'social_handle'      => trim((string) input('sec_handle')),
+                  'social_followers'   => trim((string) input('sec_followers'))] as $k => $v) {
             q("INSERT INTO settings (skey, sval, sgroup) VALUES (?,?,'social')
                ON DUPLICATE KEY UPDATE sval = VALUES(sval)", [$k, $v]);
         }
@@ -36,6 +38,7 @@ if (is_post()) {
     $caption  = trim((string) input('caption'));
     $sort     = (int) input('sort');
     $thumb    = trim((string) input('thumb'));
+    $likes    = trim((string) input('likes'));
 
     $upErr = null;
     if ($u = save_upload('thumb_file', $upErr)) $thumb = $u;
@@ -50,12 +53,12 @@ if (is_post()) {
         : '';
 
     if ($id) {
-        q("UPDATE social_posts SET platform=?, url=?, thumb=?, caption=?, sort=? WHERE id=?",
-          [$platform, $url, $thumb, $caption, $sort, $id]);
+        q("UPDATE social_posts SET platform=?, url=?, thumb=?, caption=?, likes=?, sort=? WHERE id=?",
+          [$platform, $url, $thumb, $caption, $likes, $sort, $id]);
         flash('Video updated.' . $warn, $warn ? 'err' : 'ok');
     } else {
-        q("INSERT INTO social_posts (platform, url, thumb, caption, sort, enabled) VALUES (?,?,?,?,?,1)",
-          [$platform, $url, $thumb, $caption, $sort]);
+        q("INSERT INTO social_posts (platform, url, thumb, caption, likes, sort, enabled) VALUES (?,?,?,?,?,?,1)",
+          [$platform, $url, $thumb, $caption, $likes, $sort]);
         flash('Video added.' . $warn, $warn ? 'err' : 'ok');
     }
     redirect('social');
@@ -126,6 +129,8 @@ admin_head('Social Videos', 'social', count($list) . ' video' . (count($list) ==
         <div class="field"><label>Eyebrow</label><input class="input" name="sec_eyebrow" value="<?= e(setting('social_sec_eyebrow','follow the glow')) ?>"></div>
         <div class="field"><label>Title</label><input class="input" name="sec_title" value="<?= e(setting('social_sec_title','as seen on social')) ?>"><div class="hint">The last word is styled in the script accent, like the other homepage titles.</div></div>
         <div class="field"><label>Sub-line</label><input class="input" name="sec_sub" value="<?= e(setting('social_sec_sub','')) ?>"></div>
+        <div class="field"><label>Instagram handle</label><input class="input" name="sec_handle" value="<?= e(setting('social_handle','')) ?>" placeholder="@wellhealthandbeautyy"><div class="hint">Leave blank and we'll read it from the Instagram link in Settings → Social.</div></div>
+        <div class="field"><label>Follower count</label><input class="input" name="sec_followers" value="<?= e(setting('social_followers','')) ?>" placeholder="68k followers"><div class="hint">Free text — Instagram doesn't let us read this automatically, so update it yourself now and then. Leave blank to hide.</div></div>
         <button class="btn btn-primary">Save section</button>
       </form>
     </div></div>
@@ -162,9 +167,14 @@ admin_head('Social Videos', 'social', count($list) . ' video' . (count($list) ==
         <input class="input" name="caption" value="<?= e($edit['caption'] ?? '') ?>" maxlength="200" placeholder="Our 3-step winter routine">
       </div>
 
+      <div class="field"><label>Likes <span class="faint">(optional)</span></label>
+        <input class="input" name="likes" value="<?= e($edit['likes'] ?? '') ?>" maxlength="16" placeholder="82">
+        <div class="hint">Shown on the little heart when someone hovers the tile. Type it as you want it to read (e.g. <code>82</code> or <code>1.2k</code>). Leave blank for just a heart.</div>
+      </div>
+
       <div class="field"><label>Order</label>
         <input class="input" type="number" name="sort" value="<?= e((string)($edit['sort'] ?? 0)) ?>">
-        <div class="hint">Lower shows first. The section displays up to 12.</div>
+        <div class="hint">Lower shows first. The grid shows up to 10 (5 across, 2 rows).</div>
       </div>
 
       <button class="btn btn-primary"><?= $edit ? 'Save video' : 'Add video' ?></button>

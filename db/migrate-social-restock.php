@@ -16,6 +16,12 @@ q("CREATE TABLE IF NOT EXISTS social_posts (
      enabled TINYINT(1) NOT NULL DEFAULT 1,
      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+/* like-count badge shown on hover (matches the reference design) */
+if (!val("SELECT COUNT(*) FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'social_posts' AND COLUMN_NAME = 'likes'")) {
+    q("ALTER TABLE social_posts ADD COLUMN likes VARCHAR(16) NOT NULL DEFAULT '' AFTER caption");
+    echo "   + column: likes\n";
+}
 echo "   ok (rows: " . val("SELECT COUNT(*) FROM social_posts") . ")\n";
 
 echo "-- restock_alerts --\n";
@@ -39,6 +45,8 @@ $defaults = [
   ['social_sec_eyebrow', 'follow the glow',                'social'],
   ['social_sec_title',   'as seen on social',              'social'],
   ['social_sec_sub',     'Real routines, real results — straight from our Instagram and TikTok.', 'social'],
+  ['social_handle',      '',                                'social'],   // blank = derived from the Instagram URL
+  ['social_followers',   '',                                'social'],   // e.g. "68k followers" — free text, admin-editable
 ];
 foreach ($defaults as [$k, $v, $g]) {
     if (val("SELECT COUNT(*) FROM settings WHERE skey=?", [$k])) { echo "   skip (exists): $k\n"; continue; }

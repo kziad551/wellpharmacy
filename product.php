@@ -218,25 +218,22 @@ $HEAD_CSS = <<<CSS
   .rm-submit{margin-top:14px; width:100%}
   @media (max-width:480px){ .rm-grid{grid-template-columns:1fr} .rm-box{padding:22px 18px} }
 
-  /* ---------- back-in-stock alert box ---------- */
+  /* ---------- back-in-stock alert box (stacked: heading, field, full-width button) ---------- */
   .restock{margin-top:18px; padding:18px; border-radius:16px; background:var(--cream); border:1px solid var(--border-2)}
-  .restock .rs-head{display:flex; gap:12px; align-items:flex-start}
-  .restock .rs-ic{flex:none; width:38px; height:38px; border-radius:50%; background:#fff; color:var(--rose-deep);
-    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(44,38,31,.08)}
-  .restock .rs-ic svg{width:20px; height:20px}
-  .restock .rs-head b{font-size:15px; color:var(--ink); display:block}
-  .restock .rs-head p{margin:3px 0 0; font-size:13px; color:var(--ink-soft); line-height:1.5}
-  .rs-form{display:flex; gap:9px; margin-top:14px}
-  .rs-form input{flex:1; min-width:0; height:46px; border-radius:12px; border:1px solid var(--border-2);
-    padding:0 14px; font:inherit; font-size:14.5px; background:#fff; color:var(--ink)}
+  .rs-title{margin:0; font-family:var(--fs); font-size:14.5px; font-weight:600; color:var(--ink-soft); text-align:center}
+  .rs-form{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+  .rs-form input{width:100%; height:48px; border-radius:12px; border:1px solid var(--border-2);
+    padding:0 14px; font:inherit; font-size:14.5px; background:#fff; color:var(--ink); text-align:center}
+  .rs-form input::placeholder{color:var(--text-faint)}
   .rs-form input:focus{outline:2px solid var(--rose); outline-offset:1px}
   .rs-form input[readonly]{background:#F7F5EF; color:var(--ink-soft)}
-  .rs-form .btn{flex:none; height:46px; white-space:nowrap}
-  .rs-note{margin:9px 0 0; font-size:12px; color:var(--text-muted)}
+  .rs-submit{width:100%; height:48px}
+  .rs-err{margin:0 0 12px; padding:11px 14px; border-radius:10px; background:#FBE9E9; border:1px solid #F0C9C9;
+    color:#8E3B3B; font-size:13px; text-align:center}
+  .rs-note{margin:10px 0 0; font-size:12px; color:var(--text-muted); text-align:center}
   .rs-note a{color:var(--rose-deep); font-weight:600; text-decoration:underline}
-  .rs-done{margin:12px 0 0; font-size:14px; font-weight:600; color:var(--mint)}
-  .restock[data-done] .rs-form,.restock[data-done] .rs-note{display:none}
-  @media(max-width:480px){ .rs-form{flex-direction:column} .rs-form .btn{width:100%} }
+  .rs-done{margin:12px 0 0; font-size:14px; font-weight:600; color:var(--mint); text-align:center}
+  .restock[data-done] .rs-form,.restock[data-done] .rs-note,.restock[data-done] .rs-title{display:none}
 </style>
 CSS;
 
@@ -285,24 +282,17 @@ include __DIR__ . '/inc/head.php';
       <?php if ($stock <= 0): ?>
       <!-- BACK IN STOCK ALERT — shown only while this product is out of stock -->
       <div class="restock" id="restockBox" <?= $ALREADY_SUB ? 'data-done="1"' : '' ?>>
-        <div class="rs-head">
-          <span class="rs-ic" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>
-            </svg>
-          </span>
-          <div>
-            <b>Notify me when it's back</b>
-            <p>We'll email you the moment this is back in stock. One email, nothing else.</p>
-          </div>
-        </div>
+        <p class="rs-err" id="rsErr" hidden></p>
+
+        <h3 class="rs-title">Sign up for restock notifications</h3>
 
         <form class="rs-form" id="restockForm" novalidate>
           <?= csrf_field() ?>
           <input type="hidden" name="product_id" value="<?= e($p['id']) ?>">
-          <input type="email" name="email" id="rsEmail" placeholder="Your email address" aria-label="Email address"
+          <input type="email" name="email" id="rsEmail" placeholder="Enter your email for restock notifications"
+                 aria-label="Email address for restock notifications"
                  value="<?= e($MY_EMAIL) ?>" <?= $MY_EMAIL !== '' ? 'readonly' : '' ?> required>
-          <button class="btn btn-primary" type="submit" id="rsBtn">Notify me</button>
+          <button class="btn btn-primary rs-submit" type="submit" id="rsBtn">Notify Me</button>
         </form>
 
         <?php if ($MY_EMAIL !== ''): ?>
@@ -311,7 +301,7 @@ include __DIR__ . '/inc/head.php';
           <p class="rs-note"><a href="login?next=<?= e(urlencode('product?id=' . $p['id'])) ?>">Sign in</a> and we'll fill this in for you.</p>
         <?php endif; ?>
 
-        <p class="rs-done" id="rsDone" <?= $ALREADY_SUB ? '' : 'hidden' ?>>✓ You're on the list — we'll email you when it lands.</p>
+        <p class="rs-done" id="rsDone" <?= $ALREADY_SUB ? '' : 'hidden' ?>>✓ You're on the list — we'll email you the moment it's back.</p>
       </div>
       <?php endif; ?>
 
@@ -527,10 +517,13 @@ $PAGE_JS = <<<JS
   // back-in-stock alert signup (only rendered while the product is out of stock)
   const rsForm = \$('#restockForm');
   if (rsForm) {
+    const rsErr = \$('#rsErr');
+    const showErr = (m) => { rsErr.textContent = m; rsErr.hidden = false; };
     rsForm.addEventListener('submit', async e => {
       e.preventDefault();
       const box = \$('#restockBox'), btn = \$('#rsBtn'), email = \$('#rsEmail').value.trim();
-      if (!email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) { W.toast('Enter a valid email address.'); return; }
+      rsErr.hidden = true;
+      if (!email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) { showErr('Enter a valid email address.'); return; }
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const r = await fetch('actions/restock', {
@@ -540,10 +533,11 @@ $PAGE_JS = <<<JS
         });
         const j = await r.json();
         if (j.ok) { box.dataset.done = '1'; \$('#rsDone').hidden = false; W.toast(j.msg || "You're on the list."); }
-        else { W.toast(j.err || 'Could not save that — please try again.'); btn.disabled = false; btn.textContent = 'Notify me'; }
+        else { showErr(j.err || 'There was an error signing up for restock notifications. Please try again.');
+               btn.disabled = false; btn.textContent = 'Notify Me'; }
       } catch (_) {
-        W.toast('Network error — please try again.');
-        btn.disabled = false; btn.textContent = 'Notify me';
+        showErr('There was an error signing up for restock notifications. Please try again.');
+        btn.disabled = false; btn.textContent = 'Notify Me';
       }
     });
   }

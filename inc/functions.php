@@ -203,7 +203,7 @@ function social_embed_url(string $platform, string $url): string {
 
 /** Enabled social posts for the homepage rail, newest-first within the chosen sort. */
 function social_posts(int $limit = 12): array {
-    $rows = rows("SELECT id, platform, url, thumb, caption FROM social_posts
+    $rows = rows("SELECT id, platform, url, thumb, caption, likes FROM social_posts
                   WHERE enabled = 1 ORDER BY sort, id DESC LIMIT " . max(1, $limit));
     foreach ($rows as &$r) { $r['embed'] = social_embed_url($r['platform'], $r['url']); }
     return $rows;

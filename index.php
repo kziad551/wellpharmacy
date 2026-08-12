@@ -10,9 +10,15 @@ $jposts   = rows("SELECT title, slug, category, image, author, read_min FROM jou
 
 /* "as seen on social" — Instagram / TikTok videos, managed in admin → Social Videos */
 $SOCIAL_ON    = setting('social_sec_enabled', '1') === '1';
-$SOCIAL_POSTS = $SOCIAL_ON ? social_posts(12) : [];
+$SOCIAL_POSTS = $SOCIAL_ON ? social_posts(10) : [];   // 5 across × 2 rows
 $SOCIAL_IG    = setting('social_instagram', '');
 $SOCIAL_TT    = setting('social_tiktok', '');
+$SOCIAL_FOLLOWERS = setting('social_followers', '');
+/* handle: admin can override, otherwise read it off the Instagram profile URL */
+$SOCIAL_HANDLE = setting('social_handle', '');
+if ($SOCIAL_HANDLE === '' && $SOCIAL_IG !== '' && preg_match('~instagram\.com/([A-Za-z0-9._]+)~', $SOCIAL_IG, $m)) {
+    $SOCIAL_HANDLE = '@' . $m[1];
+}
 
 /* admin-managed homepage product sections (New Arrivals + per-brand rails) */
 function sec_title_html(string $t): string {
@@ -169,24 +175,28 @@ $HEAD_CSS = <<<CSS
   }
   @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
 
-  /* ---------- "as seen on social" video rail ---------- */
-  .socgrid{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px}
-  .soccard{position:relative; display:block; border-radius:16px; overflow:hidden; aspect-ratio:9/16;
-    background:var(--cream-2); border:1px solid var(--border); cursor:pointer;
-    transition:transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s}
-  .soccard:hover{transform:translateY(-5px); box-shadow:var(--sh-lg)}
-  .soccard img{width:100%; height:100%; object-fit:cover; display:block}
-  .soccard .shade{position:absolute; inset:0; background:linear-gradient(transparent 46%, rgba(28,24,20,.72))}
-  .soccard .plat{position:absolute; top:9px; right:9px; width:26px; height:26px; border-radius:50%;
-    background:rgba(255,255,255,.92); color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 7px rgba(0,0,0,.2)}
-  .soccard .plat svg{width:15px; height:15px}
-  .soccard .play{position:absolute; inset:0; margin:auto; width:46px; height:46px; border-radius:50%;
-    background:rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center;
-    box-shadow:0 4px 16px rgba(0,0,0,.26); transition:transform .25s, background .25s}
-  .soccard:hover .play{transform:scale(1.12); background:#fff}
-  .soccard .play::after{content:""; border-style:solid; border-width:8px 0 8px 13px; border-color:transparent transparent transparent var(--ink); margin-left:3px}
-  .soccard .cap{position:absolute; left:0; right:0; bottom:0; padding:10px 11px; color:#fff; font-size:12px; line-height:1.35;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  /* ---------- "as seen on social" feed grid (Instagram-style: 5 across, square) ---------- */
+  .soc-handle{text-align:center; margin-top:6px}
+  .soc-handle a{font-size:15px; font-weight:600; color:var(--ink)}
+  .soc-handle a:hover{color:var(--rose-deep)}
+  .soc-handle .cnt{display:block; margin-top:4px; font-size:13.5px; color:var(--text-muted)}
+  .socgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-top:26px}
+  .soccard{position:relative; display:block; overflow:hidden; aspect-ratio:1/1; border-radius:4px;
+    background:var(--cream-2); cursor:pointer}
+  .soccard img{width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+  .soccard:hover img{transform:scale(1.06)}
+  /* dim + like-count on hover, the way an IG feed embed behaves */
+  .soccard .shade{position:absolute; inset:0; background:rgba(28,24,20,.42); opacity:0; transition:opacity .25s;
+    display:flex; align-items:center; justify-content:center; gap:7px; color:#fff; font-weight:700; font-size:15px}
+  .soccard:hover .shade{opacity:1}
+  .soccard .shade svg{width:19px; height:19px; fill:#fff; stroke:none}
+  .soccard .plat{position:absolute; top:8px; right:8px; width:24px; height:24px; color:#fff;
+    display:flex; align-items:center; justify-content:center; filter:drop-shadow(0 1px 3px rgba(0,0,0,.5)); z-index:2}
+  .soccard .plat svg{width:17px; height:17px}
+  /* play chip marks a video (vs a still post) */
+  .soccard .play{position:absolute; left:8px; top:8px; width:24px; height:24px; border-radius:50%;
+    background:rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center; z-index:2}
+  .soccard .play::after{content:""; border-style:solid; border-width:5px 0 5px 8px; border-color:transparent transparent transparent var(--ink); margin-left:2px}
   .soc-follow{display:flex; gap:10px; justify-content:center; margin-top:26px; flex-wrap:wrap}
   .soc-empty{text-align:center; color:var(--text-muted); font-size:14px; padding:26px 0}
   /* lightbox */
@@ -201,7 +211,7 @@ $HEAD_CSS = <<<CSS
   .soc-lb-out{display:block; text-align:center; padding:11px; background:#fff; font-size:13px; font-weight:600; color:var(--ink)}
   @keyframes socUp{from{opacity:0; transform:translateY(18px) scale(.97)} to{opacity:1; transform:none}}
   @media(max-width:1080px){.socgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-  @media(max-width:680px){.socgrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px} .soc-lb-x{top:auto; bottom:-46px}}
+  @media(max-width:680px){.socgrid{grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px} .soc-lb-x{top:auto; bottom:-46px}}
 </style>
 CSS;
 
@@ -313,6 +323,15 @@ include __DIR__ . '/inc/head.php';
     <?php if ($s = setting('social_sec_sub', '')): ?><p style="color:var(--ink-soft); max-width:52ch; margin-top:8px"><?= e($s) ?></p><?php endif; ?>
   </div>
 
+  <?php if ($SOCIAL_HANDLE !== '' || $SOCIAL_FOLLOWERS !== ''): ?>
+  <div class="soc-handle">
+    <?php if ($SOCIAL_HANDLE !== ''): ?>
+      <a href="<?= e($SOCIAL_IG ?: '#') ?>" target="_blank" rel="noopener">Follow us on Instagram <?= e($SOCIAL_HANDLE) ?></a>
+    <?php endif; ?>
+    <?php if ($SOCIAL_FOLLOWERS !== ''): ?><span class="cnt"><?= e($SOCIAL_FOLLOWERS) ?></span><?php endif; ?>
+  </div>
+  <?php endif; ?>
+
   <?php if ($SOCIAL_POSTS): ?>
     <div class="socgrid" id="socGrid"></div>
   <?php else: ?>
@@ -367,13 +386,17 @@ $PAGE_JS = <<<JS
   const socGrid = \$('#socGrid');
   if (socGrid && SOC.length) {
     const platIcon = { instagram: W.ICONS ? W.ICONS.ig : '', tiktok: W.ICONS ? W.ICONS.tiktok : '' };
+    const heart = '<svg viewBox="0 0 24 24"><path d="M12 21s-8-4.9-8-10.4A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 3.6C20 16.1 12 21 12 21z"/></svg>';
     socGrid.innerHTML = SOC.map((p,i)=>{
-      const thumb = p.thumb ? `<img src="\${p.thumb}" alt="" loading="lazy">` : '';
-      const cap   = p.caption ? `<span class="cap">\${p.caption}</span>` : '';
-      return `<a class="soccard reveal" data-soc="\${i}" href="\${p.url}" target="_blank" rel="noopener" aria-label="Play video">
-                \${thumb}<span class="shade"></span>
-                <span class="plat">\${platIcon[p.platform]||''}</span>
-                <span class="play"></span>\${cap}
+      const thumb = p.thumb ? `<img src="\${p.thumb}" alt="\${(p.caption||'').replace(/"/g,'')}" loading="lazy">` : '';
+      // hover overlay shows the like count when the client filled one in, a heart otherwise
+      const likes = p.likes ? `\${heart}<span>\${p.likes}</span>` : heart;
+      return `<a class="soccard" data-soc="\${i}" href="\${p.url}" target="_blank" rel="noopener"
+                 aria-label="\${p.caption ? p.caption.replace(/"/g,'') : 'Open post'}">
+                \${thumb}
+                <span class="play" aria-hidden="true"></span>
+                <span class="plat" aria-hidden="true">\${platIcon[p.platform]||''}</span>
+                <span class="shade" aria-hidden="true">\${likes}</span>
               </a>`;
     }).join('');
     W.guardImages(socGrid);
