@@ -48,6 +48,17 @@ $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
 $noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming soon", block ordering
 
+/* ---- back-in-stock alerts: only offered while the item is actually out of stock.
+        Signed-in shoppers get their address filled in; guests can type one. ---- */
+require_once __DIR__ . '/inc/customer.php';
+$ME          = current_customer();
+$MY_EMAIL    = $ME ? (string) $ME['email'] : '';
+$ALREADY_SUB = false;
+if ($stock <= 0 && $MY_EMAIL !== '') {
+    $ALREADY_SUB = (bool) val("SELECT COUNT(*) FROM restock_alerts WHERE product_id=? AND email=? AND notified_at IS NULL",
+                              [$p['id'], $MY_EMAIL]);
+}
+
 $related = rows("SELECT id FROM products WHERE status='active' AND category=? AND id<>? ORDER BY reviews DESC LIMIT 5", [$p['category'], $p['id']]);
 if (count($related) < 5) $related = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 5", [$p['id']]);
 
@@ -206,6 +217,26 @@ $HEAD_CSS = <<<CSS
   .rm-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0}
   .rm-submit{margin-top:14px; width:100%}
   @media (max-width:480px){ .rm-grid{grid-template-columns:1fr} .rm-box{padding:22px 18px} }
+
+  /* ---------- back-in-stock alert box ---------- */
+  .restock{margin-top:18px; padding:18px; border-radius:16px; background:var(--cream); border:1px solid var(--border-2)}
+  .restock .rs-head{display:flex; gap:12px; align-items:flex-start}
+  .restock .rs-ic{flex:none; width:38px; height:38px; border-radius:50%; background:#fff; color:var(--rose-deep);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(44,38,31,.08)}
+  .restock .rs-ic svg{width:20px; height:20px}
+  .restock .rs-head b{font-size:15px; color:var(--ink); display:block}
+  .restock .rs-head p{margin:3px 0 0; font-size:13px; color:var(--ink-soft); line-height:1.5}
+  .rs-form{display:flex; gap:9px; margin-top:14px}
+  .rs-form input{flex:1; min-width:0; height:46px; border-radius:12px; border:1px solid var(--border-2);
+    padding:0 14px; font:inherit; font-size:14.5px; background:#fff; color:var(--ink)}
+  .rs-form input:focus{outline:2px solid var(--rose); outline-offset:1px}
+  .rs-form input[readonly]{background:#F7F5EF; color:var(--ink-soft)}
+  .rs-form .btn{flex:none; height:46px; white-space:nowrap}
+  .rs-note{margin:9px 0 0; font-size:12px; color:var(--text-muted)}
+  .rs-note a{color:var(--rose-deep); font-weight:600; text-decoration:underline}
+  .rs-done{margin:12px 0 0; font-size:14px; font-weight:600; color:var(--mint)}
+  .restock[data-done] .rs-form,.restock[data-done] .rs-note{display:none}
+  @media(max-width:480px){ .rs-form{flex-direction:column} .rs-form .btn{width:100%} }
 </style>
 CSS;
 
@@ -250,6 +281,40 @@ include __DIR__ . '/inc/head.php';
         <button class="btn btn-primary" style="flex:1" id="addBtn" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':($stock===0?'Out of stock':'Add to Bag') ?></button>
         <button class="btn btn-outline" data-wish="<?= e($p['id']) ?>">♡</button>
       </div>
+
+      <?php if ($stock <= 0): ?>
+      <!-- BACK IN STOCK ALERT — shown only while this product is out of stock -->
+      <div class="restock" id="restockBox" <?= $ALREADY_SUB ? 'data-done="1"' : '' ?>>
+        <div class="rs-head">
+          <span class="rs-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+            </svg>
+          </span>
+          <div>
+            <b>Notify me when it's back</b>
+            <p>We'll email you the moment this is back in stock. One email, nothing else.</p>
+          </div>
+        </div>
+
+        <form class="rs-form" id="restockForm" novalidate>
+          <?= csrf_field() ?>
+          <input type="hidden" name="product_id" value="<?= e($p['id']) ?>">
+          <input type="email" name="email" id="rsEmail" placeholder="Your email address" aria-label="Email address"
+                 value="<?= e($MY_EMAIL) ?>" <?= $MY_EMAIL !== '' ? 'readonly' : '' ?> required>
+          <button class="btn btn-primary" type="submit" id="rsBtn">Notify me</button>
+        </form>
+
+        <?php if ($MY_EMAIL !== ''): ?>
+          <p class="rs-note">Using your account email — <b><?= e($MY_EMAIL) ?></b>.</p>
+        <?php else: ?>
+          <p class="rs-note"><a href="login?next=<?= e(urlencode('product?id=' . $p['id'])) ?>">Sign in</a> and we'll fill this in for you.</p>
+        <?php endif; ?>
+
+        <p class="rs-done" id="rsDone" <?= $ALREADY_SUB ? '' : 'hidden' ?>>✓ You're on the list — we'll email you when it lands.</p>
+      </div>
+      <?php endif; ?>
+
       <div class="trust-row" id="trustRow"></div>
     </div>
   </div>
@@ -458,6 +523,30 @@ $PAGE_JS = <<<JS
 
   const io = new IntersectionObserver(es=>{ \$('#miniBar').classList.toggle('show', !es[0].isIntersecting); }, {threshold:0});
   io.observe(\$('#addBtn'));
+
+  // back-in-stock alert signup (only rendered while the product is out of stock)
+  const rsForm = \$('#restockForm');
+  if (rsForm) {
+    rsForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const box = \$('#restockBox'), btn = \$('#rsBtn'), email = \$('#rsEmail').value.trim();
+      if (!email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) { W.toast('Enter a valid email address.'); return; }
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const r = await fetch('actions/restock', {
+          method: 'POST',
+          headers: {'Content-Type':'application/x-www-form-urlencoded'},
+          body: new URLSearchParams({ product_id: rsForm.product_id.value, email, csrf: rsForm.csrf.value })
+        });
+        const j = await r.json();
+        if (j.ok) { box.dataset.done = '1'; \$('#rsDone').hidden = false; W.toast(j.msg || "You're on the list."); }
+        else { W.toast(j.err || 'Could not save that — please try again.'); btn.disabled = false; btn.textContent = 'Notify me'; }
+      } catch (_) {
+        W.toast('Network error — please try again.');
+        btn.disabled = false; btn.textContent = 'Notify me';
+      }
+    });
+  }
 
   \$('#sp').innerHTML = W.socialProofHTML();
   \$('#usp').innerHTML = W.uspHTML();

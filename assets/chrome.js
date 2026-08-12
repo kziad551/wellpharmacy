@@ -587,6 +587,32 @@
     document.querySelectorAll('[data-reveal]').forEach(el => io.observe(el));
   };
 
+  /* the shared icon set, for pages that need to draw a chrome icon themselves
+     (e.g. the homepage social rail stamping an Instagram/TikTok badge on a card) */
+  W.ICONS = I;
+
+  /* ============================================================
+     Floating WhatsApp button — fixed bottom-right on EVERY page.
+     Number comes from admin → Settings (`whatsapp_number`); nothing is hardcoded
+     except the same fallback the header uses. Mounted by mountChrome, which every
+     page calls, so there is no per-page wiring to forget.
+     ============================================================ */
+  function waFab() {
+    if ($('.wa-fab')) return;                                   // never mount twice
+    const num = String((W.SETTINGS && W.SETTINGS.whatsapp) || '9613627766').replace(/[^0-9]/g, '');
+    if (!num) return;
+    const store = (W.SETTINGS && W.SETTINGS.store_name) || 'Well Pharmacy';
+    const msg = encodeURIComponent('Hi ' + store + ', I have a question about a product.');
+    const a = document.createElement('a');
+    a.className = 'wa-fab';
+    a.href = 'https://wa.me/' + num + '?text=' + msg;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.setAttribute('aria-label', 'Chat with us on WhatsApp');
+    a.innerHTML = `<span class="wa-fab-ic">${I.whatsapp}</span><span class="wa-fab-tip">Chat with us</span>`;
+    document.body.appendChild(a);
+  }
+
   /* ============================================================
      PUBLIC: mountChrome
      ============================================================ */
@@ -596,6 +622,7 @@
     if (top) top.innerHTML = utilBar() + header();
     const foot = $('#chrome-foot');
     if (foot) foot.innerHTML = footer();
+    waFab();
     buildNav(opts.active);
     // mobile hamburger toggle
     const tg = $('[data-nav-toggle]'), hdr = $('#siteHeader');

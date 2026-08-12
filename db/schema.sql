@@ -236,4 +236,35 @@ CREATE TABLE reviews (
   KEY idx_rev_tok (product_id, reviewer_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ---- homepage "as seen on social" videos (Instagram / TikTok) -----------
+-- One row per post. Only the post URL is stored; the inline player URL is
+-- derived from it at render time (see social_embed_url() in inc/functions.php),
+-- so there is no API key and nothing to expire. `thumb` is a cover image the
+-- client uploads — neither platform lets us fetch the real cover without an API.
+CREATE TABLE social_posts (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  platform    ENUM('instagram','tiktok') NOT NULL DEFAULT 'instagram',
+  url         VARCHAR(500) NOT NULL DEFAULT '',
+  thumb       VARCHAR(500) NOT NULL DEFAULT '',
+  caption     VARCHAR(200) NOT NULL DEFAULT '',
+  sort        INT          NOT NULL DEFAULT 0,
+  enabled     TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---- back-in-stock alerts ----------------------------------------------
+-- One row per (product, email). Raising a product's stock above 0 in the admin
+-- emails everyone pending and stamps notified_at, so a re-save can't spam them.
+-- Re-subscribing later re-arms the same row instead of duplicating it.
+CREATE TABLE restock_alerts (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  product_id  VARCHAR(64)  NOT NULL,
+  email       VARCHAR(160) NOT NULL,
+  customer_id INT          DEFAULT NULL,        -- set when a signed-in shopper subscribes
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  notified_at DATETIME     DEFAULT NULL,        -- NULL = still waiting
+  UNIQUE KEY uniq_product_email (product_id, email),
+  KEY idx_pending (product_id, notified_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

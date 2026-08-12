@@ -8,6 +8,12 @@ $ACTIVE = 'Shop All';
 $fbrands  = rows("SELECT name, color, logo, logo_mode FROM brands WHERE featured=1 ORDER BY sort");
 $jposts   = rows("SELECT title, slug, category, image, author, read_min FROM journal_posts WHERE status='published' ORDER BY sort, id LIMIT 4");
 
+/* "as seen on social" — Instagram / TikTok videos, managed in admin → Social Videos */
+$SOCIAL_ON    = setting('social_sec_enabled', '1') === '1';
+$SOCIAL_POSTS = $SOCIAL_ON ? social_posts(12) : [];
+$SOCIAL_IG    = setting('social_instagram', '');
+$SOCIAL_TT    = setting('social_tiktok', '');
+
 /* admin-managed homepage product sections (New Arrivals + per-brand rails) */
 function sec_title_html(string $t): string {
     $parts = preg_split('/\s+/', trim($t));
@@ -162,6 +168,40 @@ $HEAD_CSS = <<<CSS
     .editorial{grid-template-columns:1fr}
   }
   @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
+
+  /* ---------- "as seen on social" video rail ---------- */
+  .socgrid{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px}
+  .soccard{position:relative; display:block; border-radius:16px; overflow:hidden; aspect-ratio:9/16;
+    background:var(--cream-2); border:1px solid var(--border); cursor:pointer;
+    transition:transform .28s cubic-bezier(.2,.8,.2,1), box-shadow .28s}
+  .soccard:hover{transform:translateY(-5px); box-shadow:var(--sh-lg)}
+  .soccard img{width:100%; height:100%; object-fit:cover; display:block}
+  .soccard .shade{position:absolute; inset:0; background:linear-gradient(transparent 46%, rgba(28,24,20,.72))}
+  .soccard .plat{position:absolute; top:9px; right:9px; width:26px; height:26px; border-radius:50%;
+    background:rgba(255,255,255,.92); color:var(--ink); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 7px rgba(0,0,0,.2)}
+  .soccard .plat svg{width:15px; height:15px}
+  .soccard .play{position:absolute; inset:0; margin:auto; width:46px; height:46px; border-radius:50%;
+    background:rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 16px rgba(0,0,0,.26); transition:transform .25s, background .25s}
+  .soccard:hover .play{transform:scale(1.12); background:#fff}
+  .soccard .play::after{content:""; border-style:solid; border-width:8px 0 8px 13px; border-color:transparent transparent transparent var(--ink); margin-left:3px}
+  .soccard .cap{position:absolute; left:0; right:0; bottom:0; padding:10px 11px; color:#fff; font-size:12px; line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .soc-follow{display:flex; gap:10px; justify-content:center; margin-top:26px; flex-wrap:wrap}
+  .soc-empty{text-align:center; color:var(--text-muted); font-size:14px; padding:26px 0}
+  /* lightbox */
+  .soc-lb{position:fixed; inset:0; z-index:130; display:none; align-items:center; justify-content:center; padding:24px}
+  .soc-lb.open{display:flex}
+  .soc-lb-back{position:absolute; inset:0; background:rgba(28,24,20,.78); backdrop-filter:blur(4px)}
+  .soc-lb-card{position:relative; width:min(400px,94vw); background:#000; border-radius:18px; overflow:hidden;
+    box-shadow:0 40px 90px rgba(0,0,0,.5); animation:socUp .3s cubic-bezier(.2,.8,.2,1)}
+  .soc-lb-card iframe{display:block; width:100%; height:min(710px,82vh); border:0; background:#000}
+  .soc-lb-x{position:absolute; top:-46px; right:0; width:36px; height:36px; border-radius:50%; border:0;
+    background:rgba(255,255,255,.92); color:var(--ink); font-size:22px; line-height:1; cursor:pointer}
+  .soc-lb-out{display:block; text-align:center; padding:11px; background:#fff; font-size:13px; font-weight:600; color:var(--ink)}
+  @keyframes socUp{from{opacity:0; transform:translateY(18px) scale(.97)} to{opacity:1; transform:none}}
+  @media(max-width:1080px){.socgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media(max-width:680px){.socgrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px} .soc-lb-x{top:auto; bottom:-46px}}
 </style>
 CSS;
 
@@ -264,11 +304,44 @@ include __DIR__ . '/inc/head.php';
   <div class="hero-cta" style="justify-content:center; margin-top:28px"><a class="btn btn-primary btn-lg" href="skincare">start shopping</a></div>
 </div></section>
 
+<!-- AS SEEN ON SOCIAL (Instagram / TikTok videos — admin → Social Videos) -->
+<?php if ($SOCIAL_ON && ($SOCIAL_POSTS || $SOCIAL_IG || $SOCIAL_TT)): ?>
+<section class="section-tight wrap" id="socialSec">
+  <div class="sec-head" style="justify-content:center; text-align:center; flex-direction:column; gap:4px; align-items:center">
+    <span class="eyebrow"><?= e(setting('social_sec_eyebrow', 'follow the glow')) ?></span>
+    <h2 class="h2"><?= sec_title_html(setting('social_sec_title', 'as seen on social')) ?></h2>
+    <?php if ($s = setting('social_sec_sub', '')): ?><p style="color:var(--ink-soft); max-width:52ch; margin-top:8px"><?= e($s) ?></p><?php endif; ?>
+  </div>
+
+  <?php if ($SOCIAL_POSTS): ?>
+    <div class="socgrid" id="socGrid"></div>
+  <?php else: ?>
+    <p class="soc-empty">Videos are on the way — follow us in the meantime.</p>
+  <?php endif; ?>
+
+  <div class="soc-follow">
+    <?php if ($SOCIAL_IG): ?><a class="btn btn-outline" href="<?= e($SOCIAL_IG) ?>" target="_blank" rel="noopener">follow on Instagram</a><?php endif; ?>
+    <?php if ($SOCIAL_TT): ?><a class="btn btn-outline" href="<?= e($SOCIAL_TT) ?>" target="_blank" rel="noopener">follow on TikTok</a><?php endif; ?>
+  </div>
+</section>
+
+<!-- video lightbox -->
+<div class="soc-lb" id="socLb" aria-hidden="true">
+  <div class="soc-lb-back" data-soc-close></div>
+  <div class="soc-lb-card" role="dialog" aria-label="Social video">
+    <button class="soc-lb-x" data-soc-close aria-label="Close">&times;</button>
+    <div id="socLbBody"></div>
+    <a class="soc-lb-out" id="socLbOut" href="#" target="_blank" rel="noopener">open on <span></span> ↗</a>
+  </div>
+</div>
+<?php endif; ?>
+
 <div id="usp"></div>
 <?php
 $SECTIONS_JSON = json_encode(array_map(fn($s) => $s['ids'], $SECTIONS), JSON_UNESCAPED_SLASHES);
 $BRANDS_JSON   = json_encode($fbrands, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $BLOGS_JSON    = json_encode($jposts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+$SOCIAL_JSON   = json_encode($SOCIAL_POSTS, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 $PAGE_JS = <<<JS
 <script>
   const W = WELL, \$ = (s)=>document.querySelector(s);
@@ -285,6 +358,40 @@ $PAGE_JS = <<<JS
   const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);
   const SECTIONS = $SECTIONS_JSON;
   SECTIONS.forEach((ids,i)=>{ if(!ids) return; const el=\$('#homeSec'+i); if(el) W.renderProducts(el, pick(ids)); });
+
+  /* ---------- as seen on social ----------
+     Cards are thumbnails; clicking opens the real Instagram/TikTok player in a
+     lightbox (their public key-less embed). If a URL couldn't be turned into an
+     embed we just open the post in a new tab instead. */
+  const SOC = $SOCIAL_JSON;
+  const socGrid = \$('#socGrid');
+  if (socGrid && SOC.length) {
+    const platIcon = { instagram: W.ICONS ? W.ICONS.ig : '', tiktok: W.ICONS ? W.ICONS.tiktok : '' };
+    socGrid.innerHTML = SOC.map((p,i)=>{
+      const thumb = p.thumb ? `<img src="\${p.thumb}" alt="" loading="lazy">` : '';
+      const cap   = p.caption ? `<span class="cap">\${p.caption}</span>` : '';
+      return `<a class="soccard reveal" data-soc="\${i}" href="\${p.url}" target="_blank" rel="noopener" aria-label="Play video">
+                \${thumb}<span class="shade"></span>
+                <span class="plat">\${platIcon[p.platform]||''}</span>
+                <span class="play"></span>\${cap}
+              </a>`;
+    }).join('');
+    W.guardImages(socGrid);
+
+    const lb = \$('#socLb'), body = \$('#socLbBody'), out = \$('#socLbOut');
+    const closeLb = () => { lb.classList.remove('open'); lb.setAttribute('aria-hidden','true'); body.innerHTML=''; document.body.style.overflow=''; };
+    socGrid.addEventListener('click', e => {
+      const card = e.target.closest('[data-soc]'); if (!card) return;
+      const p = SOC[+card.dataset.soc];
+      if (!p || !p.embed) return;                      // no embed -> let the link open the post
+      e.preventDefault();
+      body.innerHTML = `<iframe src="\${p.embed}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen scrolling="no" title="Social video"></iframe>`;
+      out.href = p.url; out.querySelector('span').textContent = p.platform === 'tiktok' ? 'TikTok' : 'Instagram';
+      lb.classList.add('open'); lb.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden';
+    });
+    lb.addEventListener('click', e => { if (e.target.closest('[data-soc-close]')) closeLb(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('open')) closeLb(); });
+  }
 
   // trusted brands (from database) — respects each brand's display mode
   const brands = $BRANDS_JSON;

@@ -160,3 +160,48 @@ function send_admin_order_alert(array $order, array $items): bool {
         <p style="font-size:12px;color:#8A7D6E">Open the admin → Orders to confirm and pack it.</p>');
     return send_mail($to, 'Well Pharmacy', 'New order ' . $order['order_no'] . ' — ' . money($order['total']), $html);
 }
+
+/* ============================================================
+   BACK-IN-STOCK ALERTS
+   Fired whenever a product's stock crosses from 0 to a positive number.
+   Everyone waiting on that product gets one email, then their row is marked
+   notified so a later save can't spam them again.
+   ============================================================ */
+function send_restock_email(string $to, array $product): bool {
+    $url  = rtrim(setting('site_url', ''), '/');
+    $link = ($url !== '' ? $url . '/' : '') . 'product?id=' . urlencode($product['id']);
+    $img  = trim((string) ($product['image'] ?? ''));
+    $imgHtml = ($img !== '' && !preg_match('~^(https?:)?//~', $img) && $url !== '')
+        ? '<img src="' . e($url . '/' . ltrim($img, '/')) . '" alt="" style="width:100%;max-width:220px;border-radius:12px;display:block;margin:0 auto 16px">'
+        : '';
+
+    $html = mail_layout('It\'s back in stock', $imgHtml . '
+        <p style="font-size:14px;line-height:1.6">Good news — <b>' . e($product['name']) . '</b> is available again.</p>
+        <p style="font-size:13px;line-height:1.6;color:#8A7D6E">Popular items go quickly, so grab it while it\'s here.</p>
+        <p style="margin:22px 0 6px">
+          <a href="' . e($link) . '" style="display:inline-block;background:#9C8158;color:#fff;text-decoration:none;
+             padding:13px 26px;border-radius:999px;font-size:14px;font-weight:600">Shop it now</a>
+        </p>
+        <p style="font-size:11px;color:#8A7D6E;margin-top:18px">You asked to be told when this came back. This is the only
+        email we\'ll send about it — you are not subscribed to anything else.</p>');
+
+    return send_mail($to, '', e($product['name']) . ' is back in stock', $html);
+}
+
+/**
+ * Notify everyone waiting on $productId. Call AFTER stock has been raised above 0.
+ * Idempotent: rows are stamped notified_at, so a second call sends nothing.
+ * Returns the number of emails handed off.
+ */
+function notify_restock(string $productId): int {
+    $p = row("SELECT id, name, image, stock FROM products WHERE id = ?", [$productId]);
+    if (!$p || (int) $p['stock'] <= 0) return 0;
+
+    $waiting = rows("SELECT id, email FROM restock_alerts WHERE product_id = ? AND notified_at IS NULL", [$productId]);
+    $sent = 0;
+    foreach ($waiting as $w) {
+        if (send_restock_email($w['email'], $p)) $sent++;
+        q("UPDATE restock_alerts SET notified_at = NOW() WHERE id = ?", [(int) $w['id']]);
+    }
+    return $sent;
+}

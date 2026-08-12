@@ -171,3 +171,40 @@ function new_order_no(): string {
 function redirect(string $to): void { header('Location: ' . $to); exit; }
 function input(string $key, $default = '') { return $_POST[$key] ?? $_GET[$key] ?? $default; }
 function is_post(): bool { return ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'; }
+
+/* ============================================================
+   SOCIAL VIDEO EMBEDS (homepage "as seen on social" section)
+   Instagram and TikTok both expose a public, key-less iframe embed for public
+   posts, so we store only the post URL the client pastes and derive the player
+   from it. No API token, no third-party script, nothing to expire.
+     instagram.com/p|reel|tv/<code>/  -> instagram.com/p/<code>/embed
+     tiktok.com/@user/video/<id>      -> tiktok.com/embed/v2/<id>
+   Returns '' when the URL isn't recognised — callers then just link out.
+   ============================================================ */
+function social_embed_url(string $platform, string $url): string {
+    $url = trim($url);
+    if ($url === '') return '';
+    if ($platform === 'instagram') {
+        if (preg_match('~instagram\.com/(?:p|reel|reels|tv)/([A-Za-z0-9_-]+)~i', $url, $m)) {
+            return 'https://www.instagram.com/p/' . $m[1] . '/embed';
+        }
+        return '';
+    }
+    if ($platform === 'tiktok') {
+        if (preg_match('~tiktok\.com/(?:@[^/]+/)?video/(\d+)~i', $url, $m)) {
+            return 'https://www.tiktok.com/embed/v2/' . $m[1];
+        }
+        /* short vm.tiktok.com/xxxx links can't be resolved without a network call —
+           the card still opens the post in a new tab, we just can't inline it. */
+        return '';
+    }
+    return '';
+}
+
+/** Enabled social posts for the homepage rail, newest-first within the chosen sort. */
+function social_posts(int $limit = 12): array {
+    $rows = rows("SELECT id, platform, url, thumb, caption FROM social_posts
+                  WHERE enabled = 1 ORDER BY sort, id DESC LIMIT " . max(1, $limit));
+    foreach ($rows as &$r) { $r['embed'] = social_embed_url($r['platform'], $r['url']); }
+    return $rows;
+}

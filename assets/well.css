@@ -391,6 +391,31 @@ select.input,.select{padding-right:34px}
 .nav-list>li.active>a::after{content:""; position:absolute; left:13px; right:13px; bottom:-1px; height:2px; background:var(--rose); border-radius:2px}
 .nav-list>li>a.offers{color:var(--rose-deep); font-weight:600}
 .nav-list>li>a .x{display:inline-flex; width:15px; height:15px; margin-right:5px; color:var(--mint)}
+/* ---------- floating WhatsApp button (every page, injected by chrome.js mountChrome) ---------- */
+.wa-fab{position:fixed; right:22px; bottom:22px; z-index:110; display:flex; align-items:center; gap:0;
+  height:58px; width:58px; padding:0; border-radius:999px; background:#25D366; color:#fff;
+  box-shadow:0 10px 26px rgba(37,211,102,.42), 0 2px 8px rgba(0,0,0,.14);
+  overflow:hidden; transition:width .28s cubic-bezier(.2,.8,.2,1), box-shadow .2s, transform .2s}
+.wa-fab:hover,.wa-fab:focus-visible{width:186px; box-shadow:0 14px 32px rgba(37,211,102,.5), 0 3px 10px rgba(0,0,0,.18); transform:translateY(-2px)}
+.wa-fab-ic{flex:none; width:58px; height:58px; display:flex; align-items:center; justify-content:center}
+.wa-fab-ic svg{width:30px; height:30px}
+.wa-fab-tip{white-space:nowrap; font-size:14.5px; font-weight:600; letter-spacing:.01em; padding-right:20px; opacity:0; transition:opacity .2s .06s}
+.wa-fab:hover .wa-fab-tip,.wa-fab:focus-visible .wa-fab-tip{opacity:1}
+/* gentle attention pulse, once the page has settled — skipped for reduced-motion */
+@media(prefers-reduced-motion:no-preference){
+  .wa-fab::after{content:""; position:absolute; inset:0; border-radius:999px; border:2px solid #25D366;
+    animation:waPulse 2.6s ease-out 2s infinite; pointer-events:none}
+  .wa-fab:hover::after{animation:none; opacity:0}
+  @keyframes waPulse{0%{transform:scale(1);opacity:.7} 70%{transform:scale(1.5);opacity:0} 100%{opacity:0}}
+}
+@media(max-width:760px){
+  .wa-fab{right:14px; bottom:14px; height:52px; width:52px}
+  .wa-fab:hover,.wa-fab:focus-visible{width:52px}      /* no room to expand on phones */
+  .wa-fab-ic{width:52px; height:52px}
+  .wa-fab-ic svg{width:27px; height:27px}
+  .wa-fab-tip{display:none}
+}
+
 /* "More" overflow dropdown — keeps the bar from running into the account icons when
    there are lots of shelves. Which shelves land here is decided in assets/data.php
    (first N categories by sort stay inline). Flattened back to a plain list on mobile. */

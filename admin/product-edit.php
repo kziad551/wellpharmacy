@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/inc/layout.php';
+require_once dirname(__DIR__) . '/inc/mailer.php';   // notify_restock() on a 0 -> in-stock save
 
 $BADGES = ['' => '— none —','derm'=>'Derm Pick','best'=>'Bestseller','trend'=>'Trending','trusted'=>'Trusted','new'=>'New','vegan'=>'Vegan','ff'=>'Frag-Free'];
 $cats   = array_column(rows("SELECT name FROM categories ORDER BY sort"), 'name');
@@ -66,10 +67,21 @@ if (is_post()) {
     if ($name === '' || $newId === '') { flash('Name is required.', 'err'); redirect($editing ? "product-edit?id=$id" : 'product-edit'); }
 
     if ($editing) {
+        /* remember the stock we're replacing so we can spot a 0 -> in-stock crossing */
+        $stockBefore = (int) val("SELECT stock FROM products WHERE id = ?", [$id]);
+
         $sets = implode(', ', array_map(fn($k) => "$k = :$k", array_keys($data)));
         $data['id'] = $id;
         q("UPDATE products SET $sets WHERE id = :id", $data);
-        flash($upErr ? 'Product updated — but the image was not changed: ' . $upErr : 'Product updated.', $upErr ? 'err' : 'ok');
+
+        /* RESTOCK: went from out-of-stock to in-stock -> email everyone waiting.
+           notify_restock() stamps each row, so re-saving the product won't re-send. */
+        $note = '';
+        if ($stockBefore <= 0 && (int) $data['stock'] > 0) {
+            $sent = notify_restock($id);
+            if ($sent > 0) $note = " Back-in-stock alert emailed to $sent " . ($sent === 1 ? 'person' : 'people') . '.';
+        }
+        flash(($upErr ? 'Product updated — but the image was not changed: ' . $upErr : 'Product updated.') . $note, $upErr ? 'err' : 'ok');
     } else {
         if (row("SELECT id FROM products WHERE id = ?", [$newId])) { flash('A product with that ID already exists.', 'err'); redirect('product-edit'); }
         $data['id'] = $newId;
