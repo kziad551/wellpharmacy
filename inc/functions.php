@@ -191,11 +191,12 @@ function social_embed_url(string $platform, string $url): string {
         return '';
     }
     if ($platform === 'tiktok') {
-        if (preg_match('~tiktok\.com/(?:@[^/]+/)?video/(\d+)~i', $url, $m)) {
+        /* /video/ = a clip, /photo/ = an image carousel — embed/v2 plays both */
+        if (preg_match('~tiktok\.com/(?:@[^/]+/)?(?:video|photo)/(\d+)~i', $url, $m)) {
             return 'https://www.tiktok.com/embed/v2/' . $m[1];
         }
-        /* short vm.tiktok.com/xxxx links can't be resolved without a network call —
-           the card still opens the post in a new tab, we just can't inline it. */
+        /* short vm./vt.tiktok.com links hide the id behind a redirect, which we can't
+           follow from here — the card still opens the post in a new tab. */
         return '';
     }
     return '';
