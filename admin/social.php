@@ -82,18 +82,16 @@ if (is_post()) {
         if (!empty($tt['thumb'])) {
             $extraCap = ($caption === '' && !empty($tt['title'])) ? mb_substr($tt['title'], 0, 200) : $caption;
             q("UPDATE social_posts SET thumb=?, caption=? WHERE id=?", [$tt['thumb'], $extraCap, $id]);
-            $auto = ' Cover pulled from TikTok automatically.';
+            $auto = ' Cover pulled from TikTok.';
         } else {
-            $auto = ' Cover could not be fetched (the server can\'t reach TikTok right now) — upload one below.';
+            $auto = ' No cover yet — upload one.';
         }
     }
 
-    /* Informational only: the card still works, it just opens in a new tab. */
-    $note = social_embed_url($platform, $url) === ''
-        ? ' Note: this link opens in a new tab rather than playing on the site — use the full post URL (not a short vm.tiktok.com or profile link) if you want an inline player.'
-        : '';
-
-    flash($saved . $auto . $note, 'ok');   // the save succeeded; these are notes, not errors
+    /* NB: whether a post plays inline or opens in a new tab is shown as a small tag
+       on its row in the list. It used to be repeated in this message on every single
+       save, which is just nagging — the admin already knows. */
+    flash($saved . $auto, 'ok');
     redirect('social');
 }
 
