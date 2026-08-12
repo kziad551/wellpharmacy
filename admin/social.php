@@ -2,10 +2,25 @@
 /* Admin → Social Videos: the Instagram / TikTok clips shown in the homepage
    "as seen on social" section. One row = one post. */
 require __DIR__ . '/inc/layout.php';
+require_once dirname(__DIR__) . '/inc/social-sync.php';
 
 if (is_post()) {
     csrf_check();
     $act = (string) input('action');
+
+    if ($act === 'ig_save') {
+        $tok = trim((string) input('ig_token'));
+        if ($tok !== '') set_setting('ig_access_token', $tok, 'social');
+        set_setting('ig_sync_enabled', input('ig_enabled') ? '1' : '0', 'social');
+        flash('Instagram settings saved.');
+        redirect('social');
+    }
+    if ($act === 'sync') {
+        $res = social_sync_all();
+        $ig  = $res['instagram'];
+        flash($ig['msg'] . ' ' . $res['tiktok']['msg'], $ig['ok'] ? 'ok' : 'err');
+        redirect('social');
+    }
 
     if ($act === 'delete') {
         q("DELETE FROM social_posts WHERE id = ?", [(int) input('id')]);
@@ -45,6 +60,19 @@ if (is_post()) {
 
     if ($url === '') { flash('Paste the link to the Instagram or TikTok post.', 'err'); redirect('social'); }
 
+    /* TikTok needs no key — grab the real cover straight from the link */
+    $auto = '';
+    if ($platform === 'tiktok' && $thumb === '') {
+        $tt = tiktok_lookup($url);
+        if (!empty($tt['thumb'])) {
+            $thumb = $tt['thumb'];
+            if ($caption === '' && !empty($tt['title'])) $caption = mb_substr($tt['title'], 0, 200);
+            $auto = ' Cover pulled from TikTok automatically.';
+        } else {
+            $auto = ' (Could not fetch the TikTok cover — upload one, or check the video is public.)';
+        }
+    }
+
     /* warn (don't block) when we can't build an inline player — the card still
        opens the post in a new tab, which is a fine fallback. */
     $embed = social_embed_url($platform, $url);
@@ -55,11 +83,11 @@ if (is_post()) {
     if ($id) {
         q("UPDATE social_posts SET platform=?, url=?, thumb=?, caption=?, likes=?, sort=? WHERE id=?",
           [$platform, $url, $thumb, $caption, $likes, $sort, $id]);
-        flash('Video updated.' . $warn, $warn ? 'err' : 'ok');
+        flash('Video updated.' . $warn . $auto, $warn ? 'err' : 'ok');
     } else {
         q("INSERT INTO social_posts (platform, url, thumb, caption, likes, sort, enabled) VALUES (?,?,?,?,?,?,1)",
           [$platform, $url, $thumb, $caption, $likes, $sort]);
-        flash('Video added.' . $warn, $warn ? 'err' : 'ok');
+        flash('Video added.' . $warn . $auto, $warn ? 'err' : 'ok');
     }
     redirect('social');
 }
@@ -71,6 +99,69 @@ $on   = setting('social_sec_enabled', '1') === '1';
 
 admin_head('Social Videos', 'social', count($list) . ' video' . (count($list) === 1 ? '' : 's'));
 ?>
+<?php
+$igOn    = setting('ig_sync_enabled', '0') === '1';
+$igTok   = setting('ig_access_token', '');
+$igUser  = setting('ig_username', '');
+$igWhen  = setting('ig_last_sync', '');
+$igLast  = setting('ig_last_result', '');
+$synced  = (int) val("SELECT COUNT(*) FROM social_posts WHERE source='instagram'");
+$cronUrl = rtrim(setting('site_url', ''), '/') . '/actions/social-sync?key=' . setting('social_sync_key', '');
+?>
+<div class="a-card" style="margin-bottom:20px"><div class="hd">
+  <h2>Instagram auto-sync</h2>
+  <span class="pill <?= $igOn && $igTok ? 'pill-good' : 'pill-muted' ?>">
+    <?= $igOn && $igTok ? ($igUser ? 'Connected as @' . e($igUser) : 'Connected') : 'Not connected' ?>
+  </span>
+</div><div class="bd">
+
+  <?php if (!$igTok): ?>
+    <p style="margin:0 0 14px;font-size:13.5px;line-height:1.6">
+      Paste a long-lived Instagram token below and your latest posts will pull in by themselves —
+      covers, captions, handle and follower count included. Setup steps are in
+      <b>INSTAGRAM-SETUP.md</b> (about 15 minutes, one time).
+    </p>
+  <?php endif; ?>
+
+  <form method="post" style="margin-bottom:16px">
+    <?= csrf_field() ?><input type="hidden" name="action" value="ig_save">
+    <label class="switch" style="margin-bottom:12px">
+      <input type="checkbox" name="ig_enabled" value="1" <?= $igOn ? 'checked' : '' ?>> Pull my Instagram posts automatically
+    </label>
+    <div class="field">
+      <label>Instagram access token</label>
+      <input class="input" name="ig_token" value="" placeholder="<?= $igTok ? 'saved — leave blank to keep it' : 'IGAA…' ?>" autocomplete="off">
+      <div class="hint">
+        <?php if ($igTok): ?>A token is saved (<?= e(substr($igTok, 0, 8)) ?>…<?= e(substr($igTok, -4)) ?>). Leave blank to keep it, or paste a new one to replace it.
+        <?php else: ?>A long-lived token from your Meta app. We refresh it on every sync, so it won't expire.<?php endif; ?>
+      </div>
+    </div>
+    <button class="btn btn-primary">Save Instagram settings</button>
+  </form>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--a-border,#E4DFD3)">
+    <form method="post" style="display:inline">
+      <?= csrf_field() ?><input type="hidden" name="action" value="sync">
+      <button class="btn btn-primary" <?= $igTok ? '' : 'disabled' ?>>Sync now</button>
+    </form>
+    <span class="faint" style="font-size:13px">
+      <?= $synced ?> post<?= $synced === 1 ? '' : 's' ?> pulled from Instagram<?php
+        if ($igWhen) echo ' · last sync ' . e(date('j M Y, H:i', strtotime($igWhen))); ?>
+    </span>
+  </div>
+  <?php if ($igLast): ?><p class="faint" style="margin:10px 0 0;font-size:12.5px"><?= e($igLast) ?></p><?php endif; ?>
+
+  <details style="margin-top:14px">
+    <summary style="cursor:pointer;font-size:13px;font-weight:600">Keep it updating by itself (cron)</summary>
+    <p style="font-size:13px;line-height:1.6;margin:10px 0 0">
+      In cPanel → <b>Cron Jobs</b>, add one job running every 6 hours:<br>
+      <code style="display:block;padding:9px 11px;background:#F4F1E9;border-radius:8px;margin:8px 0;word-break:break-all">curl -s "<?= e($cronUrl) ?>" &gt;/dev/null 2&gt;&amp;1</code>
+      That URL is secret — anyone with it can trigger a sync (nothing else). Without the cron, the grid
+      still updates whenever you press <b>Sync now</b>.
+    </p>
+  </details>
+</div></div>
+
 <div class="a-grid-2" style="display:grid;grid-template-columns:1.25fr .95fr;gap:20px;align-items:start">
 
   <div>

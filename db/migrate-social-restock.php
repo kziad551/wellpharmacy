@@ -16,11 +16,35 @@ q("CREATE TABLE IF NOT EXISTS social_posts (
      enabled TINYINT(1) NOT NULL DEFAULT 1,
      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$hasCol = fn(string $c) => (bool) val("SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'social_posts' AND COLUMN_NAME = ?", [$c]);
+
 /* like-count badge shown on hover (matches the reference design) */
-if (!val("SELECT COUNT(*) FROM information_schema.COLUMNS
-          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'social_posts' AND COLUMN_NAME = 'likes'")) {
+if (!$hasCol('likes')) {
     q("ALTER TABLE social_posts ADD COLUMN likes VARCHAR(16) NOT NULL DEFAULT '' AFTER caption");
     echo "   + column: likes\n";
+}
+/* auto-sync bookkeeping: which post this is on the platform, and who created the row.
+   `source` keeps hand-added rows safe — a sync only ever touches its own rows. */
+if (!$hasCol('platform_id')) {
+    /* NULL for hand-added rows on purpose: a UNIQUE index permits many NULLs, so the
+       key below de-dupes synced posts without ever blocking a second manual row. */
+    q("ALTER TABLE social_posts ADD COLUMN platform_id VARCHAR(64) DEFAULT NULL AFTER platform");
+    echo "   + column: platform_id\n";
+}
+if (!$hasCol('source')) {
+    q("ALTER TABLE social_posts ADD COLUMN source ENUM('manual','instagram','tiktok') NOT NULL DEFAULT 'manual' AFTER platform_id");
+    echo "   + column: source\n";
+}
+q("UPDATE social_posts SET platform_id = NULL WHERE platform_id = ''");
+if (!val("SELECT COUNT(*) FROM information_schema.STATISTICS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME='social_posts' AND INDEX_NAME='uniq_platform_post'")) {
+    /* drop any duplicate synced rows first so the unique key can be created */
+    q("DELETE s1 FROM social_posts s1 JOIN social_posts s2
+       WHERE s1.platform_id IS NOT NULL AND s1.platform_id = s2.platform_id
+         AND s1.platform = s2.platform AND s1.id > s2.id");
+    q("ALTER TABLE social_posts ADD UNIQUE KEY uniq_platform_post (platform, platform_id)");
+    echo "   + unique key: (platform, platform_id)\n";
 }
 echo "   ok (rows: " . val("SELECT COUNT(*) FROM social_posts") . ")\n";
 
@@ -46,7 +70,16 @@ $defaults = [
   ['social_sec_title',   'as seen on social',              'social'],
   ['social_sec_sub',     'Real routines, real results — straight from our Instagram and TikTok.', 'social'],
   ['social_handle',      '',                                'social'],   // blank = derived from the Instagram URL
-  ['social_followers',   '',                                'social'],   // e.g. "68k followers" — free text, admin-editable
+  ['social_followers',   '',                                'social'],   // auto-filled by the sync; editable
+  /* Instagram auto-sync (Instagram API with Instagram Login). The token is a
+     long-lived one (60 days) and the sync refreshes it on every run, so it never
+     expires as long as the site is syncing. */
+  ['ig_access_token',    '',                                'social'],
+  ['ig_sync_enabled',    '0',                               'social'],
+  ['ig_last_sync',       '',                                'social'],
+  ['ig_last_result',     '',                                'social'],
+  ['ig_username',        '',                                'social'],
+  ['social_sync_key',    bin2hex(random_bytes(12)),         'social'],   // guards the cron URL
 ];
 foreach ($defaults as [$k, $v, $g]) {
     if (val("SELECT COUNT(*) FROM settings WHERE skey=?", [$k])) { echo "   skip (exists): $k\n"; continue; }

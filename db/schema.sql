@@ -244,12 +244,18 @@ CREATE TABLE reviews (
 CREATE TABLE social_posts (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   platform    ENUM('instagram','tiktok') NOT NULL DEFAULT 'instagram',
+  platform_id VARCHAR(64)  DEFAULT NULL,          -- the post's id on the platform; NULL for hand-added rows
+  source      ENUM('manual','instagram','tiktok') NOT NULL DEFAULT 'manual',  -- a sync only ever touches its own rows
   url         VARCHAR(500) NOT NULL DEFAULT '',
   thumb       VARCHAR(500) NOT NULL DEFAULT '',
   caption     VARCHAR(200) NOT NULL DEFAULT '',
+  likes       VARCHAR(16)  NOT NULL DEFAULT '',   -- shown on the hover heart; free text ("82", "1.2k")
   sort        INT          NOT NULL DEFAULT 0,
   enabled     TINYINT(1)   NOT NULL DEFAULT 1,
-  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  -- many NULLs are allowed in a UNIQUE index, so this de-dupes synced posts
+  -- without ever blocking a second hand-added row
+  UNIQUE KEY uniq_platform_post (platform, platform_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---- back-in-stock alerts ----------------------------------------------
