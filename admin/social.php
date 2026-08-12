@@ -64,15 +64,16 @@ if (is_post()) {
        stalls (e.g. the host firewall is blocking tiktok.com) the request can die
        before the write lands — silently losing the edit. So the row is written
        here, and the cover is a best-effort top-up afterwards. */
+    $label = $platform === 'tiktok' ? 'TikTok' : 'Instagram';
     if ($id) {
         q("UPDATE social_posts SET platform=?, url=?, thumb=?, caption=?, likes=?, sort=? WHERE id=?",
           [$platform, $url, $thumb, $caption, $likes, $sort, $id]);
-        $saved = 'Video updated.';
+        $saved = "$label video updated.";
     } else {
         q("INSERT INTO social_posts (platform, url, thumb, caption, likes, sort, enabled) VALUES (?,?,?,?,?,?,1)",
           [$platform, $url, $thumb, $caption, $likes, $sort]);
         $id    = (int) db()->lastInsertId();
-        $saved = 'Video added.';
+        $saved = "$label video added.";
     }
 
     /* Best-effort cover for TikTok — short timeout so nobody waits on a page save. */
