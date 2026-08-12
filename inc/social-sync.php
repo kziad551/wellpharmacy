@@ -154,9 +154,10 @@ function ig_sync(): array {
 }
 
 /* ---------------------------------------------------------------- tiktok --- */
-/** Public oEmbed — no key. Returns ['thumb'=>siteRelativePath, 'title'=>..., 'id'=>...] */
-function tiktok_lookup(string $postUrl): array {
-    $r = sync_get('https://www.tiktok.com/oembed?url=' . urlencode($postUrl));
+/** Public oEmbed — no key. Returns ['thumb'=>siteRelativePath, 'title'=>..., 'id'=>...]
+ *  $timeout is short when a human is waiting on a page save, long for cron. */
+function tiktok_lookup(string $postUrl, int $timeout = 20): array {
+    $r = sync_get('https://www.tiktok.com/oembed?url=' . urlencode($postUrl), $timeout);
     if (!$r['ok']) return [];
     $j = json_decode($r['body'], true);
     if (!$j || empty($j['thumbnail_url'])) return [];

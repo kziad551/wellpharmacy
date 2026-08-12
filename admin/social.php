@@ -60,35 +60,40 @@ if (is_post()) {
 
     if ($url === '') { flash('Paste the link to the Instagram or TikTok post.', 'err'); redirect('social'); }
 
-    /* TikTok needs no key — grab the real cover straight from the link */
-    $auto = '';
-    if ($platform === 'tiktok' && $thumb === '') {
-        $tt = tiktok_lookup($url);
-        if (!empty($tt['thumb'])) {
-            $thumb = $tt['thumb'];
-            if ($caption === '' && !empty($tt['title'])) $caption = mb_substr($tt['title'], 0, 200);
-            $auto = ' Cover pulled from TikTok automatically.';
-        } else {
-            $auto = ' (Could not fetch the TikTok cover — upload one, or check the video is public.)';
-        }
-    }
-
-    /* warn (don't block) when we can't build an inline player — the card still
-       opens the post in a new tab, which is a fine fallback. */
-    $embed = social_embed_url($platform, $url);
-    $warn  = $embed === ''
-        ? ' Note: that link can\'t be played inside the site (short vm.tiktok.com links and profile links can\'t be embedded) — the card will open it in a new tab instead. Use the full post URL for an inline player.'
-        : '';
-
+    /* SAVE FIRST. Fetching a TikTok cover talks to the internet, and if that call
+       stalls (e.g. the host firewall is blocking tiktok.com) the request can die
+       before the write lands — silently losing the edit. So the row is written
+       here, and the cover is a best-effort top-up afterwards. */
     if ($id) {
         q("UPDATE social_posts SET platform=?, url=?, thumb=?, caption=?, likes=?, sort=? WHERE id=?",
           [$platform, $url, $thumb, $caption, $likes, $sort, $id]);
-        flash('Video updated.' . $warn . $auto, $warn ? 'err' : 'ok');
+        $saved = 'Video updated.';
     } else {
         q("INSERT INTO social_posts (platform, url, thumb, caption, likes, sort, enabled) VALUES (?,?,?,?,?,?,1)",
           [$platform, $url, $thumb, $caption, $likes, $sort]);
-        flash('Video added.' . $warn . $auto, $warn ? 'err' : 'ok');
+        $id    = (int) db()->lastInsertId();
+        $saved = 'Video added.';
     }
+
+    /* Best-effort cover for TikTok — short timeout so nobody waits on a page save. */
+    $auto = '';
+    if ($platform === 'tiktok' && $thumb === '') {
+        $tt = tiktok_lookup($url, 6);
+        if (!empty($tt['thumb'])) {
+            $extraCap = ($caption === '' && !empty($tt['title'])) ? mb_substr($tt['title'], 0, 200) : $caption;
+            q("UPDATE social_posts SET thumb=?, caption=? WHERE id=?", [$tt['thumb'], $extraCap, $id]);
+            $auto = ' Cover pulled from TikTok automatically.';
+        } else {
+            $auto = ' Cover could not be fetched (the server can\'t reach TikTok right now) — upload one below.';
+        }
+    }
+
+    /* Informational only: the card still works, it just opens in a new tab. */
+    $note = social_embed_url($platform, $url) === ''
+        ? ' Note: this link opens in a new tab rather than playing on the site — use the full post URL (not a short vm.tiktok.com or profile link) if you want an inline player.'
+        : '';
+
+    flash($saved . $auto . $note, 'ok');   // the save succeeded; these are notes, not errors
     redirect('social');
 }
 
