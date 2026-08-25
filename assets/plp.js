@@ -10,7 +10,12 @@
   W.initPLP = function (cfg) {
     const all = cfg.products.slice();
     const grid = cfg.gridEl;
-    const state = { concern:new Set(), brand:new Set(), skin:new Set(), ingr:new Set(), rating:0, sale:false, max:50, sort:'rec', view:'grid', sub:'All' };
+    /* The price ceiling comes from the markup (skincare.php derives it from the dearest
+       product). It used to be hardcoded to 50 here AND on the input, which made anything
+       over $50 impossible to reach — you couldn't even drag to it. */
+    const priceInput = cfg.filtersEl ? cfg.filtersEl.querySelector('[data-price]') : null;
+    const PRICE_CEIL = priceInput && Number(priceInput.max) > 0 ? Number(priceInput.max) : Infinity;
+    const state = { concern:new Set(), brand:new Set(), skin:new Set(), ingr:new Set(), rating:0, sale:false, max:PRICE_CEIL, sort:'rec', view:'grid', sub:'All' };
     const chipsEl = cfg.chipsEl, countEls = cfg.countEls || [];
 
     function passes(p) {
@@ -69,7 +74,7 @@
       state.ingr.forEach(s => chips.push(['ingr', s, s]));
       if (state.sale) chips.push(['sale', '1', 'On Sale']);
       if (state.rating) chips.push(['rating', '1', '★ ' + state.rating + ' & up']);
-      if (state.max < 50) chips.push(['max', '1', 'Under $' + state.max]);
+      if (state.max < PRICE_CEIL) chips.push(['max', '1', 'Under $' + state.max]);
       chipsEl.innerHTML = chips.map(([k,v,label]) => `<span class="chip-rm">${label}<button data-rmchip="${k}" data-val="${v}" aria-label="Remove">✕</button></span>`).join('')
         + (chips.length ? `<button class="btn btn-ghost btn-sm" data-clear-all style="height:32px">Clear all</button>` : '');
     }
@@ -110,13 +115,13 @@
         const k = rc.dataset.rmchip, v = rc.dataset.val;
         if (k === 'sale') state.sale = false;
         else if (k === 'rating') state.rating = 0;
-        else if (k === 'max') state.max = 50;
+        else if (k === 'max') state.max = PRICE_CEIL;
         else if (state[k] && state[k].delete) state[k].delete(v);
         syncInputs(); render(true);
       }
       if (e.target.closest('[data-clear-all]')) {
         state.concern.clear(); state.brand.clear(); state.skin.clear(); state.ingr.clear();
-        state.rating = 0; state.sale = false; state.max = 50;
+        state.rating = 0; state.sale = false; state.max = PRICE_CEIL;
         syncInputs(); render(true);
       }
     });

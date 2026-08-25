@@ -25,6 +25,12 @@ $USE_PLP = true;
 /* category quick-pills */
 $pillCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
 
+/* Price slider ceiling. This used to be hardcoded at $50, which silently made every
+   product dearer than that UNREACHABLE from a listing page — strollers, devices, sets.
+   Derive it from the catalogue and round up so the top item is always inside range. */
+$maxPrice = (float) val("SELECT COALESCE(MAX(price),0) FROM products WHERE status='active'");
+$priceCeil = max(50, (int) ceil($maxPrice / 10) * 10);
+
 include __DIR__ . '/inc/head.php';
 ?>
 <section class="cat-hero">
@@ -76,8 +82,8 @@ include __DIR__ . '/inc/head.php';
     <details class="fgroup" open>
       <summary>Price <span class="ar">▾</span></summary>
       <div class="fbody price-slider">
-        <input type="range" min="0" max="50" value="50" data-price>
-        <div class="vals"><span>$0</span><span data-price-val>$50</span></div>
+        <input type="range" min="0" max="<?= $priceCeil ?>" value="<?= $priceCeil ?>" data-price>
+        <div class="vals"><span>$0</span><span data-price-val>$<?= $priceCeil ?></span></div>
       </div>
     </details>
     <details class="fgroup">
