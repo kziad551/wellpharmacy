@@ -304,13 +304,13 @@ select.input,.select{padding-right:34px}
 .logo .tag{display:none}
 /* uploaded logo picture (admin -> Appearance). Height-capped so any aspect ratio fits
    the header band; width:auto keeps wide wordmark logos from being squashed. */
-.logo-img{height:52px; width:auto; max-width:min(240px,46vw); object-fit:contain; display:block; flex:none;
+.logo-img{height:58px; width:auto; max-width:min(260px,52vw); object-fit:contain; display:block; flex:none;
   transition:height .25s}
-.site-header.scrolled .logo-img{height:42px}
+.site-header.scrolled .logo-img{height:48px}
 .logo.has-img{gap:10px}
-.site-footer .logo-img{height:46px; max-width:200px}
+.site-footer .logo-img{height:54px; max-width:230px; filter:brightness(0) invert(1); opacity:.94}
 @media(max-width:760px){
-  .logo-img{height:40px; max-width:min(150px,38vw)}
+  .logo-img{height:46px; max-width:min(180px,46vw)}
   .site-header.scrolled .logo-img{height:36px}
 }
 @media(max-width:380px){ .logo-img{height:34px; max-width:34vw} }

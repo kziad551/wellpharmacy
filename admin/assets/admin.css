@@ -164,8 +164,8 @@ select.input{padding-right:34px}
   border:1px solid var(--a-border);border-radius:8px;background:#fff;color:var(--a-ink);cursor:pointer}
 .bi-file::file-selector-button:hover{border-color:var(--a-primary);color:var(--a-primary)}
 /* the admin sidebar + login mark can be the uploaded logo instead of the letter tile */
-.a-brand .mark-img{width:34px;height:34px;border-radius:9px;object-fit:contain;background:#fff;padding:2px;flex:none}
-.a-login .mark-img{width:48px;height:48px;border-radius:12px;object-fit:contain;background:#fff;padding:3px;margin-bottom:18px}
+.a-brand .mark-img{height:30px;width:auto;max-width:158px;border-radius:0;object-fit:contain;background:none;padding:0;flex:none}
+.a-login .mark-img{height:52px;width:auto;max-width:240px;border-radius:0;object-fit:contain;background:none;padding:0;margin-bottom:18px}
 
 /* login */
 .a-login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(120% 80% at 50% 0,#2C2820,#1A160F)}
