@@ -25,7 +25,7 @@ function sync_get(string $url, int $timeout = 20): array {
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout,
             CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
-            CURLOPT_USERAGENT => 'WellPharmacy/1.0 (+https://wellpharmacy.top-wp.com)',
+            CURLOPT_USERAGENT => 'WellPharmacy/1.0 (+https://thewellshop.com.lb)',
         ]);
         $body = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);

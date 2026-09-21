@@ -1,11 +1,21 @@
 <?php
 require __DIR__ . '/inc/auth.php';
+admin_security_headers();
 if (current_admin()) redirect('dashboard');
 $err = '';
 if (is_post()) {
     csrf_check();
-    if (admin_login(trim((string)input('username')), (string)input('password'))) redirect('dashboard');
-    $err = 'Invalid username or password.';
+    $uname = trim((string) input('username'));
+    login_attempts_table();
+    $wait = login_locked_for($uname);
+    if ($wait > 0) {
+        /* Deliberately vague: never confirm whether the username was real. */
+        $err = 'Too many failed attempts. Try again in ' . max(1, (int) ceil($wait / 60)) . ' minute(s).';
+    } elseif (admin_login($uname, (string) input('password'))) {
+        redirect('dashboard');
+    } else {
+        $err = 'Invalid username or password.';
+    }
 }
 ?><!DOCTYPE html>
 <html lang="en">

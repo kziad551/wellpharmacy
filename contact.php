@@ -9,11 +9,38 @@ if (is_post()) {
     if ($name === '' || $body === '') {
         $err = 'Please add your name and a message.';
     } else {
+        $cEmail = trim((string)input('email'));
+        $cPhone = trim((string)input('phone'));
+        $cTopic = (string)input('topic');
+        $cOrder = trim((string)input('order_no'));
         q("INSERT INTO messages (name,email,phone,topic,order_no,body) VALUES (?,?,?,?,?,?)", [
-            $name, trim((string)input('email')), trim((string)input('phone')),
-            (string)input('topic'), trim((string)input('order_no')), $body,
+            $name, $cEmail, $cPhone, $cTopic, $cOrder, $body,
         ]);
         $sent = true;
+
+        /* ---- tell the store, and let the sender know we got it ---- */
+        require_once __DIR__ . '/inc/mailer.php';
+        $quoted = '<div style="background:#F4F1E9;border-radius:10px;padding:14px;margin:14px 0;font-size:13px;line-height:1.6;white-space:pre-wrap">' . e($body) . '</div>';
+
+        if (($adm = admin_notify_email()) !== '') {
+            send_mail($adm, 'Well Pharmacy', 'New contact message' . ($cTopic !== '' ? ' — ' . $cTopic : ''),
+                mail_layout('New contact message', '
+                    <p style="font-size:13px;line-height:1.8"><b>' . e($name) . '</b><br>'
+                    . ($cEmail !== '' ? 'Email: ' . e($cEmail) . '<br>' : '')
+                    . ($cPhone !== '' ? 'Phone: ' . e($cPhone) . '<br>' : '')
+                    . ($cTopic !== '' ? 'Topic: ' . e($cTopic) . '<br>' : '')
+                    . ($cOrder !== '' ? 'Order no: ' . e($cOrder) : '') . '</p>'
+                    . $quoted
+                    . '<p style="font-size:12px;color:#8A7D6E">' . ($cEmail !== '' ? 'Reply straight to ' . e($cEmail) . '.' : 'No email given — call them back.') . '</p>'));
+        }
+        if ($cEmail !== '' && filter_var($cEmail, FILTER_VALIDATE_EMAIL)) {
+            send_mail($cEmail, $name, 'We received your message — ' . setting('store_name', 'WELL SHOP'),
+                mail_layout('Thanks for reaching out', '
+                    <p style="font-size:14px;line-height:1.6">Hi ' . e($name) . ', we\'ve got your message and a pharmacist will get back to you shortly.</p>
+                    <p style="font-size:13px;color:#8A7D6E">Here\'s what you sent us:</p>'
+                    . $quoted
+                    . '<p style="font-size:12px;color:#8A7D6E">No need to reply to this email.</p>'));
+        }
     }
 }
 

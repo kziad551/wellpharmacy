@@ -5,6 +5,18 @@
 require_once __DIR__ . '/db.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
+    /* Hardened session cookie. Behind Cloudflare TLS terminates at the edge, so
+       HTTPS is detected from forwarded headers as well as $_SERVER['HTTPS']. */
+    $sec = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+        || (strpos((string)($_SERVER['HTTP_CF_VISITOR'] ?? ''), 'https') !== false);
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => $sec,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
