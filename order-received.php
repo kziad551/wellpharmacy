@@ -14,7 +14,7 @@ $HEAD_CSS = <<<CSS
   .oc{max-width:760px;margin-inline:auto;padding-block:44px 60px}
   .oc-top{text-align:center;margin-bottom:26px}
   .oc-check{width:64px;height:64px;border-radius:50%;background:var(--mint,#7D7A5E);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px}
-  .oc-top h1{font-family:var(--fp);font-size:clamp(26px,3.4vw,38px);font-weight:600;text-transform:lowercase;margin:0 0 6px}
+  .oc-top h1{font-family:var(--fp);font-size:clamp(26px,3.4vw,38px);font-weight:600;margin:0 0 6px}
   .oc-top .no{font-size:14px;color:var(--ink-soft)}
   .oc-top .no b{color:var(--ink)}
   .oc-card{background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:18px;padding:24px;margin-bottom:18px}
@@ -35,7 +35,7 @@ if (!$order):
 ?>
 <div class="wrap oc">
   <div class="oc-top">
-    <h1>no recent order</h1>
+    <h1>No Recent Order</h1>
     <p class="muted">We couldn't find a recent order for this session. If you just ordered, check your phone for our confirmation — or contact us.</p>
     <div style="margin-top:18px"><a class="btn btn-primary" href="index">Back home</a> <a class="btn btn-ghost" href="https://wa.me/<?= e($wa) ?>" target="_blank" rel="noopener">WhatsApp us</a></div>
   </div>
@@ -47,7 +47,7 @@ if (!$order):
 <div class="wrap oc">
   <div class="oc-top">
     <div class="oc-check">✓</div>
-    <h1>thank you — order confirmed!</h1>
+    <h1>Thank You — Order Confirmed!</h1>
     <p class="no">Your order <b>#<?= e($order['order_no']) ?></b> has been placed. We'll contact you shortly to confirm delivery.</p>
   </div>
   <?php if ($note): ?><div class="oc-card" style="border-color:#e7c4bb;background:#fdf6f3"><div style="color:#b04a2f;font-size:13.5px"><?= e($note) ?></div></div><?php endif; ?>

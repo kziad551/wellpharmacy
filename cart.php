@@ -9,10 +9,10 @@ $freeThreshold = (float) setting('free_ship_threshold', '49');
 $HEAD_CSS = <<<CSS
 <style>
   .cartpg{max-width:1100px;margin-inline:auto;padding-block:34px 60px}
-  .cartpg h1{font-family:var(--fp);font-size:clamp(28px,3.4vw,40px);font-weight:600;text-transform:lowercase;margin:0 0 20px}
-  .cart-layout{display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start}
+  .cartpg h1{font-family:var(--fp);font-size:clamp(28px,3.4vw,40px);font-weight:600;margin:0 0 20px}
+  .cart-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
   .cart-list{display:flex;flex-direction:column;gap:14px}
-  .crow{display:grid;grid-template-columns:88px 1fr auto;gap:16px;align-items:center;background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:16px;padding:14px}
+  .crow{display:grid;grid-template-columns:88px minmax(0,1fr) auto;gap:16px;align-items:center;background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:16px;padding:14px}
   .crow img{width:88px;height:88px;object-fit:cover;border-radius:12px;background:var(--cream-2)}
   .crow .br{font-size:12px;color:var(--text-muted)}
   .crow .ti{font-weight:600;color:var(--ink);margin:2px 0 8px;line-height:1.2}
@@ -32,7 +32,14 @@ $HEAD_CSS = <<<CSS
   .csum .track{height:6px;border-radius:6px;background:var(--cream-2);overflow:hidden;margin-top:8px}
   .csum .track .fill{height:100%;background:var(--rose);transition:width .3s}
   .cart-empty2{text-align:center;padding:60px 20px;background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:18px}
-  @media(max-width:820px){.cart-layout{grid-template-columns:1fr}.csum{position:static}}
+  @media(max-width:820px){.cart-layout{grid-template-columns:minmax(0,1fr)}.csum{position:static}}
+  /* narrow phones: a smaller thumbnail and tighter gaps keep the row inside the screen */
+  @media(max-width:420px){
+    .crow{grid-template-columns:64px minmax(0,1fr);gap:12px;padding:12px}
+    .crow img{width:64px;height:64px}
+    .crow .r{grid-column:2;flex-direction:row;align-items:center;justify-content:space-between;width:100%}
+    .csum{padding:18px}
+  }
 </style>
 CSS;
 
@@ -40,7 +47,7 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="wrap cartpg">
   <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><b>Your Bag</b></nav>
-  <h1>your bag</h1>
+  <h1>Your Bag</h1>
   <div id="cartPage"></div>
 </div>
 

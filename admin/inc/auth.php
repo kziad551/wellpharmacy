@@ -6,6 +6,13 @@ require_once dirname(__DIR__, 2) . '/inc/functions.php';
 
 function current_admin(): ?array { return $_SESSION['admin'] ?? null; }
 
+/* admin lives one level under site root, so site-relative image paths
+   (e.g. "uploads/x.jpg") need a "../" prefix; full URLs pass through.
+   Defined here rather than in layout.php so the login screen can use it too. */
+function asrc(string $v): string {
+    return ($v === '' || preg_match('~^(https?:|/|data:)~', $v)) ? $v : '../' . $v;
+}
+
 function require_login(): void {
     if (empty($_SESSION['admin'])) redirect('login');
 }

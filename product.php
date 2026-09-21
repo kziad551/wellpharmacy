@@ -95,7 +95,8 @@ $HEAD_CSS = <<<CSS
   .pdp-benefits li{position:relative; padding-left:26px; font-size:14.5px; color:var(--ink-soft); line-height:1.45}
   .pdp-benefits li::before{content:"✓"; position:absolute; left:0; top:1px; color:var(--mint); font-weight:700}
   .trust-chips{display:flex; gap:9px; flex-wrap:wrap; margin-bottom:22px}
-  .buy-actions{display:flex; gap:12px; margin-bottom:14px}
+  .buy-actions{display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap}
+  .buy-actions>.btn{min-width:0}
   .qty-stepper{display:inline-flex; align-items:center; border:1.5px solid var(--border-2); border-radius:9999px; height:52px}
   .qty-stepper button{width:46px; height:50px; border:0; background:none; font-size:20px; color:var(--ink)}
   .qty-stepper .q{min-width:30px; text-align:center; font-weight:700}
@@ -143,8 +144,12 @@ $HEAD_CSS = <<<CSS
   .lightbox.open{display:flex} .lightbox img{max-width:90vw; max-height:90vh; border-radius:16px}
   .lightbox .x{position:absolute; top:24px; right:24px; color:#fff; width:44px;height:44px;border:0;background:rgba(255,255,255,.15);border-radius:50%}
   @media(max-width:900px){
-    .pdp{grid-template-columns:1fr; gap:28px}
-    .gallery{position:static; grid-template-columns:1fr}
+    /* bare 1fr tracks take their content's min-width, which pushed the buy box and
+       gallery past the screen edge on small phones — minmax(0,1fr) lets them shrink */
+    .pdp{grid-template-columns:minmax(0,1fr); gap:28px}
+    .pdp>*{min-width:0}
+    .gallery{position:static; grid-template-columns:minmax(0,1fr); min-width:0}
+    .buybox{min-width:0}
     .thumbs{flex-direction:row; order:2; overflow-x:auto}
     .thumb-btn{flex:none}
     .rev-summary{grid-template-columns:1fr}
@@ -190,6 +195,12 @@ $HEAD_CSS = <<<CSS
     .pdp-benefits li{font-size:13.5px; padding-left:24px}
     .qty-stepper{height:48px} .qty-stepper button{height:46px}
     .buy-actions .btn{height:48px}
+    /* stepper + Add to Bag share row 1, the favourite button sits beside them and
+       drops to its own row only if there genuinely isn't space */
+    .buy-actions{gap:8px}
+    .qty-stepper{flex:none}
+    .buy-actions .btn-primary{flex:1 1 140px}
+    .buy-actions .btn-outline{flex:0 0 auto; padding:0 14px}
     .pdp{gap:20px}
     .main-img{border-radius:18px}
     .tab-panel h3{font-size:19px}

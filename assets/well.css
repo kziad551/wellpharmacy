@@ -73,11 +73,11 @@ ul{margin:0; padding:0; list-style:none}
 ::selection{background:var(--blush); color:var(--ink)}
 
 /* ---------- typography ---------- */
-h1,h2,h3{font-family:var(--fp); font-weight:600; margin:0; line-height:1; letter-spacing:-.015em; text-transform:lowercase}
+h1,h2,h3{font-family:var(--fp); font-weight:600; margin:0; line-height:1; letter-spacing:-.015em}
 h2{font-weight:600} h3{font-weight:600}
-.h1{font-family:var(--fp); font-weight:600; font-size:clamp(48px,7vw,84px); line-height:.92; letter-spacing:-.025em; text-transform:lowercase}
-.h2{font-family:var(--fp); font-weight:600; font-size:clamp(32px,4.4vw,52px); line-height:.96; letter-spacing:-.02em; text-transform:lowercase}
-.h3{font-family:var(--fp); font-weight:600; font-size:clamp(24px,2.4vw,30px); line-height:1.04; letter-spacing:-.015em; text-transform:lowercase}
+.h1{font-family:var(--fp); font-weight:600; font-size:clamp(48px,7vw,84px); line-height:.92; letter-spacing:-.025em}
+.h2{font-family:var(--fp); font-weight:600; font-size:clamp(32px,4.4vw,52px); line-height:.96; letter-spacing:-.02em}
+.h3{font-family:var(--fp); font-weight:600; font-size:clamp(24px,2.4vw,30px); line-height:1.04; letter-spacing:-.015em}
 .h4{font-size:20px; font-weight:600; line-height:1.25}
 .h5{font-size:16px; font-weight:600}
 /* accent word — glossy chocolate→champagne metallic gradient (client's two palettes) */
@@ -302,6 +302,18 @@ select.input,.select{padding-right:34px}
 .site-header.scrolled .logo .name{font-size:23px}
 .logo br{display:none}
 .logo .tag{display:none}
+/* uploaded logo picture (admin -> Appearance). Height-capped so any aspect ratio fits
+   the header band; width:auto keeps wide wordmark logos from being squashed. */
+.logo-img{height:52px; width:auto; max-width:min(240px,46vw); object-fit:contain; display:block; flex:none;
+  transition:height .25s}
+.site-header.scrolled .logo-img{height:42px}
+.logo.has-img{gap:10px}
+.site-footer .logo-img{height:46px; max-width:200px}
+@media(max-width:760px){
+  .logo-img{height:40px; max-width:min(150px,38vw)}
+  .site-header.scrolled .logo-img{height:36px}
+}
+@media(max-width:380px){ .logo-img{height:34px; max-width:34vw} }
 .foot-brand .logo .tag{display:block; text-transform:none; font-weight:400; font-size:12.5px; letter-spacing:normal; color:rgba(239,231,217,.62); margin-top:3px}
 .nav-toggle{display:none; width:42px; height:42px; border:0; background:transparent; color:var(--ink); align-items:center; justify-content:center; cursor:pointer; border-radius:var(--r-pill); flex:none}
 .nav-toggle svg{width:24px; height:24px}
@@ -333,7 +345,7 @@ select.input,.select{padding-right:34px}
 .hdr-right .ig{color:#E1306C}
 .hdr-right .tt{color:var(--ink)}
 .hdr-right .ig:hover,.hdr-right .tt:hover{filter:brightness(.92)}
-@media(max-width:760px){
+@media(max-width:1024px){
   .wa-expert{display:flex!important; padding:6px}   /* keep the WhatsApp icon on phones (text already hidden ≤900) */
   .hdr-right .ig,.hdr-right .tt{display:none}        /* IG/TikTok live in the footer on phones */
 }
@@ -376,7 +388,9 @@ select.input,.select{padding-right:34px}
 .nav-wrap{display:flex; align-items:center; justify-content:space-between; gap:20px}
 .nav-wrap .nav-list{flex:1; min-width:0}
 .mobile-icons{display:none}
-@media(max-width:760px){
+/* the nav row turns into a dropdown panel at 1024, so the icon cluster that lives on
+   it has to move up into the top row at the same breakpoint — not at 760. */
+@media(max-width:1024px){
   .desk-icons{display:none}
   .mobile-icons{display:flex}
   .hdr-acct .t{display:none}
@@ -502,8 +516,11 @@ select.input,.select{padding-right:34px}
 .drawer-backdrop{position:fixed; inset:0; background:rgba(44,38,31,.32); opacity:0; visibility:hidden; transition:opacity .3s; z-index:90}
 .drawer-backdrop.open{opacity:1; visibility:visible}
 .cart-drawer{position:fixed; top:0; right:0; height:100%; width:420px; max-width:92vw; background:#fff; z-index:91;
-  transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; box-shadow:var(--sh-xl)}
-.cart-drawer.open{transform:translateX(0)}
+  transform:translateX(100%); display:flex; flex-direction:column; box-shadow:var(--sh-xl);
+  /* visibility (not just the off-screen transform) so a CLOSED drawer adds no page
+     width and can't be reached by Tab; delayed on close so the slide-out still shows */
+  visibility:hidden; transition:transform .3s cubic-bezier(.4,0,.2,1), visibility 0s .3s}
+.cart-drawer.open{transform:translateX(0); visibility:visible; transition:transform .3s cubic-bezier(.4,0,.2,1), visibility 0s}
 .cart-drawer .dh{display:flex; align-items:center; justify-content:space-between; padding:20px 22px; border-bottom:1px solid var(--border-2)}
 .cart-drawer .dh h3{font-size:18px; letter-spacing:.4px}
 .cart-drawer .freeship{padding:14px 22px; background:var(--blush-tint)}
@@ -603,24 +620,20 @@ select.input,.select{padding-right:34px}
   .g5,.g4{grid-template-columns:repeat(2,1fr)}
   .h1,.h1{font-size:46px}
 }
-@media (max-width:760px){
-  :root{--gutter:16px}
-  .section{padding-block:56px} .section-tight{padding-block:40px}
-  .desktop-only{display:none!important}
-  .mobile-only{display:initial}
-  .h1{font-size:38px} .h2{font-size:28px} .h3{font-size:22px} .h4{font-size:18px}
-  body{font-size:15px}
-  .utilbar .right{display:none}
-  .utilbar .marq{justify-content:center; text-align:center; font-size:11px; overflow:hidden}
-  .utilbar .marq .dot,.utilbar .marq span:last-child{display:none}   /* one short message, no overflow */
+/* ---------- header / nav collapse ----------
+   The horizontal shelf bar needs roughly 1030px before it runs into the account
+   icons, so it has to fold into the hamburger panel at 1024 — not at 760. Between
+   those two widths the bar used to overflow the page sideways on every tablet. */
+@media (max-width:1024px){
   .hdr-search{display:none}
   .hdr-expert{display:none}
   .nav-toggle{display:flex}
-  .hdr-right{margin-left:auto}
+  .hdr-right{margin-left:auto; margin-right:0}
   /* nav becomes a hamburger dropdown panel */
   .nav-row{position:absolute; left:0; right:0; top:100%; background:#fff; border-top:1px solid var(--border-2); box-shadow:var(--sh-lg); max-height:0; overflow:hidden; transition:max-height .35s ease; z-index:55}
   .site-header.nav-open .nav-row{max-height:82vh; overflow-y:auto}
   .nav-row .wrap{padding:0}
+  .nav-wrap{display:block}
   .nav-list{flex-direction:column; height:auto; align-items:stretch; gap:0; padding:6px 0}
   .nav-list>li>a{height:auto; padding:15px 20px; font-size:15px; border-bottom:1px solid var(--border-2); width:100%}
   .nav-list>li:last-child>a{border-bottom:0}
@@ -633,10 +646,56 @@ select.input,.select{padding-right:34px}
   .nav-more-list>li>a{padding:15px 20px; font-size:15px; border-bottom:1px solid var(--border-2); width:100%}
   .nav-more-list>li:last-child>a{border-bottom:0}
   .mega{display:none}
+  /* the desktop search bar is gone above, so surface the inline one instead */
+  .mobile-search{display:block!important}
+  .shop-icons{margin-right:0}
+}
+
+/* ---------- phone header sizing ----------
+   At 320-430px the logo wordmark, hamburger, WhatsApp button and the three shop
+   icons all have to share one row. Tighten the gaps and let the wordmark scale
+   down rather than pushing the icon cluster off the right edge. */
+@media (max-width:560px){
+  .hdr-main{gap:8px; height:66px}
+  .site-header.scrolled .hdr-main{height:58px}
+  .logo{min-width:0; flex:0 1 auto}
+  .logo>span{min-width:0}
+  .logo .name{font-size:clamp(17px,5.4vw,24px); overflow:hidden; text-overflow:ellipsis}
+  .site-header.scrolled .logo .name{font-size:clamp(16px,5vw,21px)}
+  .nav-toggle{width:38px; height:38px}
+  .nav-toggle svg{width:22px; height:22px}
+  .hdr-right{gap:2px}
+  .shop-icons{gap:0}
+  .icon-btn{width:38px; height:38px}
+  .icon-btn svg{width:20px; height:20px}
+  .hdr-acct{padding:6px}
+  .hdr-expert .wa-av{width:32px; height:32px}
+  .hdr-expert .wa-av svg{width:18px; height:18px}
+}
+@media (max-width:380px){
+  .hdr-main{gap:5px}
+  .wa-expert{display:none!important}   /* the floating WhatsApp button still covers this */
+  .icon-btn{width:35px; height:35px}
+}
+
+@media (max-width:760px){
+  :root{--gutter:16px}
+  .section{padding-block:56px} .section-tight{padding-block:40px}
+  .desktop-only{display:none!important}
+  .mobile-only{display:initial}
+  .h1{font-size:38px} .h2{font-size:28px} .h3{font-size:22px} .h4{font-size:18px}
+  body{font-size:15px}
+  .utilbar .right{display:none}
+  .utilbar .marq{justify-content:center; text-align:center; font-size:11px; overflow:hidden}
+  .utilbar .marq .dot,.utilbar .marq span:last-child{display:none}   /* one short message, no overflow */
   .g3,.g2{grid-template-columns:1fr}
   .foot-cols{grid-template-columns:1fr 1fr; gap:20px}
   .foot-news .wrap{flex-direction:column; align-items:flex-start}
-  .foot-news form{width:100%} .foot-news .pillinput{flex:1; width:auto; max-width:none}
+  .foot-news form{width:100%; flex-wrap:wrap}
+  /* min-width:0 lets the email box shrink; without it its placeholder width kept the
+     Subscribe button pushed past the right edge of the screen. */
+  .foot-news .pillinput{flex:1 1 180px; width:auto; max-width:none; min-width:0}
+  .foot-news form .btn{flex:0 0 auto}
   /* mobile = rhode BUY-box (Image #33): big taupe title shown + pill, then stars · NAME · outlined BUY pill */
   .pcard .add{display:none}
   .pcard .pprice{display:none}
@@ -649,12 +708,27 @@ select.input,.select{padding-right:34px}
   .socialproof{flex-direction:column; align-items:flex-start; gap:16px}
   .usp .wrap{grid-template-columns:1fr}
   .usp .item:last-child{grid-column:auto}
-  input.input,textarea.input,.search input{font-size:16px}    /* prevent iOS zoom */
+  /* iOS zooms the whole page in when a focused field is under 16px. This has to beat
+     the desktop rules that set 15px/14px on the same elements (textarea.input and
+     .foot-news .pillinput both out-specify a bare element or class selector), so the
+     selectors here are written to match or exceed their specificity. */
+  input[type=text],input[type=email],input[type=tel],input[type=password],input[type=search],
+  input[type=number],input:not([type]),textarea,select,
+  .input,textarea.input,select.input,.pillinput,.foot-news .pillinput,.search input,
+  .dial-search{font-size:16px}
   .cart-drawer{width:100vw; max-width:100vw}
-  .mobile-search{display:block!important}
 }
 /* mobile inline search shown under header on small screens */
 .mobile-search{display:none; padding:10px 16px; background:#fff; border-bottom:1px solid var(--border-2)}
+
+/* One product per row below 450px (see .prodgrid / .plp-grid / .wishgrid rules).
+   The card is now full-width, so let the name run to three lines before truncating
+   instead of clipping a long "VICHY MINERALIZING THERMAL WATER…" at two. */
+@media (max-width:450px){
+  .pcard .name{-webkit-line-clamp:3; font-size:15.5px}
+  .pcard .desc{-webkit-line-clamp:2}
+  .pcard .media{aspect-ratio:1/.88}   /* slightly shorter photo = less scrolling per item */
+}
 
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms!important; transition-duration:.001ms!important}

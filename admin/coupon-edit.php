@@ -67,8 +67,13 @@ admin_head($editing ? 'Edit coupon' : 'Add coupon', 'coupons', $editing ? $v['co
       <div class="field"><label>Usage limit <span class="faint">(optional)</span></label><input class="input" type="number" name="usage_limit" value="<?= e($v['usage_limit']) ?>" placeholder="blank = unlimited"></div>
     </div>
     <label class="switch"><input type="checkbox" name="active" value="1" <?= $v['active']?'checked':'' ?>> Active</label>
-    <label class="switch" style="margin-top:8px"><input type="checkbox" name="is_public" value="1" <?= $v['is_public']??1?'checked':'' ?>> Show publicly on the Offers page
-      <span class="muted" style="display:block;font-size:12px;font-weight:400">Off = private: hidden from Offers, but still works when someone types the code.</span></label>
+    <label class="switch switch-block" style="margin-top:10px">
+      <input type="checkbox" name="is_public" value="1" <?= $v['is_public']??1?'checked':'' ?>>
+      <span class="sw-txt">
+        <b>Show publicly on the Offers page</b>
+        <span class="muted">Off = private: hidden from Offers, but still works when someone types the code.</span>
+      </span>
+    </label>
   </div></div>
   <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save coupon</button></div>
 </form>

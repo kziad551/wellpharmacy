@@ -18,7 +18,12 @@ if (is_post()) {
 <body>
 <div class="a-login">
   <form class="box" method="post" action="login">
-    <div class="mark">W</div>
+    <?php $llogo = brand_image('store_logo'); ?>
+    <?php if ($llogo !== ''): ?>
+      <img class="mark mark-img" src="<?= e(asrc($llogo)) ?>" alt="" onerror="this.remove()">
+    <?php else: ?>
+      <div class="mark"><?= e(strtoupper(substr(setting('store_name','W'), 0, 1))) ?></div>
+    <?php endif; ?>
     <h1><?= e(setting('store_name','WELL PHARMACY')) ?></h1>
     <p>Sign in to your store admin panel.</p>
     <?php if ($err): ?><div class="flash flash-err"><?= e($err) ?></div><?php endif; ?>

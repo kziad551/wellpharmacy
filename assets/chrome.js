@@ -6,6 +6,9 @@
   'use strict';
   const $ = (s, r) => (r || document).querySelector(s);
   const money = n => '$' + (Math.round(n * 100) / 100).toFixed(2);
+  /* escape before interpolating admin-entered text into a template string */
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   W.money = money;
 
   /* ---------- icons (Lucide-style, 1.6 stroke) ---------- */
@@ -273,10 +276,30 @@
     </div></div>`;
   }
 
+  /* Header/footer brand. The store can show an uploaded logo picture, the text
+     wordmark, or both — set in admin -> Appearance. 'auto' (the default) uses the
+     picture when one has been uploaded and falls back to the wordmark otherwise, so
+     a store that never uploads anything looks exactly as it always has. */
   function logo() {
-    return `<a class="logo" href="index">
-      <span class="badge-circle">${I.cross}</span>
-      <span><span class="name">${(W.SETTINGS&&W.SETTINGS.store_name)||'WELL SHOP'}</span><br><span class="tag">${(W.SETTINGS&&W.SETTINGS.tagline)||'where Wellness meets You!'}</span></span>
+    const S    = W.SETTINGS || {};
+    const name = S.store_name || 'WELL SHOP';
+    const tag  = S.tagline || 'where Wellness meets You!';
+    const src  = S.logo || '';
+    const mode = S.logo_mode || 'auto';
+
+    const showPic  = !!src && (mode === 'auto' || mode === 'logo' || mode === 'both');
+    const showName = !showPic || mode === 'name' || mode === 'both';
+
+    const pic = showPic
+      ? `<img class="logo-img" src="${esc(src)}" alt="${esc(name)}" width="160" height="48">`
+      : `<span class="badge-circle">${I.cross}</span>`;
+    /* the tagline rides with the wordmark; with a picture-only logo it would float loose */
+    const words = showName
+      ? `<span><span class="name">${esc(name)}</span><br><span class="tag">${esc(tag)}</span></span>`
+      : '';
+
+    return `<a class="logo${showPic ? ' has-img' : ''}" href="index" aria-label="${esc(name)} — home">
+      ${pic}${words}
     </a>`;
   }
 

@@ -22,7 +22,7 @@ $wa = setting('whatsapp_number', '9613627766');
 $HEAD_CSS = <<<CSS
 <style>
   .trk{max-width:640px;margin-inline:auto;padding-block:40px 60px}
-  .trk h1{font-family:var(--fp);font-size:clamp(28px,3.4vw,40px);font-weight:600;text-transform:lowercase;margin:10px 0 6px}
+  .trk h1{font-family:var(--fp);font-size:clamp(28px,3.4vw,40px);font-weight:600;margin:10px 0 6px}
   .trk .sub{color:var(--ink-soft);margin:0 0 22px}
   .trk-card{background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:18px;padding:24px}
   .trk-form .field{margin-bottom:14px}
@@ -45,7 +45,7 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="wrap trk">
   <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><b>Track Order</b></nav>
-  <h1>track your order</h1>
+  <h1>Track Your Order</h1>
   <p class="sub">Enter your order number and the phone number you used to check its status.</p>
 
   <div class="trk-card">

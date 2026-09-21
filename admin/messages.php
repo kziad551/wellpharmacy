@@ -11,10 +11,13 @@ if (is_post()) {
     redirect('messages');
 }
 
-$list = rows("SELECT * FROM messages ORDER BY is_read ASC, created_at DESC");
+$PER   = list_per();
+$page  = list_page();
+$found = (int) val("SELECT COUNT(*) FROM messages");
+$list  = rows("SELECT * FROM messages ORDER BY is_read ASC, created_at DESC LIMIT $PER OFFSET " . list_offset());
 $unread = 0; foreach ($list as $m) if (!$m['is_read']) $unread++;
 
-admin_head('Messages', 'messages', count($list) . ' message' . (count($list) === 1 ? '' : 's') . ($unread ? " · $unread unread" : ''));
+admin_head('Messages', 'messages', list_count_label($found, 'message') . ($unread ? " · $unread unread" : ''));
 ?>
 <?php if (!$list): ?>
   <div class="a-card"><div class="empty">No messages yet. Contact-form submissions land here.</div></div>

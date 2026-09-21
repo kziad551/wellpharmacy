@@ -5,7 +5,7 @@ $ACTIVE = 'Shop All';
 $HEAD_CSS = <<<CSS
 <style>
   .ab-hero{background:var(--hero-grad)}
-  .ab-hero .wrap{display:grid;grid-template-columns:5fr 7fr;gap:40px;align-items:center;padding-block:48px 56px}
+  .ab-hero .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px;align-items:center;padding-block:48px 56px}
   .ab-hero h1{font-family:var(--fp);font-size:48px;font-weight:700;line-height:1.08;margin:14px 0 18px}
   .ab-hero .img{position:relative;border-radius:28px;overflow:hidden;aspect-ratio:4/3;box-shadow:var(--sh-lg)}
   .ab-hero .img img{width:100%;height:100%;object-fit:cover}
@@ -13,23 +13,34 @@ $HEAD_CSS = <<<CSS
   .ab-mission{background:var(--ink);color:#fff;border-radius:28px;padding:48px;text-align:center}
   .ab-mission h2{color:#fff;font-size:32px;max-width:24ch;margin:0 auto}
   .ab-mission .script{color:var(--rose)}
-  .statstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .statstrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
   .statc{text-align:center;padding:24px;background:#fff;border:1px solid var(--border-2);border-radius:18px}
   .statc .n{font-family:var(--fp);font-size:34px;font-weight:700;line-height:1} .statc .l{font-size:13px;color:var(--text-muted);margin-top:6px}
-  .values{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+  .values{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
   .valc{background:#fff;border:1px solid var(--border-2);border-radius:18px;padding:22px;text-align:center}
   .valc .ic{width:48px;height:48px;border-radius:14px;background:var(--blush-tint);color:var(--rose-deep);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
   .valc h4{font-size:15px;margin:0 0 6px} .valc p{font-size:12.5px;color:var(--text-muted);margin:0}
   .ab-promise{background:var(--mint-tint);border-radius:28px;padding:40px;display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center}
   .ab-promise .ic{width:64px;height:64px;border-radius:16px;background:#fff;color:var(--mint);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
-  .team{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .team{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
   .teamc{text-align:center}
   .teamc .ph{aspect-ratio:1;border-radius:18px;overflow:hidden;background:var(--cream-2);margin-bottom:12px}
   .teamc .ph img{width:100%;height:100%;object-fit:cover}
   .teamc b{font-size:14.5px;display:block} .teamc span{font-size:12.5px;color:var(--text-muted)}
   .dark-cta{background:var(--ink);color:#fff;border-radius:28px;padding:48px;text-align:center}
   .dark-cta input{height:52px;border-radius:9999px;border:0;padding:0 20px;width:300px;max-width:70vw;font-family:inherit}
-  @media(max-width:900px){ .ab-hero .wrap{grid-template-columns:1fr} .statstrip{grid-template-columns:repeat(2,1fr)} .values{grid-template-columns:repeat(2,1fr)} .ab-promise{grid-template-columns:1fr} .team{grid-template-columns:repeat(2,1fr)} }
+  .ab-hero h1,.ab-hero p,.ab-hero .row{min-width:0; overflow-wrap:break-word}
+  @media(max-width:560px){
+    .statstrip{gap:12px}
+    .statc{padding:16px 10px}
+    .statc .n{font-size:26px}
+    .statc .l{font-size:12px}
+    .ab-hero h1{font-size:clamp(28px,8.5vw,38px)}
+    .ab-hero .wrap{padding-block:32px 36px}
+    .ab-hero .row{flex-wrap:wrap}
+    .ab-hero .row .btn{flex:1 1 100%; justify-content:center}
+  }
+  @media(max-width:900px){ .ab-hero .wrap{grid-template-columns:minmax(0,1fr)} .statstrip{grid-template-columns:repeat(2,minmax(0,1fr))} .values{grid-template-columns:repeat(2,1fr)} .ab-promise{grid-template-columns:1fr} .team{grid-template-columns:repeat(2,1fr)} }
 </style>
 CSS;
 include __DIR__ . '/inc/head.php';

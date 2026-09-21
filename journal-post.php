@@ -34,7 +34,7 @@ $HEAD_CSS = <<<CSS
   .post-body ul,.post-body ol{margin:10px 0 10px 22px;display:flex;flex-direction:column;gap:8px}
   .post-body a{color:var(--rose-deep);text-decoration:underline;font-weight:600}
   .post-body b{color:var(--ink)}
-  .more-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;padding-bottom:20px}
+  .more-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;padding-bottom:20px}
   .blogcard{border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;background:#fff;transition:transform .25s,box-shadow .25s;display:flex;flex-direction:column}
   .blogcard:hover{transform:translateY(-6px);box-shadow:var(--sh-lg)}
   .blogcard .img{aspect-ratio:16/10;overflow:hidden;background:var(--cream-2)}
@@ -44,7 +44,7 @@ $HEAD_CSS = <<<CSS
   .blogcard .cat-l{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--rose-deep)}
   .blogcard h3{font-size:18px;margin:8px 0 8px;line-height:1.15}
   .blogcard .meta{font-size:12px;color:var(--text-muted)}
-  @media(max-width:820px){.more-grid{grid-template-columns:1fr}}
+  @media(max-width:820px){.more-grid{grid-template-columns:minmax(0,1fr)}}
 </style>
 CSS;
 
@@ -67,7 +67,7 @@ include __DIR__ . '/inc/head.php';
 
 <?php if ($more): ?>
 <section class="wrap section-tight">
-  <div class="sec-head"><div><span class="eyebrow">keep reading</span><h2 class="h2">more from the <span class="script">journal</span></h2></div><a class="btn btn-ghost" href="journal">all posts</a></div>
+  <div class="sec-head"><div><span class="eyebrow">keep reading</span><h2 class="h2">More from the <span class="script">Journal</span></h2></div><a class="btn btn-ghost" href="journal">all posts</a></div>
   <div class="more-grid">
     <?php foreach ($more as $m): ?>
       <a class="blogcard" href="journal-post?slug=<?= e(urlencode($m['slug'])) ?>">

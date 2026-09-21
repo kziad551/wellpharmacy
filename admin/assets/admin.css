@@ -51,6 +51,10 @@ img{max-width:100%;display:block}
 .a-card .hd{padding:16px 20px;border-bottom:1px solid var(--a-border2);display:flex;align-items:center;justify-content:space-between;gap:12px}
 .a-card .hd h2{font-size:16px}
 .a-card .bd{padding:20px}
+/* A table wider than its card pans sideways instead of stretching the page.
+   admin.js pins a copy of this scrollbar to the bottom of the viewport so it can
+   be reached without scrolling to the last row. */
+.a-card .bd:has(.a-table){overflow-x:auto;-webkit-overflow-scrolling:touch}
 .a-grid{display:grid;gap:18px}
 .a-stats{grid-template-columns:repeat(4,1fr)}
 .stat{background:var(--a-surface);border:1px solid var(--a-border);border-radius:var(--a-r);padding:18px 20px;box-shadow:var(--a-shadow)}
@@ -75,9 +79,19 @@ img{max-width:100%;display:block}
 .a-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--a-faint);padding:10px 14px;border-bottom:1px solid var(--a-border)}
 .a-table td{padding:12px 14px;border-bottom:1px solid var(--a-border2);vertical-align:middle}
 .a-table tr:hover td{background:#FBFAF7}
-.a-table .thumb{width:46px;height:46px;border-radius:9px;object-fit:cover;background:var(--a-bg);border:1px solid var(--a-border2)}
+/* max-width:none defeats the global img{max-width:100%}, which was shrinking the picture
+   to a sliver whenever the auto-sized column got squeezed by a long product name. */
+.a-table .thumb{width:68px;height:68px;min-width:68px;max-width:none;flex:none;border-radius:10px;
+  object-fit:cover;background:var(--a-bg);border:1px solid var(--a-border2);padding:0;overflow:hidden}
+/* Product packshots are tall bottles shot on white — cropping them to a square cuts the
+   bottle in half, so those letterbox inside the tile instead of filling it. Category,
+   brand and journal pictures are ordinary photos and fill the tile edge to edge. */
+.a-table .thumb-fit{object-fit:contain;background:#fff;padding:4px}
+.a-table td.c-img{width:68px}
+span.thumb{display:inline-flex;align-items:center;justify-content:center}
 .a-table .nm{font-weight:600}
-.a-table .br{font-size:12px;color:var(--a-soft)}
+.a-table .br{font-size:12px;color:var(--a-soft);font-weight:400}
+.a-table .c-main .br{margin-top:3px;line-height:1.45}
 
 /* badges/pills */
 /* nowrap: the height is fixed, so wrapping text ("Only 3 left") burst out of the pill. */
@@ -103,7 +117,8 @@ img{max-width:100%;display:block}
 /* forms */
 .field{margin-bottom:16px}
 .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--a-ink)}
-.field .hint{font-size:12px;color:var(--a-faint);margin-top:5px}
+.hint,.field .hint{font-size:12px;color:var(--a-faint);margin-top:5px;line-height:1.5}
+.a-card .bd>p.hint{margin-top:0}
 .input,select.input,textarea.input{width:100%;height:44px;padding:0 14px;border:1px solid var(--a-border);border-radius:10px;background:#fff;font:inherit;font-size:14px;color:var(--a-ink);transition:border-color .15s,box-shadow .15s}
 textarea.input{height:auto;padding:11px 14px;min-height:96px;resize:vertical;line-height:1.5}
 .input:focus,select.input:focus,textarea.input:focus{outline:none;border-color:var(--a-primary-soft);box-shadow:0 0 0 4px rgba(156,129,88,.16)}
@@ -112,7 +127,15 @@ select.input{padding-right:34px}
 .f-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .f-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
 .switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-weight:500}
-.switch input{width:18px;height:18px;accent-color:var(--a-primary)}
+.switch input{width:18px;height:18px;accent-color:var(--a-primary);flex:none}
+/* A switch with a description under its label. Without this the label text and the
+   hint become sibling flex items and each gets squeezed into its own narrow column,
+   which on a phone shredded "Show publicly on the Offers page" into one word per line. */
+.switch-block{display:flex;align-items:flex-start;gap:10px;width:100%}
+.switch-block input{margin-top:3px}
+.sw-txt{display:block;min-width:0}
+.sw-txt b{display:block;font-size:13.5px;font-weight:600;line-height:1.35}
+.sw-txt .muted{display:block;font-size:12px;font-weight:400;line-height:1.45;margin-top:3px;color:var(--a-faint)}
 
 /* colour + font pickers (appearance) */
 .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
@@ -122,6 +145,27 @@ select.input{padding-right:34px}
 .swatch .meta .hx{font-size:12px;color:var(--a-soft);font-variant-numeric:tabular-nums}
 .swatch input[type=color]{width:34px;height:34px;border:none;background:none;padding:0;cursor:pointer}
 .swatch input[type=text]{width:90px;height:32px;border:1px solid var(--a-border);border-radius:8px;padding:0 8px;font:inherit;font-size:12.5px}
+
+/* logo / favicon / share-picture uploader (appearance) */
+.brand-imgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.brand-img{border:1px solid var(--a-border);border-radius:12px;padding:14px;background:#fff;min-width:0}
+.bi-label{display:block;font-size:13px;font-weight:600;margin-bottom:8px}
+.bi-preview{height:96px;border:1px dashed var(--a-border);border-radius:10px;background:var(--a-bg);
+  display:flex;align-items:center;justify-content:center;padding:8px;margin-bottom:10px;overflow:hidden}
+.bi-preview img{max-height:100%;max-width:100%;width:auto;object-fit:contain}
+.bi-preview.is-broken img{display:none}
+.bi-preview.is-broken::after{content:"Picture not found";font-size:12px;color:var(--a-bad)}
+.bi-empty{font-size:12px;color:var(--a-faint)}
+.bi-file{display:block;width:100%;font-size:12.5px;margin-bottom:8px}
+.bi-url{height:38px;font-size:13px}
+.bi-remove{margin-top:10px;font-size:12.5px;color:var(--a-bad)}
+.brand-img .hint{margin-top:8px}
+.bi-file::file-selector-button{font:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;margin-right:10px;
+  border:1px solid var(--a-border);border-radius:8px;background:#fff;color:var(--a-ink);cursor:pointer}
+.bi-file::file-selector-button:hover{border-color:var(--a-primary);color:var(--a-primary)}
+/* the admin sidebar + login mark can be the uploaded logo instead of the letter tile */
+.a-brand .mark-img{width:34px;height:34px;border-radius:9px;object-fit:contain;background:#fff;padding:2px;flex:none}
+.a-login .mark-img{width:48px;height:48px;border-radius:12px;object-fit:contain;background:#fff;padding:3px;margin-bottom:18px}
 
 /* login */
 .a-login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(120% 80% at 50% 0,#2C2820,#1A160F)}
@@ -138,6 +182,27 @@ select.input{padding-right:34px}
 
 .page-actions{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
 .spacer{flex:1}
+/* A search/filter toolbar inside .page-actions (products, orders, customers).
+   It shares the row with .spacer, which is also flex:1 — so without a width floor of
+   its own the form only gets about half the row, and a rigid-width control inside it
+   (the sort dropdown) then squeezes the search box down to an unusable sliver. That is
+   what hid the product search on phones. flex-basis + min-width give the search box a
+   real floor; below 760px the toolbar stacks so each control gets a full row. */
+.toolbar{display:flex;gap:8px;flex:1 1 320px;min-width:min(100%,260px);max-width:660px;flex-wrap:wrap}
+.toolbar .tb-sort{flex:0 1 190px;min-width:150px}
+.toolbar .btn{flex:none}
+/* the search field itself: magnifier inside on the left, clear "x" on the right */
+.tb-field{position:relative;display:flex;align-items:center;flex:1 1 220px;min-width:0}
+.tb-field .tb-search{width:100%;min-width:0;padding-left:40px;padding-right:36px}
+.tb-field .tb-ic{position:absolute;left:13px;display:flex;color:var(--a-faint);pointer-events:none}
+.tb-field .tb-ic svg{width:17px;height:17px}
+.tb-field .tb-clear{position:absolute;right:10px;width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;
+  color:var(--a-soft);background:var(--a-border2);text-decoration:none}
+.tb-field .tb-clear:hover{background:var(--a-bad-tint);color:var(--a-bad)}
+/* our own clear button replaces the browser's, which sat on top of it */
+.tb-search::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+
 @media(max-width:1040px){
   .a-shell{grid-template-columns:1fr}
   .a-side{position:fixed;left:-280px;width:264px;z-index:50;transition:left .22s;box-shadow:0 20px 60px rgba(0,0,0,.35)}
@@ -147,19 +212,167 @@ select.input{padding-right:34px}
   .a-stats{grid-template-columns:repeat(2,1fr)}
   .f-row-3{grid-template-columns:1fr 1fr}
 }
+
+/* Two-column page layouts (product edit, order, dashboard, journal, social) set their
+   columns with an INLINE grid-template-columns, so a plain rule here loses to them —
+   hence !important. Below 900px there is no room for a sidebar column; stack instead. */
+@media(max-width:900px){
+  /* minmax(0,…) not 1fr: a bare 1fr track still takes its content's min-width, so a
+     wide items table inside kept the stacked column wider than the phone screen. */
+  .a-grid[style*="grid-template-columns"],
+  .a-grid-2[style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
+  .a-grid>*,.a-grid-2>*{min-width:0}
+  .f-row-3{grid-template-columns:1fr 1fr}
+}
+
 @media(max-width:760px){
-  .a-top{padding:12px 16px}
+  .a-top{padding:12px 16px;gap:10px}
   .a-top h1{font-size:18px}
+  .a-top .sub{font-size:11.5px}
   .a-body{padding:16px}
   .a-card .bd{padding:16px}
-  /* wide tables scroll horizontally instead of crushing */
-  .a-card .bd{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .a-table{min-width:600px}
+  .a-card .hd{padding:14px 16px;flex-wrap:wrap;row-gap:6px}
   .f-row,.f-row-3{grid-template-columns:1fr}
   .who .who-name{display:none}
-  .page-actions{gap:8px}
-  .page-actions .btn{height:38px;padding:0 12px;font-size:12.5px}
+
+  /* Toolbars stack: every control gets its own full-width row, so the search box is
+     always visible and tappable instead of being crushed by a fixed-width neighbour. */
+  .page-actions{gap:8px;align-items:stretch}
+  .page-actions form,.toolbar{flex:1 1 100%;min-width:0;flex-wrap:wrap;max-width:none!important}
+  .page-actions form .input,
+  .page-actions form select.input,
+  .toolbar .input,.toolbar select.input{flex:1 1 100%!important;width:100%!important;max-width:none!important;min-width:0}
+  .toolbar .btn{flex:0 0 auto}   /* Search / Clear hug their text instead of each taking a whole row */
+  .page-actions .spacer{display:none}
+  .page-actions>.btn{flex:0 0 auto;justify-content:center;height:42px;padding:0 16px;font-size:13px}
+
+  /* Any page that hard-codes a control width inline still has to fit the screen. */
+  .a-body [style*="width:"]{max-width:100%}
+  .input,select.input,textarea.input{max-width:100%}
+
+  /* Wide tables scroll inside their card rather than stretching the page.
+     Scoped to a table wrapper so ordinary form cards keep wrapping normally. */
+  .a-card .bd:has(.a-table){overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .a-table{min-width:560px}
 }
-@media(max-width:460px){
+
+/* Fallback for browsers without :has() — keep wide tables scrollable there too. */
+@supports not selector(:has(*)){
+  @media(max-width:760px){ .a-card .bd{overflow-x:auto;-webkit-overflow-scrolling:touch} }
+}
+
+@media(max-width:560px){
+  .a-body{padding:12px}
+  .a-card .bd{padding:14px}
   .a-stats{grid-template-columns:1fr}
+  .swatches{grid-template-columns:1fr}
+  .brand-imgs{grid-template-columns:1fr}
+  /* iOS zooms the page in when a focused field is under 16px — keep inputs at 16px */
+  .input,select.input,textarea.input{font-size:16px}
+  /* a bare 18px checkbox is a poor thumb target — grow it and pad the whole label */
+  .switch{min-height:34px; padding:3px 0}
+  .switch input{width:22px; height:22px}
+  /* the hex boxes and colour wells in Appearance need the same 16px floor */
+  .swatch input[type=text]{font-size:16px; height:38px; width:100px}
+  .swatch input[type=color]{width:40px; height:40px}
+  .a-table{min-width:0}
+}
+
+
+/* ============================================================
+   LIST BEHAVIOUR — infinite scroll anchor + floating x-scrollbar
+   ============================================================ */
+.list-more{display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;min-height:64px}
+.list-more-spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--a-border);
+  border-top-color:var(--a-primary);animation:aSpin .7s linear infinite;display:none}
+.list-more.is-loading .list-more-spin{display:block}
+.list-more.is-loading .btn{display:none}
+@keyframes aSpin{to{transform:rotate(360deg)}}
+
+/* Cloned horizontal scrollbar pinned to the bottom of the viewport, so a wide
+   table can be panned sideways from anywhere instead of only from its last row. */
+.xbar{position:sticky;bottom:0;z-index:20;height:0;overflow-x:auto;overflow-y:hidden;
+  background:linear-gradient(to top,rgba(244,242,238,.96),rgba(244,242,238,0));
+  opacity:0;transition:opacity .15s;pointer-events:none}
+.xbar>div{height:1px}
+.xbar.on.show{height:15px;opacity:1;pointer-events:auto}
+.xbar::-webkit-scrollbar{height:11px}
+.xbar::-webkit-scrollbar-thumb{background:var(--a-primary-soft);border-radius:9999px}
+.xbar::-webkit-scrollbar-track{background:var(--a-border2);border-radius:9999px}
+
+/* ============================================================
+   LIST TABLES ON PHONES — each row becomes a card
+   The old behaviour cut rows off at the screen edge and forced a sideways scroll
+   to read a price. Below 760px a row is laid out as:
+        [ image ] title
+        [ image ] Price: …
+                  Status: …
+        [ Edit ] [ Delete ]
+   Columns tagged .c-hide are dropped entirely (the detail page still shows them).
+   ============================================================ */
+@media(max-width:760px){
+  .a-card .bd:has(.a-table){overflow-x:visible}
+  .a-table{min-width:0;display:block}
+  .a-table thead{display:none}
+  .a-table tbody,.a-table tr,.a-table td{display:block}
+
+  .a-table tr{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    column-gap:16px;row-gap:3px;
+    padding:14px;
+    border-bottom:1px solid var(--a-border2);
+    align-items:start;
+  }
+  .a-table tr:hover td{background:none}
+  .a-table td{padding:0;border:0;min-width:0}
+
+  /* picture sits on the left and spans the title + meta rows */
+  .a-table td.c-img{grid-column:1;grid-row:1 / span 2;align-self:start}
+  /* the desktop rule pins this column at 68px; let it size to the bigger phone
+     thumbnail instead, otherwise the picture overhangs its cell and swallows the gap */
+  .a-table td.c-img{width:auto}
+  .a-table .thumb{width:88px;height:88px;min-width:88px;border-radius:12px}
+
+  /* title gets the top-right cell; everything else stacks underneath it */
+  .a-table td.c-main{grid-column:2;grid-row:1;font-size:14.5px}
+  .a-table td.c-main .nm{font-size:14.5px;line-height:1.3;display:block}
+  .a-table td{grid-column:2}
+  .a-table td.c-hide{display:none}          /* e.g. Category on the products list */
+
+  /* "Price: $11.30" — the column header moves into the cell */
+  .a-table td[data-label]{font-size:12.5px;color:var(--a-soft);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .a-table td[data-label]::before{content:attr(data-label);font-size:10.5px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--a-faint)}
+
+  /* actions go full width on their own row */
+  .a-table td.c-act{grid-column:1 / -1;text-align:left!important;display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .a-table td.c-act form{display:contents}
+  /* hug the label — Edit used to stretch across the whole row while Delete stayed small */
+  .a-table td.c-act .btn{flex:0 0 auto;justify-content:center;padding:0 18px}
+
+  /* No picture (coupons, orders, customers, subscribers, home sections): drop the image
+     column and pair the fields up two-per-line. One field per line turned a four-field
+     coupon into a tall, mostly-empty card. */
+  .a-table tr:not(:has(.c-img)){grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px;row-gap:8px}
+  .a-table tr:not(:has(.c-img)) td{grid-column:auto}
+  /* Emphasis belongs to the title link only. Putting it on the whole cell also bolded
+     the eyebrow/subtitle line underneath, so a section read as one run-on heading. */
+  .a-table tr:not(:has(.c-img)) td.c-main{grid-column:1 / -1;margin-bottom:8px}
+  .a-table tr:not(:has(.c-img)) td.c-main .nm{font-size:16.5px;font-weight:700;line-height:1.25;display:block}
+  .a-table tr:not(:has(.c-img)) td.c-act{grid-column:1 / -1}
+  /* stacked label over value reads better in a narrow half-width column */
+  .a-table tr:not(:has(.c-img)) td[data-label]{flex-direction:column;align-items:flex-start;gap:1px}
+
+  .xbar{display:none}                        /* cards don't scroll sideways */
+}
+
+@media(max-width:400px){
+  .a-top{padding:10px 12px}
+  .a-top h1{font-size:16.5px}
+  .a-body{padding:10px}
+  .a-card{border-radius:12px}
+  .a-card .bd{padding:12px}
+  .a-card .hd{padding:12px}
+  .btn{padding:0 12px;font-size:12.5px}
 }

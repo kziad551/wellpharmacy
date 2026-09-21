@@ -222,7 +222,7 @@ $cronUrl = rtrim(setting('site_url', ''), '/') . '/actions/social-sync?key=' . s
           <input type="checkbox" name="sec_enabled" value="1" <?= $on ? 'checked' : '' ?>> Show the section on the homepage
         </label>
         <div class="field"><label>Eyebrow</label><input class="input" name="sec_eyebrow" value="<?= e(setting('social_sec_eyebrow','follow the glow')) ?>"></div>
-        <div class="field"><label>Title</label><input class="input" name="sec_title" value="<?= e(setting('social_sec_title','as seen on social')) ?>"><div class="hint">The last word is styled in the script accent, like the other homepage titles.</div></div>
+        <div class="field"><label>Title</label><input class="input" name="sec_title" value="<?= e(setting('social_sec_title','As Seen on Social')) ?>"><div class="hint">The last word is styled in the script accent, like the other homepage titles.</div></div>
         <div class="field"><label>Sub-line</label><input class="input" name="sec_sub" value="<?= e(setting('social_sec_sub','')) ?>"></div>
         <div class="field"><label>Instagram handle</label><input class="input" name="sec_handle" value="<?= e(setting('social_handle','')) ?>" placeholder="@wellhealthandbeautyy"><div class="hint">Leave blank and we'll read it from the Instagram link in Settings → Social.</div></div>
         <div class="field"><label>Follower count</label><input class="input" name="sec_followers" value="<?= e(setting('social_followers','')) ?>" placeholder="68k followers"><div class="hint">Free text — Instagram doesn't let us read this automatically, so update it yourself now and then. Leave blank to hide.</div></div>

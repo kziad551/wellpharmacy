@@ -60,18 +60,18 @@ admin_head('Restock Alerts', 'restock', $totalWaiting . ' shopper' . ($totalWait
     <tbody>
     <?php foreach ($groups as $g): ?>
       <tr>
-        <td><?php if (!empty($g['image'])): ?><img class="thumb" src="<?= e(asrc($g['image'])) ?>" alt="" onerror="this.style.visibility='hidden'"><?php endif; ?></td>
+        <td class="c-img"><?php if (!empty($g['image'])): ?><img class="thumb thumb-fit" src="<?= e(asrc($g['image'])) ?>" alt="" onerror="this.style.visibility='hidden'"><?php endif; ?></td>
         <td>
           <a class="nm" href="product-edit?id=<?= e(urlencode($g['product_id'])) ?>"><?= e($g['name'] ?: $g['product_id']) ?></a>
           <div class="br"><span class="faint"><?= e($g['product_id']) ?></span></div>
         </td>
-        <td><b><?= (int) $g['waiting'] ?></b></td>
+        <td data-label="Waiting"><b><?= (int) $g['waiting'] ?></b></td>
         <td>
           <?php if ((int) $g['stock'] > 0): ?><span class="pill pill-good"><?= (int) $g['stock'] ?> in stock</span>
           <?php else: ?><span class="pill pill-muted">out of stock</span><?php endif; ?>
         </td>
-        <td><span class="faint"><?= e(date('j M Y', strtotime($g['latest']))) ?></span></td>
-        <td style="text-align:right">
+        <td data-label="Latest"><span class="faint"><?= e(date('j M Y', strtotime($g['latest']))) ?></span></td>
+        <td class="c-act" style="text-align:right">
           <?php if ((int) $g['stock'] > 0): ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Email <?= (int)$g['waiting'] ?> shopper(s) now?')">
               <?= csrf_field() ?><input type="hidden" name="action" value="notify"><input type="hidden" name="product_id" value="<?= e($g['product_id']) ?>">
@@ -97,10 +97,10 @@ admin_head('Restock Alerts', 'restock', $totalWaiting . ' shopper' . ($totalWait
     <tbody>
     <?php foreach ($done as $d): ?>
       <tr>
-        <td><?= e($d['name'] ?: $d['product_id']) ?></td>
-        <td><span class="faint"><?= e($d['email']) ?></span></td>
-        <td><span class="faint"><?= e(date('j M Y, H:i', strtotime($d['notified_at']))) ?></span></td>
-        <td style="text-align:right">
+        <td class="c-main"><?= e($d['name'] ?: $d['product_id']) ?></td>
+        <td data-label="Email"><span class="faint"><?= e($d['email']) ?></span></td>
+        <td data-label="Notified"><span class="faint"><?= e(date('j M Y, H:i', strtotime($d['notified_at']))) ?></span></td>
+        <td class="c-act" style="text-align:right">
           <form method="post" style="display:inline">
             <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$d['id'] ?>">
             <button class="btn btn-bad btn-sm">Delete</button>

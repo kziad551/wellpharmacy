@@ -29,21 +29,21 @@ $ACTIVE = 'Shop All';
 $HEAD_CSS = <<<CSS
 <style>
   .ct-hero{background:var(--hero-grad)}
-  .ct-hero .wrap{display:grid;grid-template-columns:1.2fr .8fr;gap:32px;align-items:center;padding-block:36px 42px}
+  .ct-hero .wrap{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:32px;align-items:center;padding-block:36px 42px}
   .ct-hero h1{font-family:var(--fp);font-size:42px;font-weight:600;margin:12px 0 10px}
   .ct-chips{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
   .ask-card{background:rgba(255,255,255,.7);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.6);border-radius:20px;padding:24px;box-shadow:var(--sh-lg)}
   .ask-card .h{display:flex;align-items:center;gap:12px;margin-bottom:14px}
   .ask-card img{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--mint-tint)}
   .ask-bubble{background:#fff;border-radius:14px 14px 14px 4px;padding:12px 14px;font-size:13.5px;color:var(--ink-soft);margin-bottom:10px}
-  .quick-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .quick-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
   .qt{background:#fff;border:1px solid var(--border-2);border-radius:18px;padding:22px;text-align:center;transition:transform .2s,box-shadow .2s}
   .qt:hover{transform:translateY(-4px);box-shadow:var(--sh-md)}
   .qt .ic{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#fff}
   .qt h4{font-size:15px;margin:0 0 4px} .qt p{font-size:12.5px;color:var(--text-muted);margin:0}
-  .ct-layout{display:grid;grid-template-columns:1fr 360px;gap:32px;align-items:start}
+  .ct-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
   .ct-form{background:#fff;border:1px solid var(--border-2);border-radius:24px;padding:28px}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
   .ct-side{position:sticky;top:160px;display:flex;flex-direction:column;gap:18px}
   .chat-preview{background:#fff;border:1px solid var(--border-2);border-radius:20px;padding:20px}
   .hours-card{background:var(--cream);border-radius:18px;padding:20px}
@@ -54,7 +54,12 @@ $HEAD_CSS = <<<CSS
   .store-map .ov{position:absolute;bottom:18px;left:18px;background:rgba(255,255,255,.8);backdrop-filter:blur(14px);border-radius:14px;padding:14px 18px}
   .sent-box{background:var(--mint-tint);border:1px solid #cfd3b8;border-radius:16px;padding:22px;display:flex;gap:14px;align-items:flex-start}
   .sent-box .ic{width:40px;height:40px;border-radius:50%;background:var(--mint);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
-  @media(max-width:900px){ .ct-hero .wrap{grid-template-columns:1fr} .quick-tiles{grid-template-columns:repeat(2,1fr)} .ct-layout{grid-template-columns:1fr} .ct-side{position:static} .two{grid-template-columns:1fr} }
+  @media(max-width:900px){ .ct-hero .wrap{grid-template-columns:minmax(0,1fr)} .quick-tiles{grid-template-columns:repeat(2,minmax(0,1fr))} .ct-layout{grid-template-columns:1fr} .ct-side{position:static} .two{grid-template-columns:1fr} }
+  @media(max-width:560px){
+    .quick-tiles{grid-template-columns:minmax(0,1fr); gap:12px}
+    .qt{padding:16px}
+    .two{grid-template-columns:minmax(0,1fr)}
+  }
 </style>
 CSS;
 

@@ -89,7 +89,7 @@ $HEAD_CSS = <<<CSS
   /* ============ HOMEPAGE (rhode concept) — header/menu stays as-is via chrome.js ============ */
   .hero{background:var(--hero-grad); position:relative; overflow:hidden}
   /* hero stays contained (like the live site) even though the rest of the page is full-width — bg spans full, content re-centers */
-  .hero .wrap{max-width:var(--maxw-narrow); display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(32px,4.5vw,64px) clamp(28px,4vw,52px)}
+  .hero .wrap{max-width:var(--maxw-narrow); display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(32px,4.5vw,64px) clamp(28px,4vw,52px)}
   .hero-copy .ey{display:inline-flex; align-items:center; gap:9px}
   .hero-copy .h1{margin:20px 0 0}
   .hero-copy .sub{font-size:clamp(15px,1.3vw,18px); color:var(--ink-soft); max-width:34ch; margin:22px 0 0; line-height:1.5}
@@ -105,9 +105,13 @@ $HEAD_CSS = <<<CSS
   .hero-tag .sm{font-size:11px; color:var(--text-muted)}
   .hero-tag .bg{font-family:var(--fp); font-weight:600; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:6px; text-transform:lowercase}
   .hero-tag .s{color:var(--star); letter-spacing:1px; font-size:13px}
-  .hero-dots{display:flex; gap:9px; margin-top:28px}
-  .hero-dots button{width:9px; height:9px; border-radius:9999px; border:0; background:rgba(44,38,31,.2); padding:0; cursor:pointer; transition:width .3s,background .3s}
-  .hero-dots button.on{background:var(--rose-deep); width:26px}
+  .hero-dots{display:flex; gap:9px; margin-top:28px; align-items:center}
+  /* The dot stays 9px visually, but padding (painted only on the content box) grows the
+     tap area to ~31px so it can actually be hit with a thumb. */
+  .hero-dots button{width:9px; height:9px; box-sizing:content-box; padding:11px 6px; border-radius:9999px;
+    border:0; background:rgba(44,38,31,.2); background-clip:content-box; cursor:pointer;
+    transition:width .3s,background .3s; margin:-11px -6px}
+  .hero-dots button.on{background:var(--rose-deep); background-clip:content-box; width:26px}
   .strip{border-block:1px solid var(--border); overflow:hidden; background:var(--cream)}
   .strip-track{display:flex; gap:54px; padding:16px 0; white-space:nowrap; animation:marq 30s linear infinite; font-family:var(--fp); text-transform:lowercase; font-weight:500; font-size:21px; color:var(--ink-soft)}
   .strip-track span{display:inline-flex; align-items:center; gap:54px} .strip-track b{color:var(--rose-deep); font-weight:600}
@@ -128,9 +132,9 @@ $HEAD_CSS = <<<CSS
   .prodgrid.compact .pcard .price{font-size:20px}
   .prodgrid.compact .pcard .desc{min-height:0; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
   .sec-actions{display:flex; align-items:center; gap:10px; flex-shrink:0}
-  .cats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
-  .cats.cc3{grid-template-columns:repeat(3,1fr)}
-  .cats.cc5{grid-template-columns:repeat(5,1fr)}
+  .cats{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px}
+  .cats.cc3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cats.cc5{grid-template-columns:repeat(5,minmax(0,1fr))}
   .cat{position:relative; border-radius:var(--r-lg); border:1px solid var(--border); min-height:330px; padding:28px 28px 0; overflow:hidden; transition:transform .3s ease, box-shadow .3s ease; display:block}
   .cat:hover{transform:translateY(-6px); box-shadow:var(--sh-lg)}
   .cat .pill{position:absolute; z-index:3; top:24px; right:24px; background:var(--ink); color:#F1EDE3; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:lowercase; padding:7px 13px; border-radius:9999px}
@@ -138,13 +142,13 @@ $HEAD_CSS = <<<CSS
   .cat .meta{position:relative; z-index:3; font-size:13px; color:var(--text-muted); margin-top:12px}
   .cat .pack{position:absolute; z-index:1; bottom:16px; left:50%; transform:translateX(-50%); width:62%; max-height:172px; object-fit:contain; filter:drop-shadow(0 18px 26px rgba(44,38,31,.18)); transition:transform .4s ease}
   .cat:hover .pack{transform:translateX(-50%) translateY(-8px) scale(1.04)}
-  .editorial{max-width:1440px; margin-inline:auto; display:grid; grid-template-columns:1fr 1fr; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); background:var(--cream-2)}
+  .editorial{max-width:1440px; margin-inline:auto; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); background:var(--cream-2)}
   .editorial .ph{aspect-ratio:1/1; overflow:hidden; background:var(--cream-2)}
   .editorial .ph img{width:100%; height:100%; object-fit:cover}
   .editorial .tx{padding:clamp(28px,4vw,60px); display:flex; flex-direction:column; justify-content:center}
   .editorial .tx p{color:var(--ink-soft); font-size:15px; max-width:40ch; margin:16px 0 0; line-height:1.55}
   /* trusted brands — bordered signature cards (as it was) */
-  .brandgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:18px}
+  .brandgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:18px}
   .brandcard{display:flex; align-items:center; justify-content:center; height:108px; padding:22px 24px;
     background:#fff; border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--sh-xs); transition:transform .25s,box-shadow .25s,border-color .25s}
   .brandcard:hover{transform:translateY(-5px); box-shadow:var(--sh-rose); border-color:var(--rose)}
@@ -174,6 +178,21 @@ $HEAD_CSS = <<<CSS
     .editorial{grid-template-columns:1fr}
   }
   @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
+  /* Phones (every portrait handset is <=450 CSS px, incl. the 430px Pro Max sizes):
+     one product per row so the name and price have room to read properly. */
+  @media(max-width:450px){.prodgrid,.prodgrid.c4,.prodgrid.compact{grid-template-columns:minmax(0,1fr); gap:18px}}
+  /* narrow phones: two brand cards per row, and the name wraps inside the card
+     instead of stretching the grid past the screen edge */
+  @media(max-width:560px){
+    .brandgrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+    .brandcard{height:96px; padding:16px 10px}
+    .brandcard .brand-logo-text{font-size:15px; overflow-wrap:anywhere; hyphens:auto}
+  }
+  @media(max-width:380px){
+    .brandgrid{gap:10px}
+    .brandcard{height:86px; padding:14px 8px}
+    .brandcard .brand-logo-text{font-size:13.5px}
+  }
 
   /* ---------- "as seen on social" feed grid (Instagram-style: 5 across, square) ---------- */
   .soc-handle{text-align:center; margin-top:6px}
@@ -283,7 +302,7 @@ include __DIR__ . '/inc/head.php';
     <div class="ph graded" data-imgwrap><img class="gimg" data-grade src="https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&w=900&q=80" alt=""></div>
     <div class="tx">
       <span class="eyebrow">the well difference</span>
-      <h2 class="h2" style="margin-top:12px">backed by <span class="script">pharmacists</span></h2>
+      <h2 class="h2" style="margin-top:12px">Backed by <span class="script">Pharmacists</span></h2>
       <p>Every product on our shelves is vetted by licensed pharmacists — no hype, no filler. Just clean, clinically-backed formulas chosen for results you can see and feel.</p>
       <div class="hero-cta" style="margin-top:26px"><a class="btn btn-outline" href="about">meet the experts</a></div>
     </div>
@@ -292,7 +311,7 @@ include __DIR__ . '/inc/head.php';
 
 <!-- BRAND STRIP -->
 <section class="section-tight wrap" style="padding-top:0">
-  <div class="sec-head" style="justify-content:center; text-align:center; flex-direction:column; gap:4px; align-items:center"><span class="eyebrow">authentic, always</span><h2 class="h2">shop trusted <span class="script">brands</span></h2></div>
+  <div class="sec-head" style="justify-content:center; text-align:center; flex-direction:column; gap:4px; align-items:center"><span class="eyebrow">authentic, always</span><h2 class="h2">Shop Trusted <span class="script">Brands</span></h2></div>
   <div class="brandgrid" id="brandGrid"></div>
   <div class="center mt24"><a class="view-all" href="brands">view all brands</a></div>
 </section>
@@ -300,7 +319,7 @@ include __DIR__ . '/inc/head.php';
 <!-- JOURNAL -->
 <section class="section-tight wrap" style="padding-top:0">
   <div class="sec-head">
-    <div><span class="eyebrow">✦ the well journal</span><h2 class="h2">from the wellness <span class="script">journal</span></h2></div>
+    <div><span class="eyebrow">✦ the well journal</span><h2 class="h2">From the Wellness <span class="script">Journal</span></h2></div>
     <a class="view-all" href="journal">read more</a>
   </div>
   <div class="grid g4" id="blogGrid"></div>
@@ -319,7 +338,7 @@ include __DIR__ . '/inc/head.php';
 <section class="section-tight wrap" id="socialSec">
   <div class="sec-head" style="justify-content:center; text-align:center; flex-direction:column; gap:4px; align-items:center">
     <span class="eyebrow"><?= e(setting('social_sec_eyebrow', 'follow the glow')) ?></span>
-    <h2 class="h2"><?= sec_title_html(setting('social_sec_title', 'as seen on social')) ?></h2>
+    <h2 class="h2"><?= sec_title_html(setting('social_sec_title', 'As Seen on Social')) ?></h2>
     <?php if ($s = setting('social_sec_sub', '')): ?><p style="color:var(--ink-soft); max-width:52ch; margin-top:8px"><?= e($s) ?></p><?php endif; ?>
   </div>
 

@@ -21,9 +21,61 @@ function slugify(string $s): string {
    falls back to ASSET_VER for missing files / external URLs. */
 function asset(string $path): string {
     if (preg_match('~^(https?:)?//~', $path)) return $path;   // external URL — leave as-is
-    $abs = dirname(__DIR__) . '/' . ltrim($path, '/');
-    $v   = is_file($abs) ? filemtime($abs) : ASSET_VER;
+    $rel = ltrim($path, '/');
+    $abs = dirname(__DIR__) . '/' . $rel;
+    /* Admin pages reference "assets/admin.css", which lives under admin/ — not the
+       site root. Without this fallback the file is never found, the mtime lookup
+       fails and every admin stylesheet is stamped with the static ASSET_VER, so
+       edits stay invisible behind the browser cache until someone bumps it by hand. */
+    if (!is_file($abs)) {
+        $here = dirname((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) . '/' . $rel;
+        if (is_file($here)) $abs = $here;
+    }
+    $v = is_file($abs) ? filemtime($abs) : ASSET_VER;
     return $path . '?v=' . $v;
+}
+
+/* ---- store branding images (logo / favicon / link-share picture) ----
+   All three are optional and set in admin → Appearance. The favicon and the share
+   picture fall back to the logo, so uploading one image is enough to brand the
+   whole site; upload the others only when you want them to differ. */
+function brand_image(string $key): string {
+    $v = trim(setting($key));
+    if ($v === '' && $key !== 'store_logo') $v = trim(setting('store_logo'));   // fall back to the logo
+    return $v;
+}
+
+/* absolute https URL for a site-relative path — link previews (WhatsApp, Facebook,
+   iMessage) discard relative image paths, so og:image has to be fully qualified. */
+function abs_url(string $path): string {
+    if ($path === '' || preg_match('~^(https?:)?//~', $path)) return $path;
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+           || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    /* The site may live at the domain root OR in a subfolder (/wellpharmacy/), and the
+       caller may be an admin/ page one level down. Work out the site-root URL by taking
+       the running script's URL folder and climbing back up however many folders the
+       script sits below the project root. */
+    $norm      = fn(string $p): string => rtrim(str_replace('\\', '/', $p), '/');
+    $root      = $norm(dirname(__DIR__));                              // …/wellpharmacy
+    $scriptDir = $norm(dirname($_SERVER['SCRIPT_FILENAME'] ?? ''));    // …/wellpharmacy/admin
+    $base      = $norm(dirname($_SERVER['SCRIPT_NAME'] ?? '/'));       // /wellpharmacy/admin
+
+    $rel = (strlen($scriptDir) > strlen($root) && str_starts_with($scriptDir, $root))
+         ? trim(substr($scriptDir, strlen($root)), '/') : '';
+    $depth = $rel === '' ? 0 : substr_count($rel, '/') + 1;
+    while ($depth-- > 0) $base = $norm(dirname($base));
+    if ($base === '.' || $base === '/') $base = '';
+
+    return $scheme . '://' . $host . $base . '/' . ltrim($path, '/');
+}
+
+/* mime type for a favicon <link>, so PNG/SVG/ICO all announce themselves correctly */
+function favicon_type(string $path): string {
+    $ext = strtolower(pathinfo(parse_url($path, PHP_URL_PATH) ?: $path, PATHINFO_EXTENSION));
+    return ['png'=>'image/png','ico'=>'image/x-icon','svg'=>'image/svg+xml','gif'=>'image/gif',
+            'jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','avif'=>'image/avif'][$ext] ?? 'image/png';
 }
 
 /* a few inline SVG icons for server-rendered pages (match chrome.js set) */

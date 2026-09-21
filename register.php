@@ -14,7 +14,7 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="authwrap">
   <div class="authcard">
-    <h1>create your account</h1>
+    <h1>Create Your Account</h1>
     <p class="sub">Save your favourites, track your orders and check out faster.</p>
     <?php if ($f): ?><div class="flash <?= e($f['t']) ?>"><?= e($f['m']) ?></div><?php endif; ?>
     <form method="post" action="actions/account.php" novalidate>

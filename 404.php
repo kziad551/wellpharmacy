@@ -8,7 +8,7 @@ $HEAD_CSS = <<<CSS
 <style>
   .nf{max-width:640px;margin-inline:auto;text-align:center;padding-block:70px 90px}
   .nf .big{font-family:var(--fp);font-size:clamp(80px,18vw,150px);font-weight:600;line-height:.9;color:var(--rose);letter-spacing:-.02em}
-  .nf h1{font-family:var(--fp);font-size:clamp(24px,3vw,34px);font-weight:600;text-transform:lowercase;margin:8px 0 10px}
+  .nf h1{font-family:var(--fp);font-size:clamp(24px,3vw,34px);font-weight:600;margin:8px 0 10px}
   .nf p{color:var(--ink-soft);margin:0 0 24px;font-size:16px}
   .nf .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 </style>
@@ -18,7 +18,7 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="wrap nf">
   <div class="big">404</div>
-  <h1>page not found</h1>
+  <h1>Page Not Found</h1>
   <p>Sorry — the page you're looking for doesn't exist or has moved.</p>
   <div class="btns">
     <a class="btn btn-primary" href="index">Back home</a>

@@ -32,7 +32,7 @@ $deliveryOutside = setting('delivery_outside_text', 'Outside Beirut — 2-day de
 $HEAD_CSS = <<<CSS
 <style>
   .copg{max-width:1100px;margin-inline:auto;padding-block:34px 60px}
-  .copg h1{font-family:var(--fp);font-size:clamp(28px,3.4vw,40px);font-weight:600;text-transform:lowercase;margin:0 0 20px}
+  .copg h1{font-family:var(--fp);font-size:clamp(28px,3.4vw,40px);font-weight:600;margin:0 0 20px}
   .co-layout{display:grid;grid-template-columns:1fr 380px;gap:28px;align-items:start}
   .co-card{background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:18px;padding:24px;margin-bottom:18px}
   .co-card h3{font-family:var(--fp);font-size:19px;margin:0 0 16px}
@@ -62,7 +62,7 @@ $HEAD_CSS = <<<CSS
   .ask-card{position:relative;background:#fff;border-radius:20px;padding:28px;max-width:440px;width:100%;
     box-shadow:0 30px 70px rgba(44,38,31,.35);animation:askUp .28s cubic-bezier(.2,.8,.2,1)}
   @keyframes askUp{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
-  .ask-card h4{font-family:var(--fp);font-size:22px;font-weight:600;text-transform:lowercase;margin:0 0 8px}
+  .ask-card h4{font-family:var(--fp);font-size:22px;font-weight:600;margin:0 0 8px}
   .ask-card p{font-size:14px;line-height:1.6;color:var(--ink-soft);margin:0 0 20px}
   .ask-card .code{font-weight:700;color:var(--coral-deep)}
   .ask-btns{display:flex;gap:10px;flex-wrap:wrap}
@@ -75,13 +75,13 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="wrap copg">
   <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><a href="cart">Bag</a><span class="sep">›</span><b>Checkout</b></nav>
-  <h1>checkout</h1>
+  <h1>Checkout</h1>
 
   <!-- in-site confirm dialog (coupon typed but not applied) -->
   <div class="ask" id="coAsk" role="dialog" aria-modal="true" aria-labelledby="coAskT">
     <div class="ask-bd" data-ask-no></div>
     <div class="ask-card">
-      <h4 id="coAskT">your coupon isn't applied</h4>
+      <h4 id="coAskT">Your Coupon Isn't Applied</h4>
       <p>You typed <span class="code" id="coAskCode"></span> but didn't press <b>Apply</b>, so it won't be discounted.</p>
       <div class="ask-btns">
         <button type="button" class="btn btn-outline" data-ask-no>back &amp; apply it</button>

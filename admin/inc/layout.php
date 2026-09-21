@@ -4,15 +4,10 @@
    ============================================================ */
 require_once __DIR__ . '/auth.php';
 require_once dirname(__DIR__, 2) . '/inc/theme.php';
+require_once __DIR__ . '/list.php';      // infinite-scroll paging helpers
 
 /* gate every admin page that includes this layout (login.php never does) */
 require_login();
-
-/* admin lives one level under site root, so site-relative image paths
-   (e.g. "uploads/x.jpg") need a "../" prefix; full URLs pass through. */
-function asrc(string $v): string {
-    return ($v === '' || preg_match('~^(https?:|/|data:)~', $v)) ? $v : '../' . $v;
-}
 
 function aicon(string $n): string {
     $i = [
@@ -35,6 +30,7 @@ function aicon(string $n): string {
         'layout' => '<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/>',
         'play'   => '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/>',
         'bell'   => '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+        'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     ];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' . ($i[$n] ?? '') . '</svg>';
 }
@@ -81,7 +77,12 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
 <div class="a-shell">
   <aside class="a-side" id="aSide">
     <div class="a-brand">
-      <span class="mark">W</span>
+      <?php $alogo = brand_image('store_logo'); ?>
+      <?php if ($alogo !== ''): ?>
+        <img class="mark mark-img" src="<?= e(asrc($alogo)) ?>" alt="" onerror="this.remove()">
+      <?php else: ?>
+        <span class="mark"><?= e(strtoupper(substr(setting('store_name','W'), 0, 1))) ?></span>
+      <?php endif; ?>
       <span><b><?= e(setting('store_name','WELL')) ?></b><span>admin panel</span></span>
     </div>
     <nav class="a-nav">
@@ -326,6 +327,7 @@ function admin_foot(): void {
   document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
 })();
 </script>
+<script src="<?= asset('assets/admin.js') ?>" defer></script>
 </body>
 </html>
 <?php

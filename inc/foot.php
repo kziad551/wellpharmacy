@@ -33,7 +33,7 @@
   .nl-art{background:linear-gradient(160deg,var(--rose,#9C8158),var(--rose-deep,#7A6244));display:flex;align-items:center;justify-content:center;color:#fff;font-size:60px}
   .nl-body{padding:34px 32px;position:relative}
   .nl-ey{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--rose-deep,#7A6244)}
-  .nl-h{font-family:var(--fp,'Clash Display',sans-serif);font-size:30px;font-weight:600;text-transform:lowercase;line-height:1.05;margin:8px 0 10px;color:var(--ink,#2C261F)}
+  .nl-h{font-family:var(--fp,'Clash Display',sans-serif);font-size:30px;font-weight:600;line-height:1.05;margin:8px 0 10px;color:var(--ink,#2C261F)}
   .nl-h span{color:var(--coral-deep,#7E5730)}
   .nl-sub{font-size:14px;color:var(--ink-soft,#4B3F35);line-height:1.55;margin:0 0 18px;max-width:42ch}
   #nlForm{display:flex;flex-direction:column;gap:10px}

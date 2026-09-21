@@ -67,7 +67,7 @@ echo "-- settings --\n";
 $defaults = [
   ['social_sec_enabled', '1',                              'social'],
   ['social_sec_eyebrow', 'follow the glow',                'social'],
-  ['social_sec_title',   'as seen on social',              'social'],
+  ['social_sec_title',   'As Seen on Social',              'social'],
   ['social_sec_sub',     'Real routines, real results — straight from our Instagram and TikTok.', 'social'],
   ['social_handle',      '',                                'social'],   // blank = derived from the Instagram URL
   ['social_followers',   '',                                'social'],   // auto-filled by the sync; editable

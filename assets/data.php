@@ -87,6 +87,8 @@ foreach (rows("SELECT code, type, value FROM coupons WHERE active = 1 AND is_pub
 $SET = [
     'store_name'   => setting('store_name', 'WELL SHOP'),
     'tagline'      => setting('store_tagline', 'where Wellness meets You!'),
+    'logo'         => brand_image('store_logo'),          // '' = no picture, use the wordmark
+    'logo_mode'    => setting('logo_mode', 'auto'),       // auto | logo | name | both
     'whatsapp'     => setting('whatsapp_number', '9613627766'),
     'phone'        => setting('store_phone', ''),
     'address'      => setting('store_address', ''),

@@ -85,3 +85,8 @@
   .filter-sheet-btn{display:flex; position:fixed; bottom:0; left:0; right:0; z-index:40; gap:10px; padding:12px 16px; background:#fff; border-top:1px solid var(--border-2)}
   .plp-grid.listview .pcard{flex-direction:column} .plp-grid.listview .pcard .media{width:100%}
 }
+
+/* Phones: one product per row (see the matching rule for the homepage rails). */
+@media(max-width:450px){
+  .plp-grid,.plp-grid.cols4{grid-template-columns:minmax(0,1fr); gap:18px}
+}

@@ -30,7 +30,7 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="authwrap wide inv">
   <div class="acct-head noprint">
-    <div><h1>invoice</h1><p class="muted" style="margin:6px 0 0;font-size:14px"><?= e($o['order_no']) ?></p></div>
+    <div><h1>Invoice</h1><p class="muted" style="margin:6px 0 0;font-size:14px"><?= e($o['order_no']) ?></p></div>
     <div style="display:flex;gap:8px">
       <a class="btn btn-ghost btn-sm" href="account?tab=orders">back to orders</a>
       <button class="btn btn-primary btn-sm" onclick="window.print()">print / save PDF</button>

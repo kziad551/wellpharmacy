@@ -21,7 +21,7 @@ include __DIR__ . '/inc/head.php';
 <div class="authwrap wide">
   <div class="acct-head">
     <div>
-      <h1>hi, <?= e($c['first_name'] ?: 'there') ?></h1>
+      <h1>Hi, <?= e($c['first_name'] ?: 'there') ?></h1>
       <p class="muted" style="margin:6px 0 0;font-size:14px"><?= e($c['email']) ?>
         <?php if (!(int) $c['verified']): ?><span class="pill" style="margin-left:6px">unverified</span><?php endif; ?>
       </p>
@@ -43,7 +43,7 @@ include __DIR__ . '/inc/head.php';
 
   <?php if ($tab === 'profile'): ?>
     <div class="panel">
-      <h2>my details</h2>
+      <h2>My Details</h2>
       <form method="post" action="actions/account.php" novalidate>
         <?= csrf_field() ?><input type="hidden" name="do" value="profile">
         <div class="two">
@@ -71,7 +71,7 @@ include __DIR__ . '/inc/head.php';
 
   <?php elseif ($tab === 'orders'): ?>
     <div class="panel">
-      <h2>my orders</h2>
+      <h2>My Orders</h2>
       <?php if (!$orders): ?>
         <div class="empty"><b>No orders yet</b>Once you place an order it'll show up here.
           <div style="margin-top:16px"><a class="btn btn-primary btn-sm" href="skincare">start shopping</a></div></div>
@@ -103,7 +103,7 @@ include __DIR__ . '/inc/head.php';
 
   <?php else: ?>
     <div class="panel" style="max-width:520px">
-      <h2>change password</h2>
+      <h2>Change Password</h2>
       <form method="post" action="actions/account.php" novalidate>
         <?= csrf_field() ?><input type="hidden" name="do" value="password">
         <div class="field"><label>Current password</label><input class="input" type="password" name="current_password" required autocomplete="current-password"></div>

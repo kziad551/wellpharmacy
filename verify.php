@@ -16,7 +16,7 @@ include __DIR__ . '/inc/head.php';
 ?>
 <div class="authwrap">
   <div class="authcard">
-    <h1>check your email</h1>
+    <h1>Check Your Email</h1>
     <p class="sub">We sent a 6-digit code to <b><?= e($c['email']) ?></b>. It expires in 10 minutes.</p>
     <?php if ($f): ?><div class="flash <?= e($f['t']) ?>"><?= e($f['m']) ?></div><?php endif; ?>
     <?php if (!smtp_configured()): ?>

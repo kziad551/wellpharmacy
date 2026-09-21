@@ -18,7 +18,7 @@ $HEAD_CSS = <<<CSS
 <style>
   .legal-hero{background:var(--hero-grad);border-bottom:1px solid var(--border)}
   .legal-hero .wrap{padding-block:44px 40px}
-  .legal-hero h1{font-family:var(--fp);font-size:clamp(32px,4vw,48px);font-weight:600;text-transform:lowercase;margin:10px 0 8px;letter-spacing:-.02em}
+  .legal-hero h1{font-family:var(--fp);font-size:clamp(32px,4vw,48px);font-weight:600;margin:10px 0 8px;letter-spacing:-.02em}
   .legal-hero .sub{color:var(--ink-soft);font-size:16px;max-width:60ch}
   .legal{max-width:780px;margin-inline:auto;padding-block:48px 24px}
   .legal h3{font-family:var(--fp);font-size:22px;font-weight:600;margin:30px 0 10px;letter-spacing:-.01em}

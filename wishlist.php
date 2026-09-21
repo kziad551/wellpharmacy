@@ -12,6 +12,7 @@ $HEAD_CSS = $AUTH_CSS . <<<CSS
   .wishgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
   @media(max-width:1080px){.wishgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media(max-width:760px){.wishgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}}
+  @media(max-width:450px){.wishgrid{grid-template-columns:minmax(0,1fr);gap:18px}}
 </style>
 CSS;
 include __DIR__ . '/inc/head.php';
@@ -19,7 +20,7 @@ include __DIR__ . '/inc/head.php';
 <div class="authwrap wide">
   <div class="acct-head">
     <div>
-      <h1>my favourites</h1>
+      <h1>My Favourites</h1>
       <p class="muted" style="margin:6px 0 0;font-size:14px" id="wishSub">The things you've hearted.</p>
     </div>
     <?php if (logged_in()): ?>
