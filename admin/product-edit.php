@@ -65,6 +65,21 @@ if (is_post()) {
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
 
+    /* When the product has priced options, the list price = the cheapest buyable combination
+       (cheapest size + cheapest colour surcharge). Keeps cards / search / sorting on a real
+       number instead of an unused base price. Base price is only used when there are no sizes. */
+    $szOpts = parse_variant_opts($data['opt_sizes']);
+    $clOpts = parse_variant_opts($data['opt_colors']);
+    if ($szOpts || $clOpts) {
+        $baseMin = $szOpts
+            ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $price, $szOpts))
+            : $price;
+        $surMin = $clOpts
+            ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $clOpts))
+            : 0.0;
+        $data['price'] = round($baseMin + $surMin, 2);
+    }
+
     if ($name === '' || $newId === '') { flash('Name is required.', 'err'); redirect($editing ? "product-edit?id=$id" : 'product-edit'); }
 
     if ($editing) {
@@ -172,7 +187,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     <div style="display:flex;flex-direction:column;gap:18px">
       <div class="a-card"><div class="hd"><h2>Pricing &amp; stock</h2></div><div class="bd">
         <div class="f-row">
-          <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required></div>
+          <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">If you add <b>sizes</b> below, this is set automatically to the cheapest option on save — it only applies to products without sizes.</div></div>
           <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" value="<?= e($v['was']) ?>" placeholder="if on sale"></div>
         </div>
         <div class="f-row">

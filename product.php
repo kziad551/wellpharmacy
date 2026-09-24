@@ -96,6 +96,7 @@ $HEAD_CSS = <<<CSS
   .opt-btn:hover{border-color:var(--ink)}
   .opt-btn.on{border-color:var(--ink); background:var(--ink); color:#fff}
   #addBtn.is-disabled{opacity:.5}
+  .price-row .p .from{font-size:.62em; font-weight:500; color:var(--text-muted); vertical-align:middle}
   .opt-btn .opt-x{opacity:.6; font-size:12px; margin-left:2px}
   .opt-btn.on .opt-x{opacity:.85}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
@@ -513,9 +514,12 @@ $PAGE_JS = <<<JS
   });
   function paint(){
     \$('#qty').textContent = qty;
-    const unit = HAS_OPTS ? optPrice() : p.price;
-    if (!NOPRICE) { \$('#miniPrice').textContent = W.money(unit*qty); const pe = \$('#pdpPrice'); if (pe) pe.textContent = W.money(unit); }
     const ready = optReady();
+    const unit = HAS_OPTS ? optPrice() : p.price;
+    if (!NOPRICE) {
+      \$('#miniPrice').textContent = W.money(unit*qty);
+      const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = (HAS_OPTS && !ready ? '<span class="from">from </span>' : '') + W.money(unit);
+    }
     let label;
     if (NOPRICE) label = 'Price coming soon';
     else if (STOCK <= 0) label = 'Out of stock';
