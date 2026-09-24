@@ -20,6 +20,7 @@ if (is_post()) {
         'type'       => $type,
         'brand'      => $type === 'brand' ? trim((string) input('brand')) : '',
         'brands'     => $type === 'mixed' ? implode(',', $brandList) : '',   // blank = all brands
+        'product_ids'=> $type === 'brand' ? implode(',', array_values(array_filter(array_map('trim', explode(',', (string) input('product_ids')))))) : '',
         'eyebrow'    => trim((string) input('eyebrow')),
         'title'      => trim((string) input('title')),
         'subtitle'   => trim((string) input('subtitle')),
@@ -36,18 +37,18 @@ if (is_post()) {
 
     if ($editing) {
         $data['id'] = $id;
-        q("UPDATE home_sections SET type=:type, brand=:brand, brands=:brands, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
+        q("UPDATE home_sections SET type=:type, brand=:brand, brands=:brands, product_ids=:product_ids, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
               show_title=:show_title, item_count=:item_count, cols=:cols, enabled=:enabled, sort=:sort WHERE id=:id", $data);
         flash('Section updated.');
     } else {
-        q("INSERT INTO home_sections (type,brand,brands,eyebrow,title,subtitle,show_title,item_count,cols,enabled,sort)
-           VALUES (:type,:brand,:brands,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:enabled,:sort)", $data);
+        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,enabled,sort)
+           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:enabled,:sort)", $data);
         flash('Section created.');
     }
     redirect('home-sections');
 }
 
-$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'enabled'=>1,'sort'=>0];
+$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'enabled'=>1,'sort'=>0];
 $pickedBrands = array_filter(array_map('trim', explode(',', (string)($v['brands'] ?? ''))));   // for the Mixed multi-select
 
 /* brand options: every brand that exists in the brands table OR is used by a product */
@@ -56,6 +57,7 @@ $brandNames = array_values(array_unique(array_merge(
     array_column(rows("SELECT DISTINCT brand FROM products WHERE brand <> '' ORDER BY brand"), 'brand')
 )));
 sort($brandNames, SORT_FLAG_CASE | SORT_STRING);
+$pickProducts = rows("SELECT id, name, brand FROM products WHERE status='active' ORDER BY brand, sort, name");
 
 admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing ? 'Home section' : 'New home section');
 ?>
@@ -84,6 +86,12 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
           <?php foreach ($brandNames as $bn): ?><option value="<?= e($bn) ?>" <?= $v['brand']===$bn?'selected':'' ?>><?= e($bn) ?></option><?php endforeach; ?>
         </select>
         <div class="hint">A section only appears if the brand has active products.</div>
+      </div>
+      <div class="field" id="pickRow" style="<?= $v['type']==='brand'?'':'display:none' ?>; grid-column:1/-1">
+        <label>Show specific products <span class="faint">(optional — leave all unticked to show the whole brand, newest first)</span></label>
+        <input type="hidden" name="product_ids" id="productIds" value="<?= e($v['product_ids'] ?? '') ?>">
+        <div class="brand-picker"><div class="bp-list" id="pickList" style="max-height:280px"><span class="faint" style="padding:8px">Pick a brand first…</span></div></div>
+        <div class="hint" id="pickCount"></div>
       </div>
       <div class="field" id="brandsRow" style="<?= $v['type']==='mixed'?'':'display:none' ?>"><label>Brands to mix <span class="faint">(tick the brands you want — tick none for ALL brands)</span></label>
         <div class="brand-picker">
@@ -136,6 +144,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
   function secTypeChange(t){
     document.getElementById('brandRow').style.display  = (t==='brand') ? '' : 'none';
     document.getElementById('brandsRow').style.display = (t==='mixed') ? '' : 'none';
+    var pr=document.getElementById('pickRow'); if(pr) pr.style.display = (t==='brand') ? '' : 'none';
   }
   var _st = document.getElementById('secType');
   if (_st) secTypeChange(_st.value);
@@ -149,6 +158,40 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
     all.addEventListener('change', function(){ boxes.forEach(function(b){ b.checked = all.checked; }); });
     boxes.forEach(function(b){ b.addEventListener('change', syncAll); });
     syncAll();
+  })();
+</script>
+<script>
+
+  // ---- pick specific products for a BRAND section ----
+  (function(){
+    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'brand'=>$r['brand']], $pickProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    var brandSel = document.querySelector('select[name="brand"]');
+    var list = document.getElementById('pickList');
+    var hidden = document.getElementById('productIds');
+    var countEl = document.getElementById('pickCount');
+    if (!brandSel || !list || !hidden) return;
+    function chosen(){ return hidden.value.split(',').map(function(x){return x.trim();}).filter(Boolean); }
+    function esc(t){ return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+    function build(){
+      var brand = brandSel.value;
+      var picked = chosen();
+      var items = ALL.filter(function(p){ return p.brand === brand; });
+      if (!brand){ list.innerHTML = '<span class="faint" style="padding:8px">Pick a brand first…</span>'; countEl.textContent=''; return; }
+      if (!items.length){ list.innerHTML = '<span class="faint" style="padding:8px">This brand has no active products.</span>'; countEl.textContent=''; return; }
+      list.innerHTML = items.map(function(p){
+        var on = picked.indexOf(p.id) >= 0 ? ' checked' : '';
+        return '<label class="bp-item"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+on+'> '+esc(p.name)+'</label>';
+      }).join('');
+      sync();
+    }
+    function sync(){
+      var ids = Array.prototype.slice.call(list.querySelectorAll('.pk:checked')).map(function(b){return b.value;});
+      hidden.value = ids.join(',');
+      countEl.textContent = ids.length ? (ids.length + ' product(s) picked — only these will show, in this order.') : 'Nothing picked — the whole brand shows (newest first).';
+    }
+    list.addEventListener('change', function(e){ if(e.target.classList.contains('pk')) sync(); });
+    brandSel.addEventListener('change', function(){ hidden.value=''; build(); });
+    build();
   })();
 </script>
 <?php admin_foot();

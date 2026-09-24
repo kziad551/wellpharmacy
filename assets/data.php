@@ -52,6 +52,7 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
         'desc'    => trim(preg_replace('/\s+/', ' ', strip_tags((string)$p['descr']))),   // card blurb: never render stray HTML
         'keywords'=> $p['keywords'] ?? '',
         'size'    => $p['size'] ?? '',
+        'unit'    => $p['unit'] ?? '',
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],

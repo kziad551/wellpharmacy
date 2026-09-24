@@ -88,6 +88,7 @@ $HEAD_CSS = <<<CSS
   .price-row .p{font-family:var(--fp); font-size:30px; font-weight:600}
   .price-row .p.p-tba{font-size:22px; font-weight:500; color:var(--text-muted); font-style:italic}
   .price-row .was{font-size:18px; color:var(--text-faint); text-decoration:line-through}
+  .price-row .unit-lbl{font-size:15px; color:var(--text-muted); font-weight:500}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
   .instock .dot{width:8px; height:8px; border-radius:50%; background:var(--mint)}
   .promise{font-size:15px; color:var(--ink-soft); line-height:1.6; margin:0 0 18px; max-width:46ch}
@@ -267,7 +268,7 @@ include __DIR__ . '/inc/head.php';
       <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a> <span class="muted">·</span> <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);font-weight:600"><?= $myReview ? 'Edit your review' : 'Write a review' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
       <div class="price-row">
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
-        <?php else: ?><span class="p"><?= money($p['price']) ?></span>
+        <?php else: ?><span class="p"><?= money($p['price']) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>

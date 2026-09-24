@@ -212,11 +212,12 @@
     const hover = p.hover || p.img2;   // 2nd image for the rhode hover-swap
     const buyPrice = `${money(p.price)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
     const noPrice = !(p.price > 0);   // price not set yet (e.g. a new brand awaiting prices) — show "coming soon" & block ordering
+    const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
     const priceHtml = noPrice
       ? `<span class="price price-tba">Price coming soon</span>`
       : p.was   // desktop price row (old box)
-      ? `<span class="price sale"><span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span></span>`
-      : `<span class="price">${money(p.price)}</span>`;
+      ? `<span class="price sale"><span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
+      : `<span class="price">${money(p.price)}${unitLbl}</span>`;
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';

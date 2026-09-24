@@ -66,8 +66,17 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         if (!$ids) continue;
         $default = 'Featured'; $viewAll = $brandList && count($brandList) === 1 ? 'skincare?brand=' . urlencode($brandList[0]) : 'skincare';
     } else {
-        $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($n > 0 ? " LIMIT $n" : "");
-        $ids = array_column(rows($sql, [$hs['brand']]), 'id');
+        /* brand rail: hand-picked products if the admin chose some, else the whole brand */
+        $picked = array_values(array_filter(array_map('trim', explode(',', (string) ($hs['product_ids'] ?? '')))));
+        if ($picked) {
+            $ph  = implode(',', array_fill(0, count($picked), '?'));
+            $have = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND status='active'", $picked), 'id');
+            $ids = array_values(array_filter($picked, fn($x) => in_array($x, $have, true)));   // keep the admin's order
+            if ($n > 0) $ids = array_slice($ids, 0, $n);
+        } else {
+            $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($n > 0 ? " LIMIT $n" : "");
+            $ids = array_column(rows($sql, [$hs['brand']]), 'id');
+        }
         if (!$ids) continue;
         $default = $hs['brand']; $viewAll = 'skincare?brand=' . urlencode($hs['brand']);
     }

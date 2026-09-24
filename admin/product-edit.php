@@ -57,7 +57,7 @@ if (is_post()) {
         'stock'=>(int)input('stock'), 'low_stock'=>(int)input('low_stock'),
         'kw'=>trim((string)input('kw')), 'descr'=>trim((string)input('descr')),
         'long_desc'=>(string)input('long_desc'), 'image'=>$image, 'hover_image'=>$hover, 'gallery'=>implode("\n",$galPaths),
-        'barcode'=>trim((string)input('barcode')), 'sku'=>trim((string)input('sku')), 'size'=>trim((string)input('size')),
+        'barcode'=>trim((string)input('barcode')), 'sku'=>trim((string)input('sku')), 'size'=>trim((string)input('size')), 'unit'=>trim((string)input('unit')),
         'how_to_use'=>(string)input('how_to_use'), 'ingredients'=>(string)input('ingredients'), 'benefits'=>(string)input('benefits'),
         'keywords'=>(string)input('keywords'),
         'feat_latest'=> input('feat_latest') ? 1 : 0, 'feat_wellness'=> input('feat_wellness') ? 1 : 0,
@@ -96,7 +96,7 @@ if (is_post()) {
 /* defaults for the form */
 $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','price'=>'','was'=>'','sale_pct'=>'',
     'badge'=>'','rating'=>'4.8','reviews'=>'0','stock'=>'0','low_stock'=>'5','kw'=>'','descr'=>'','long_desc'=>'',
-    'barcode'=>'','sku'=>'','size'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
+    'barcode'=>'','sku'=>'','size'=>'','unit'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
     'image'=>'','hover_image'=>'','gallery'=>'','feat_latest'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
 
 admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v['name'] : 'New product');
@@ -192,7 +192,15 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
           <div class="field"><label>Barcode (EAN)</label><input class="input" name="barcode" value="<?= e($v['barcode'] ?? '') ?>"></div>
           <div class="field"><label>SKU / item #</label><input class="input" name="sku" value="<?= e($v['sku'] ?? '') ?>"></div>
         </div>
-        <div class="field"><label>Size</label><input class="input" name="size" value="<?= e($v['size'] ?? '') ?>" placeholder="e.g. 150 ml"></div>
+        <div class="f-row">
+          <div class="field"><label>Size</label><input class="input" name="size" value="<?= e($v['size'] ?? '') ?>" placeholder="e.g. 150 ml"></div>
+          <div class="field"><label>Sold by <span class="faint">(the unit a customer buys)</span></label>
+            <?php $unit=trim((string)($v['unit'] ?? '')); $units=[''=>'Each / standard','sachet'=>'Sachet','sheet'=>'Sheet','box'=>'Box','pack'=>'Pack']; if($unit!=='' && !isset($units[$unit])) $units[$unit]=ucfirst($unit); ?>
+            <select class="input" name="unit">
+              <?php foreach($units as $uk=>$ul): ?><option value="<?= e($uk) ?>" <?= $unit===$uk?'selected':'' ?>><?= e($ul) ?></option><?php endforeach; ?>
+            </select>
+            <div class="hint">e.g. mask sheets are bought per <b>sachet</b>. “Each / standard” shows no unit label.</div></div>
+        </div>
       </div></div>
 
       <div class="a-card"><div class="hd"><h2>Visibility</h2></div><div class="bd">
