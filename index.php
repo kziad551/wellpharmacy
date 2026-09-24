@@ -174,13 +174,28 @@ $HEAD_CSS = <<<CSS
   @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:1080px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(3,minmax(0,1fr))} .cats,.cats.cc3,.cats.cc5{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
-    .hero .wrap{grid-template-columns:1fr; padding-block:58px 46px; gap:24px} .hero-visual{order:-1; aspect-ratio:1/1; max-height:52vh} .hero-visual>img{width:90%; height:90%}
+    .hero .wrap{grid-template-columns:1fr; padding-block:24px 44px; gap:22px} .hero-visual{order:-1; aspect-ratio:1/1; max-height:50vh} .hero-visual>img{width:90%; height:90%}
     .editorial{grid-template-columns:1fr}
   }
   @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
   /* Phones (every portrait handset is <=450 CSS px, incl. the 430px Pro Max sizes):
      one product per row so the name and price have room to read properly. */
   @media(max-width:450px){.prodgrid,.prodgrid.c4,.prodgrid.compact{grid-template-columns:minmax(0,1fr); gap:18px}}
+  /* small phones: give the hero a touch more room under the stacked search */
+  @media(max-width:550px){ .hero .wrap{padding-block:44px 40px} }
+  /* HOME rails become a horizontal swiper on phones — 2.5 cards peek so it's clear you can swipe.
+     Scoped to .home-rail so the shop/search/category grids stay full grids. */
+  @media(max-width:680px){
+    .home-rail .prodgrid,
+    .home-rail .prodgrid.c4,
+    .home-rail .prodgrid.compact{
+      display:flex; grid-template-columns:none; overflow-x:auto; gap:12px;
+      scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+      padding:2px 0 8px; scrollbar-width:none}
+    .home-rail .prodgrid::-webkit-scrollbar{display:none}
+    .home-rail .prodgrid>*{flex:0 0 44%; scroll-snap-align:start; min-width:0}
+  }
+  @media(max-width:420px){ .home-rail .prodgrid>*{flex:0 0 52%} }
   /* narrow phones: two brand cards per row, and the name wraps inside the card
      instead of stretching the grid past the screen edge */
   @media(max-width:560px){

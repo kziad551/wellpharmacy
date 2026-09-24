@@ -86,7 +86,7 @@
   .plp-grid.listview .pcard{flex-direction:column} .plp-grid.listview .pcard .media{width:100%}
 }
 
-/* Phones: one product per row (see the matching rule for the homepage rails). */
+/* Phones: keep at least two products per row (never a single giant card). */
 @media(max-width:450px){
-  .plp-grid,.plp-grid.cols4{grid-template-columns:minmax(0,1fr); gap:18px}
+  .plp-grid,.plp-grid.cols4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
 }

@@ -346,8 +346,11 @@ select.input,.select{padding-right:34px}
 .hdr-right .tt{color:var(--ink)}
 .hdr-right .ig:hover,.hdr-right .tt:hover{filter:brightness(.92)}
 @media(max-width:1024px){
-  .wa-expert{display:flex!important; padding:6px}   /* keep the WhatsApp icon on phones (text already hidden ≤900) */
-  .hdr-right .ig,.hdr-right .tt{display:none}        /* IG/TikTok live in the footer on phones */
+  /* WhatsApp + IG/TikTok drop out of the header on phones so the essential
+     wishlist/account/cart icons always fit — the floating WhatsApp button covers chat.
+     Keeps the header identical across every phone width. */
+  .wa-expert{display:none!important}
+  .hdr-right .ig,.hdr-right .tt{display:none}
 }
 
 /* ---------- phone country picker ----------
@@ -660,8 +663,8 @@ select.input,.select{padding-right:34px}
    icons all have to share one row. Tighten the gaps and let the wordmark scale
    down rather than pushing the icon cluster off the right edge. */
 @media (max-width:560px){
-  .hdr-main{gap:8px; height:66px}
-  .site-header.scrolled .hdr-main{height:58px}
+  .hdr-main{gap:8px}   /* height stays auto so the full-width search row wraps cleanly */
+  .site-header .logo-img{max-width:44vw}   /* keep room for the wishlist/account/cart icons */
   .logo{min-width:0; flex:0 1 auto}
   .logo>span{min-width:0}
   .logo .name{font-size:clamp(17px,5.4vw,24px); overflow:hidden; text-overflow:ellipsis}
@@ -676,10 +679,12 @@ select.input,.select{padding-right:34px}
   .hdr-expert .wa-av{width:32px; height:32px}
   .hdr-expert .wa-av svg{width:18px; height:18px}
 }
-@media (max-width:380px){
+@media (max-width:400px){
   .hdr-main{gap:5px}
-  .wa-expert{display:none!important}   /* the floating WhatsApp button still covers this */
-  .icon-btn{width:35px; height:35px}
+  .site-header .logo-img{max-width:38vw}   /* give the icon cluster priority on tiny phones */
+  .icon-btn{width:34px; height:34px}
+  .hdr-acct{padding:5px}
+  .shop-icons{gap:0}
 }
 
 @media (max-width:760px){
@@ -704,7 +709,7 @@ select.input,.select{padding-right:34px}
   .pcard .add{display:none}
   .pcard .pprice{display:none}
   .pcard .name{color:var(--taupe)}
-  .pcard .buybtn{display:inline-flex}
+  .pcard .buybtn{display:inline-flex; height:40px; font-size:13px; padding:0 12px; gap:5px}
   .pcard .pc-top{padding:16px 13px 0 16px; gap:6px}
   .pcard .pc-kw{font-size:clamp(12px,9.5cqi,22px); background:none; -webkit-text-fill-color:var(--taupe); color:var(--taupe)}
   .pcard .badge-slot .badge{font-size:8.5px; padding:3px 6px; height:auto; white-space:nowrap; letter-spacing:.03em}
@@ -729,7 +734,7 @@ select.input,.select{padding-right:34px}
    The card is now full-width, so let the name run to three lines before truncating
    instead of clipping a long "VICHY MINERALIZING THERMAL WATER…" at two. */
 @media (max-width:450px){
-  .pcard .name{-webkit-line-clamp:3; font-size:15.5px}
+  .pcard .name{-webkit-line-clamp:2; font-size:14px}
   .pcard .desc{-webkit-line-clamp:2}
   .pcard .media{aspect-ratio:1/.88}   /* slightly shorter photo = less scrolling per item */
 }
