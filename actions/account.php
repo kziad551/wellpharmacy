@@ -38,13 +38,18 @@ if (in_array($do, ['sync', 'wish', 'cart', 'handoff'], true)) {
         $ok(['wish' => wishlist_ids($cid)]); exit;
     }
     if ($do === 'cart') {
+        $keep = [];
         foreach (($in['cart'] ?? []) as $l) {
             $pid = (string) ($l['id'] ?? ''); if ($pid === '') continue;
-            cart_put($cid, $pid, (int) ($l['qty'] ?? 0));
+            [$vjson, $vprice] = cart_variant_json($l);
+            cart_put($cid, $pid, (int) ($l['qty'] ?? 0), $vjson, $vprice);
+            $keep[$pid . "" . $vjson] = true;
         }
-        // drop anything the browser no longer has
-        $keep = array_column($in['cart'] ?? [], 'id');
-        foreach (cart_rows($cid) as $r) if (!in_array($r['product_id'], $keep, true)) cart_put($cid, $r['product_id'], 0);
+        // drop anything the browser no longer has (keyed by product + variant)
+        foreach (cart_rows($cid) as $r) {
+            if (!isset($keep[$r['product_id'] . "" . (string) ($r['variant'] ?? '')]))
+                cart_put($cid, $r['product_id'], 0, (string) ($r['variant'] ?? ''));
+        }
         $ok(); exit;
     }
 }

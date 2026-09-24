@@ -70,7 +70,7 @@ admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime
               <div style="display:flex;align-items:center;gap:11px">
                 <img src="<?= e(asrc($it['image'] ?: 'uploads/photo-pending.png')) ?>" alt=""
                      style="width:44px;height:44px;object-fit:contain;background:#fff;border:1px solid var(--a-border2);border-radius:8px;padding:3px;flex:none">
-                <span><a class="nm" href="product-edit?id=<?= e($it['product_id']) ?>"><?= e($it['name']) ?></a><div class="br"><?= e($it['brand']) ?></div></span>
+                <span><a class="nm" href="product-edit?id=<?= e($it['product_id']) ?>"><?= e($it['name']) ?></a><?php if(!empty($it['variant'])): ?> <span class="pill pill-muted"><?= e($it['variant']) ?></span><?php endif; ?><div class="br"><?= e($it['brand']) ?></div></span>
               </div>
             </td>
             <td><?= money($it['price']) ?></td>

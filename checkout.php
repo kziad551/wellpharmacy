@@ -193,8 +193,8 @@ ob_start(); ?>
     var y = box.querySelector('[data-ask-yes]'); y && y.focus();
   }
 
-  function items() { return W.cart().map(function (l) { var p = W.BY_ID[l.id]; return p ? { p: p, qty: l.qty } : null; }).filter(Boolean); }
-  function subtotal() { return items().reduce(function (s, x) { return s + x.p.price * x.qty; }, 0); }
+  function items() { return W.cart().map(function (l) { var p = W.BY_ID[l.id]; return p ? { p: p, qty: l.qty, color: l.color||'', size: l.size||'', price: W.unitPrice(l) } : null; }).filter(Boolean); }
+  function subtotal() { return items().reduce(function (s, x) { return s + x.price * x.qty; }, 0); }
 
   function shipping(sub) {
     if (applied && applied.freeship) return 0;
@@ -210,9 +210,10 @@ ob_start(); ?>
     form.style.display = ''; empty.style.display = 'none';
 
     document.getElementById('coItems').innerHTML = its.map(function (x) {
+      var vlabel = [x.color, x.size].filter(Boolean).join(' · ');
       return '<div class="co-it"><img class="gimg" data-grade src="' + x.p.img + '" alt="">' +
-        '<div>' + x.p.name + '<div class="q">Qty ' + x.qty + '</div></div>' +
-        '<b>' + money(x.p.price * x.qty) + '</b></div>';
+        '<div>' + x.p.name + (vlabel ? '<div class="q">' + vlabel + '</div>' : '') + '<div class="q">Qty ' + x.qty + '</div></div>' +
+        '<b>' + money(x.price * x.qty) + '</b></div>';
     }).join('');
 
     var sub = subtotal();
@@ -299,7 +300,7 @@ ob_start(); ?>
     var pm = form.querySelector('input[name="payment_method"]:checked');
     var payload = {
       csrf: CFG.csrf,
-      items: W.cart().map(function (l) { return { id: l.id, qty: l.qty }; }),
+      items: W.cart().map(function (l) { return { id: l.id, qty: l.qty, color: l.color||'', size: l.size||'' }; }),
       customer: { name: f.name.value, phone: fullPhone(), email: f.email.value, address: f.address.value, governorate: f.governorate.value, city: f.city.value, notes: f.notes.value },
       payment_method: pm ? pm.value : 'cod',
       coupon_code: applied ? applied.code : ''

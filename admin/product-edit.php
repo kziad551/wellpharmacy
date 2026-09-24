@@ -58,6 +58,7 @@ if (is_post()) {
         'kw'=>trim((string)input('kw')), 'descr'=>trim((string)input('descr')),
         'long_desc'=>(string)input('long_desc'), 'image'=>$image, 'hover_image'=>$hover, 'gallery'=>implode("\n",$galPaths),
         'barcode'=>trim((string)input('barcode')), 'sku'=>trim((string)input('sku')), 'size'=>trim((string)input('size')), 'unit'=>trim((string)input('unit')),
+        'opt_colors'=>trim((string)input('opt_colors')), 'opt_sizes'=>trim((string)input('opt_sizes')),
         'how_to_use'=>(string)input('how_to_use'), 'ingredients'=>(string)input('ingredients'), 'benefits'=>(string)input('benefits'),
         'keywords'=>(string)input('keywords'),
         'feat_latest'=> input('feat_latest') ? 1 : 0, 'feat_wellness'=> input('feat_wellness') ? 1 : 0,
@@ -96,7 +97,7 @@ if (is_post()) {
 /* defaults for the form */
 $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','price'=>'','was'=>'','sale_pct'=>'',
     'badge'=>'','rating'=>'4.8','reviews'=>'0','stock'=>'0','low_stock'=>'5','kw'=>'','descr'=>'','long_desc'=>'',
-    'barcode'=>'','sku'=>'','size'=>'','unit'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
+    'barcode'=>'','sku'=>'','size'=>'','unit'=>'','opt_colors'=>'','opt_sizes'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
     'image'=>'','hover_image'=>'','gallery'=>'','feat_latest'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
 
 admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v['name'] : 'New product');
@@ -200,6 +201,18 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
               <?php foreach($units as $uk=>$ul): ?><option value="<?= e($uk) ?>" <?= $unit===$uk?'selected':'' ?>><?= e($ul) ?></option><?php endforeach; ?>
             </select>
             <div class="hint">e.g. mask sheets are bought per <b>sachet</b>. “Each / standard” shows no unit label.</div></div>
+        </div>
+      </div></div>
+
+      <div class="a-card"><div class="hd"><h2>Options / variants <span class="faint" style="font-weight:400;font-size:12.5px">(optional)</span></h2></div><div class="bd">
+        <p class="hint" style="margin:0 0 12px">One option per line. Add a price after a <code>|</code> to override the base price for that choice — leave it off to use the normal price. The customer must pick before adding to bag; the chosen option and its price go on the order.</p>
+        <div class="f-row">
+          <div class="field"><label>Colors</label>
+            <textarea class="input" name="opt_colors" rows="4" placeholder="White|14&#10;Black&#10;Pink"><?= e($v['opt_colors'] ?? '') ?></textarea>
+            <div class="hint">e.g. <code>White|14</code> (White costs $14), <code>Black</code> (base price).</div></div>
+          <div class="field"><label>Sizes</label>
+            <textarea class="input" name="opt_sizes" rows="4" placeholder="30 ml|10&#10;50 ml|15"><?= e($v['opt_sizes'] ?? '') ?></textarea>
+            <div class="hint">e.g. <code>30 ml|10</code>, <code>50 ml|15</code> — same photos, different price.</div></div>
         </div>
       </div></div>
 

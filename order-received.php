@@ -57,7 +57,7 @@ if (!$order):
     <?php foreach ($items as $it): ?>
       <div class="oc-it">
         <img class="oc-th gimg" data-grade src="<?= e($it['image'] ?: 'uploads/photo-pending.png') ?>" alt="">
-        <div><?= e($it['name']) ?><div class="q"><?= e($it['brand']) ?> · Qty <?= (int)$it['qty'] ?></div></div>
+        <div><?= e($it['name']) ?><?php if(!empty($it['variant'])): ?> <span class="muted">(<?= e($it['variant']) ?>)</span><?php endif; ?><div class="q"><?= e($it['brand']) ?> · Qty <?= (int)$it['qty'] ?></div></div>
         <b><?= money($it['line_total']) ?></b>
       </div>
     <?php endforeach; ?>

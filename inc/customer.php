@@ -116,11 +116,20 @@ function wishlist_remove(int $cid, string $pid): void {
     q("DELETE FROM customer_wishlist WHERE customer_id = ? AND product_id = ?", [$cid, $pid]);
 }
 function cart_rows(int $cid): array {
-    return rows("SELECT product_id, qty FROM customer_cart WHERE customer_id = ?", [$cid]);
+    return rows("SELECT product_id, qty, variant, vprice FROM customer_cart WHERE customer_id = ?", [$cid]);
 }
-function cart_put(int $cid, string $pid, int $qty): void {
-    if ($qty <= 0) { q("DELETE FROM customer_cart WHERE customer_id = ? AND product_id = ?", [$cid, $pid]); return; }
-    q("INSERT INTO customer_cart (customer_id, product_id, qty) VALUES (?,?,?) ON DUPLICATE KEY UPDATE qty = VALUES(qty)", [$cid, $pid, $qty]);
+function cart_put(int $cid, string $pid, int $qty, string $variant = '', ?float $vprice = null): void {
+    if ($qty <= 0) { q("DELETE FROM customer_cart WHERE customer_id = ? AND product_id = ? AND variant = ?", [$cid, $pid, $variant]); return; }
+    q("INSERT INTO customer_cart (customer_id, product_id, variant, qty, vprice) VALUES (?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE qty = VALUES(qty), vprice = VALUES(vprice)", [$cid, $pid, $variant, $qty, $vprice]);
+}
+/* build the JSON variant blob + price the client sends back on the cart line */
+function cart_variant_json(array $l): array {
+    $color = trim((string) ($l['color'] ?? ''));
+    $size  = trim((string) ($l['size'] ?? ''));
+    $json  = ($color !== '' || $size !== '') ? json_encode(['color' => $color, 'size' => $size], JSON_UNESCAPED_UNICODE) : '';
+    $vprice = isset($l['price']) && $l['price'] !== '' ? round((float) $l['price'], 2) : null;
+    return [$json, $vprice];
 }
 
 /** Pending guest state is handed over by the client at login time. */
@@ -131,8 +140,9 @@ function merge_guest_data_into_account(int $cid): void {
     foreach (($pend['cart'] ?? []) as $line) {
         $pid = (string) ($line['id'] ?? ''); $qty = max(1, (int) ($line['qty'] ?? 1));
         if ($pid === '') continue;
-        $cur = row("SELECT qty FROM customer_cart WHERE customer_id = ? AND product_id = ?", [$cid, $pid]);
-        cart_put($cid, $pid, max($qty, (int) ($cur['qty'] ?? 0)));   // keep the larger qty
+        [$vjson, $vprice] = cart_variant_json($line);
+        $cur = row("SELECT qty FROM customer_cart WHERE customer_id = ? AND product_id = ? AND variant = ?", [$cid, $pid, $vjson]);
+        cart_put($cid, $pid, max($qty, (int) ($cur['qty'] ?? 0)), $vjson, $vprice);   // keep the larger qty
     }
     unset($_SESSION['guest_merge']);
 }

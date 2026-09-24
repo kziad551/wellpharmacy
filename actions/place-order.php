@@ -68,14 +68,20 @@ try {
         if ($pid === '') continue;
         $p = row("SELECT * FROM products WHERE id = ? AND status='active' FOR UPDATE", [$pid]);   // lock the row
         if (!$p) continue;
+        /* variants: validate the chosen color/size and take the price from the DB, never the client */
+        $color = trim((string) ($it['color'] ?? ''));
+        $size  = trim((string) ($it['size'] ?? ''));
+        $vr = variant_resolve($p, $color, $size);
+        if (!$vr['ok']) { $adjust[] = "{$p['name']}: please choose an option — removed"; continue; }
         $avail = (int) $p['stock'];
         if ($avail <= 0) { $adjust[] = "{$p['name']} sold out — removed"; continue; }
         $take = min($reqQty, $avail);
         if ($take < $reqQty) $adjust[] = "{$p['name']}: only {$take} left — quantity reduced";
         q("UPDATE products SET stock = stock - ? WHERE id = ?", [$take, $p['id']]);  // safe under the row lock
-        $line = round((float) $p['price'] * $take, 2);
+        $unit = $vr['price'];
+        $line = round($unit * $take, 2);
         $subtotal += $line;
-        $lines[] = ['p' => $p, 'qty' => $take, 'line' => $line];
+        $lines[] = ['p' => $p, 'qty' => $take, 'line' => $line, 'unit' => $unit, 'variant' => $vr['label']];
     }
     if (!$lines) { $pdo->rollBack(); fail('Sorry — the items in your bag just sold out. Please try again.'); }
     $subtotal = round($subtotal, 2);
@@ -97,8 +103,8 @@ try {
     $oid = (int) last_id();
     foreach ($lines as $l) {
         $p = $l['p'];
-        q("INSERT INTO order_items (order_id,product_id,name,brand,price,qty,line_total) VALUES (?,?,?,?,?,?,?)",
-           [$oid, $p['id'], $p['name'], $p['brand'], $p['price'], $l['qty'], $l['line']]);
+        q("INSERT INTO order_items (order_id,product_id,name,variant,brand,price,qty,line_total) VALUES (?,?,?,?,?,?,?,?)",
+           [$oid, $p['id'], $p['name'], $l['variant'] ?? '', $p['brand'], $l['unit'] ?? $p['price'], $l['qty'], $l['line']]);
     }
     if ($couponCode !== '') q("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [$couponCode]);
     $pdo->commit();

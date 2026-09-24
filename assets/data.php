@@ -53,6 +53,8 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
         'keywords'=> $p['keywords'] ?? '',
         'size'    => $p['size'] ?? '',
         'unit'    => $p['unit'] ?? '',
+        'colors'  => parse_variant_opts($p['opt_colors'] ?? ''),
+        'sizes'   => parse_variant_opts($p['opt_sizes'] ?? ''),
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],

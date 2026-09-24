@@ -273,3 +273,38 @@ function social_posts(int $limit = 12): array {
     foreach ($rows as &$r) { $r['embed'] = social_embed_url($r['platform'], $r['url']); }
     return $rows;
 }
+
+/* Parse a product's option list (colors/sizes). One option per line: "Label" or
+   "Label|price". Returns [['label'=>..,'price'=>float|null], ...]. Reused by the
+   storefront (data.php), the product page and the order server (price validation). */
+function parse_variant_opts(?string $s): array {
+    $out = [];
+    foreach (preg_split('/\R/', (string) $s) as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        $parts = explode('|', $line, 2);
+        $label = trim($parts[0]);
+        if ($label === '') continue;
+        $price = (isset($parts[1]) && trim($parts[1]) !== '') ? round((float) trim($parts[1]), 2) : null;
+        $out[] = ['label' => $label, 'price' => $price];
+    }
+    return $out;
+}
+
+/* Resolve the effective unit price for a chosen color/size against a product row.
+   Size price wins, then color price, else the base price. Also returns a display
+   label ("White · 50 ml"). Server-side source of truth — never trust a client price. */
+function variant_resolve(array $p, string $color, string $size): array {
+    $colors = parse_variant_opts($p['opt_colors'] ?? '');
+    $sizes  = parse_variant_opts($p['opt_sizes'] ?? '');
+    $price  = (float) $p['price'];
+    $labels = [];
+    $find = function (array $opts, string $want) {
+        foreach ($opts as $o) if ($o['label'] === $want) return $o;
+        return null;
+    };
+    $okColor = !$colors; $okSize = !$sizes;
+    if ($colors) { $c = $find($colors, $color); if ($c) { $okColor = true; $labels[] = $c['label']; if ($c['price'] !== null) $price = $c['price']; } }
+    if ($sizes)  { $z = $find($sizes,  $size);  if ($z) { $okSize  = true; $labels[] = $z['label']; if ($z['price'] !== null) $price = $z['price']; } }
+    return ['ok' => $okColor && $okSize, 'price' => round($price, 2), 'label' => implode(' · ', $labels)];
+}

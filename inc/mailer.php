@@ -140,7 +140,7 @@ function send_otp_email(string $to, string $name, string $code): bool {
 function order_items_table(array $order, array $items): string {
     $rows = '';
     foreach ($items as $it) {
-        $rows .= '<tr><td style="padding:8px 0;font-size:13px">' . e($it['name']) . ' <span style="color:#8A7D6E">× ' . (int) $it['qty'] . '</span></td>
+        $rows .= '<tr><td style="padding:8px 0;font-size:13px">' . e($it['name']) . (!empty($it['variant']) ? ' <span style="color:#8A7D6E">(' . e($it['variant']) . ')</span>' : '') . ' <span style="color:#8A7D6E">× ' . (int) $it['qty'] . '</span></td>
                       <td style="padding:8px 0;font-size:13px;text-align:right">' . e(money($it['line_total'])) . '</td></tr>';
     }
     $line = fn($l, $v) => '<tr><td style="padding:3px 0;font-size:13px;color:#8A7D6E">' . $l . '</td><td style="padding:3px 0;font-size:13px;text-align:right">' . e($v) . '</td></tr>';

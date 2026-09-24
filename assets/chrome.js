@@ -85,10 +85,20 @@
   if (ME) {
     // merge anything built as a guest, then adopt the account's saved state
     const guestCart = CART.slice(), guestWish = WISH.slice();
-    const byId = {};
-    (ME.cart || []).forEach(function (r) { byId[r.product_id] = (r.qty | 0) || 1; });
-    guestCart.forEach(function (l) { byId[l.id] = Math.max(byId[l.id] || 0, l.qty | 0); });
-    CART = Object.keys(byId).map(function (id) { return { id: id, qty: byId[id] }; });
+    const byKey = {};
+    (ME.cart || []).forEach(function (r) {
+      var v = {}; try { v = r.variant ? JSON.parse(r.variant) : {}; } catch (e) { v = {}; }
+      var l = { id: r.product_id, qty: (r.qty | 0) || 1 };
+      if (v.color) l.color = v.color; if (v.size) l.size = v.size;
+      if (r.vprice != null && r.vprice !== '') l.price = +r.vprice;
+      byKey[lineKey(l)] = l;
+    });
+    guestCart.forEach(function (l) {
+      var k = lineKey(l);
+      if (byKey[k]) byKey[k].qty = Math.max(byKey[k].qty || 0, l.qty | 0);
+      else byKey[k] = l;
+    });
+    CART = Object.keys(byKey).map(function (k) { return byKey[k]; });
     WISH = (ME.wish || []).slice();
     guestWish.forEach(function (id) { if (WISH.indexOf(id) < 0) WISH.push(id); });
     write(LS.cart, CART); write(LS.wish, WISH);
@@ -102,6 +112,12 @@
   }
 
   const stockOf = (id) => { const p = W.BY_ID[id]; return p ? (p.stock | 0) : 0; };
+  // a cart line is identified by product + chosen variant (color/size). Non-variant
+  // lines just key on the id. Everything below operates on this line key.
+  const lineKey = (l) => l.id + '' + (l.color || '') + '' + (l.size || '');
+  const unitPrice = (l) => (l.price != null ? +l.price : (W.BY_ID[l.id] ? W.BY_ID[l.id].price : 0));
+  const findLine = (k) => CART.find((x) => lineKey(x) === k);
+  W.lineKey = lineKey; W.unitPrice = unitPrice;
 
   // keep the saved bag honest against live stock (product removed / out of stock / qty too high)
   function reconcileCart() {
@@ -120,8 +136,8 @@
   reconcileCart();
 
   const cartCount = () => CART.reduce((n, l) => n + l.qty, 0);
-  const cartSubtotal = () => CART.reduce((s, l) => s + (W.BY_ID[l.id] ? W.BY_ID[l.id].price * l.qty : 0), 0);
-  const qtyInCart = (id) => { const l = CART.find(x => x.id === id); return l ? l.qty : 0; };
+  const cartSubtotal = () => CART.reduce((s, l) => s + unitPrice(l) * l.qty, 0);
+  const qtyInCart = (id) => CART.reduce((n, l) => n + (l.id === id ? l.qty : 0), 0);
   W.cart = () => CART; W.wish = () => WISH;
   W.cartCount = cartCount; W.cartSubtotal = cartSubtotal;
   W.stockOf = stockOf; W.cartQtyOf = qtyInCart;
@@ -130,19 +146,23 @@
   function saveWish() { write(LS.wish, WISH); syncBadges(); window.dispatchEvent(new CustomEvent('well:wish')); }
 
   // add `add` more of an item, never exceeding available stock
-  W.addToCart = function (id, add) {
+  W.addToCart = function (id, add, variant) {
     const p = W.BY_ID[id]; if (!p) return;
     if (!(p.price > 0)) { toast('Price coming soon — this item isn’t available to order yet'); return; }
     const stock = stockOf(id);
     if (stock <= 0) { toast('Sorry — this item is out of stock'); return; }
-    const l = CART.find(x => x.id === id);
+    variant = variant || {};
+    const line = { id: id, qty: 0, color: variant.color || '', size: variant.size || '' };
+    if (variant.price != null) line.price = +variant.price;
+    const key = lineKey(line);
+    const l = findLine(key);
     const cur = l ? l.qty : 0;
     const want = cur + (add || 1);
     const next = Math.min(want, stock);
     if (next === cur) { openDrawer(); toast(`That's all we have — only ${stock} in stock`); return; }
-    if (l) l.qty = next; else CART.push({ id, qty: next });
+    if (l) l.qty = next; else { line.qty = next; CART.push(line); }
     saveCart(); bumpBag();
-    const dr = $('#cartDrawer'); if (dr && !dr.classList.contains('open')) openDrawer();   // don't yank an already-open drawer
+    const dr = $('#cartDrawer'); if (dr && !dr.classList.contains('open')) openDrawer();
     toast(next < want ? `Added — only ${stock} left in stock` : 'Added to bag ♡');
   };
   // set the exact quantity of an item (adds if missing, removes if 0), capped at stock. Returns the applied qty.
@@ -162,6 +182,14 @@
     if (l.qty === 0) CART = CART.filter(x => x.id !== id);
     saveCart();
   };
+  // variant-aware line controls (drawer + cart page) — keyed by the full line, not just id
+  W.setLineQty = function (key, qty) {
+    const l = findLine(key); if (!l) return;
+    l.qty = Math.max(0, Math.min(qty | 0, stockOf(l.id)));
+    if (l.qty === 0) CART = CART.filter(x => lineKey(x) !== key);
+    saveCart();
+  };
+  W.removeLine = function (key) { CART = CART.filter(x => lineKey(x) !== key); saveCart(); };
   W.removeFromCart = function (id) { CART = CART.filter(x => x.id !== id); saveCart(); };
   W.clearCart = function () { CART.length = 0; saveCart(); };
   W.toggleWish = function (id) {
@@ -221,8 +249,9 @@
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';
-    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<button class="btn" disabled>Price coming soon</button>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
-    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<button class="buybtn" disabled>Price coming soon</button>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
+    const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);   // colors/sizes need a choice → send to the product page
+    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<button class="btn" disabled>Price coming soon</button>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">choose options</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
+    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<button class="buybtn" disabled>Price coming soon</button>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">choose options</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>
@@ -517,7 +546,9 @@
       const items = CART.map(l => { const p = W.BY_ID[l.id]; if (!p) return ''; const b = p.badge ? W.BADGE[p.badge] : null;
         const stock = p.stock | 0, low = p.low | 0, atMax = l.qty >= stock;
         const note = atMax ? `<span class="ci-max">${stock <= low ? 'Only ' + stock + ' left' : 'Max reached'}</span>` : (stock <= low ? `<span class="ci-max">Only ${stock} left</span>` : '');
-        return `<div class="citem"><img class="thumb gimg" data-grade src="${p.img}" alt=""><div class="ci-b"><span class="br">${p.brand}</span><div class="ti">${p.name}</div>${b?`<span class="badge ${b.cls}" style="margin-bottom:8px">${b.label}</span>`:''}<div class="ci-foot"><span class="stepper"><button data-dec="${p.id}">−</button><span class="q">${l.qty}</span><button data-inc="${p.id}"${atMax?' disabled':''}>+</button></span><span class="pr">${money(p.price*l.qty)}</span></div>${note}</div><button class="rm" data-rm="${p.id}" aria-label="Remove">${I.close}</button></div>`;
+        const k = encodeURIComponent(lineKey(l));
+        const vlabel = [l.color, l.size].filter(Boolean).join(' · ');
+        return `<div class="citem"><img class="thumb gimg" data-grade src="${p.img}" alt=""><div class="ci-b"><span class="br">${p.brand}</span><div class="ti">${p.name}</div>${vlabel?`<div class="ci-var">${esc(vlabel)}</div>`:''}${b?`<span class="badge ${b.cls}" style="margin-bottom:8px">${b.label}</span>`:''}<div class="ci-foot"><span class="stepper"><button data-dec="${k}">−</button><span class="q">${l.qty}</span><button data-inc="${k}"${atMax?' disabled':''}>+</button></span><span class="pr">${money(unitPrice(l)*l.qty)}</span></div>${note}</div><button class="rm" data-rm="${k}" aria-label="Remove">${I.close}</button></div>`;
       }).join('');
       body = `<div class="freeship ${met?'met':''}"><p>${met?'Yay! You\'ve unlocked FREE SHIPPING ✦':`You're ${money(remain)} away from FREE SHIPPING! ♡`}</p><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>
         <div class="cart-items">${items}</div>
@@ -534,9 +565,9 @@
   document.addEventListener('click', function (e) {
     if (e.target.closest('[data-open-cart]')) { e.preventDefault(); openDrawer(); }
     if (e.target.closest('[data-close-cart]')) { e.preventDefault(); closeDrawer(); }
-    const inc = e.target.closest('[data-inc]'); if (inc) { const p = W.BY_ID[inc.dataset.inc]; W.setQty(inc.dataset.inc, (CART.find(x=>x.id===inc.dataset.inc)||{}).qty + 1); }
-    const dec = e.target.closest('[data-dec]'); if (dec) { const cur = (CART.find(x=>x.id===dec.dataset.dec)||{}).qty || 0; W.setQty(dec.dataset.dec, cur - 1); }
-    const rm = e.target.closest('[data-rm]'); if (rm) { W.removeFromCart(rm.dataset.rm); }
+    const inc = e.target.closest('[data-inc]'); if (inc) { const k = decodeURIComponent(inc.dataset.inc); const l = CART.find(x=>lineKey(x)===k); if (l) W.setLineQty(k, l.qty + 1); }
+    const dec = e.target.closest('[data-dec]'); if (dec) { const k = decodeURIComponent(dec.dataset.dec); const l = CART.find(x=>lineKey(x)===k); if (l) W.setLineQty(k, l.qty - 1); }
+    const rm = e.target.closest('[data-rm]'); if (rm) { W.removeLine(decodeURIComponent(rm.dataset.rm)); }
   });
 
   /* ---------- phone country picker ----------

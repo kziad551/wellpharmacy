@@ -62,7 +62,7 @@ include __DIR__ . '/inc/head.php';
       <tbody>
         <?php foreach ($items as $i): ?>
           <tr>
-            <td><?= e($i['name']) ?><br><span class="muted" style="font-size:12px"><?= e($i['brand']) ?></span></td>
+            <td><?= e($i['name']) ?><?php if(!empty($i['variant'])): ?> <span class="muted">(<?= e($i['variant']) ?>)</span><?php endif; ?><br><span class="muted" style="font-size:12px"><?= e($i['brand']) ?></span></td>
             <td class="r"><?= (int) $i['qty'] ?></td>
             <td class="r"><?= e(money($i['price'])) ?></td>
             <td class="r"><?= e(money($i['line_total'])) ?></td>

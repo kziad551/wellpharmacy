@@ -89,6 +89,13 @@ $HEAD_CSS = <<<CSS
   .price-row .p.p-tba{font-size:22px; font-weight:500; color:var(--text-muted); font-style:italic}
   .price-row .was{font-size:18px; color:var(--text-faint); text-decoration:line-through}
   .price-row .unit-lbl{font-size:15px; color:var(--text-muted); font-weight:500}
+  .opt-group{margin:2px 0 16px}
+  .opt-group .opt-lbl{display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:7px}
+  .opt-btns{display:flex; flex-wrap:wrap; gap:8px}
+  .opt-btn{padding:9px 15px; border:1.5px solid var(--border-2); border-radius:9999px; background:#fff; font-family:inherit; font-size:13.5px; cursor:pointer; transition:border-color .15s,background .15s,color .15s}
+  .opt-btn:hover{border-color:var(--ink)}
+  .opt-btn.on{border-color:var(--ink); background:var(--ink); color:#fff}
+  #addBtn.is-disabled{opacity:.5}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
   .instock .dot{width:8px; height:8px; border-radius:50%; background:var(--mint)}
   .promise{font-size:15px; color:var(--ink-soft); line-height:1.6; margin:0 0 18px; max-width:46ch}
@@ -268,10 +275,21 @@ include __DIR__ . '/inc/head.php';
       <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a> <span class="muted">·</span> <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);font-weight:600"><?= $myReview ? 'Edit your review' : 'Write a review' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
       <div class="price-row">
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
-        <?php else: ?><span class="p"><?= money($p['price']) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
+        <?php else: ?><span class="p" id="pdpPrice"><?= money($p['price']) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
+      <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = parse_variant_opts($p['opt_sizes'] ?? ''); ?>
+      <?php if ($vColors): ?>
+      <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color</span><div class="opt-btns">
+        <?php foreach ($vColors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?></button><?php endforeach; ?>
+      </div></div>
+      <?php endif; ?>
+      <?php if ($vSizes): ?>
+      <div class="opt-group" data-optgroup="size"><span class="opt-lbl">Size</span><div class="opt-btns">
+        <?php foreach ($vSizes as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?></button><?php endforeach; ?>
+      </div></div>
+      <?php endif; ?>
       <?php if (!empty($p['size'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px">Size: <b><?= e($p['size']) ?></b></div><?php endif; ?>
       <?php if (!empty($p['benefits'])): ?>
       <ul class="pdp-benefits">
@@ -472,18 +490,53 @@ $PAGE_JS = <<<JS
     el.innerHTML = '<span class="dot" style="background:' + color + '"></span> ' + txt;
   }
   const NOPRICE = !(p.price > 0);
+  const HAS_OPTS = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);
+  const SEL = { color: null, size: null };
+  function optPrice(){
+    let pr = p.price;
+    const c = (p.colors || []).find(o => o.label === SEL.color); if (c && c.price != null) pr = c.price;
+    const z = (p.sizes  || []).find(o => o.label === SEL.size);  if (z && z.price != null) pr = z.price;   // size wins
+    return pr;
+  }
+  function optReady(){ return (!(p.colors && p.colors.length) || SEL.color) && (!(p.sizes && p.sizes.length) || SEL.size); }
+  document.querySelectorAll('.opt-group').forEach(function(g){
+    const grp = g.getAttribute('data-optgroup');
+    g.querySelectorAll('.opt-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        g.querySelectorAll('.opt-btn').forEach(function(b){ b.classList.remove('on'); });
+        btn.classList.add('on'); SEL[grp] = btn.getAttribute('data-label'); paint();
+      });
+    });
+  });
   function paint(){
     \$('#qty').textContent = qty;
-    if (!NOPRICE) \$('#miniPrice').textContent = W.money(p.price*qty);
-    const inBag = W.cartQtyOf(p.id) > 0;
-    const label = NOPRICE ? 'Price coming soon' : (STOCK<=0 ? 'Out of stock' : (inBag ? 'Update bag' : 'Add to Bag'));
+    const unit = HAS_OPTS ? optPrice() : p.price;
+    if (!NOPRICE) { \$('#miniPrice').textContent = W.money(unit*qty); const pe = \$('#pdpPrice'); if (pe) pe.textContent = W.money(unit); }
+    const ready = optReady();
+    let label;
+    if (NOPRICE) label = 'Price coming soon';
+    else if (STOCK <= 0) label = 'Out of stock';
+    else if (HAS_OPTS && !ready) label = 'Select options';
+    else if (!HAS_OPTS && W.cartQtyOf(p.id) > 0) label = 'Update bag';
+    else label = 'Add to Bag';
     \$('#addBtn').textContent = label; \$('#miniAdd').textContent = label;
+    const blocked = NOPRICE || STOCK <= 0 || (HAS_OPTS && !ready);
+    \$('#addBtn').classList.toggle('is-disabled', blocked);
     \$('#qi').disabled = qty >= STOCK; \$('#qd').disabled = qty <= 1;
     updateStock();
   }
   \$('#qi').addEventListener('click',()=>{ if(qty < STOCK){ qty++; paint(); } });
   \$('#qd').addEventListener('click',()=>{ if(qty > 1){ qty--; paint(); } });
-  function add(){ if(NOPRICE){ W.toast&&W.toast('Price coming soon — not available to order yet'); return; } if(STOCK<=0) return; qty = W.setCartQty(p.id, qty) || qty; paint(); W.openCart(); }
+  function add(){
+    if(NOPRICE){ W.toast&&W.toast('Price coming soon — not available to order yet'); return; }
+    if(STOCK<=0) return;
+    if(HAS_OPTS){
+      if(!optReady()){ W.toast&&W.toast('Please choose ' + ((p.colors&&p.colors.length&&!SEL.color)?'a colour':'a size') + ' first'); return; }
+      W.addToCart(p.id, qty, { color: SEL.color||'', size: SEL.size||'', price: optPrice() });
+      W.openCart(); return;
+    }
+    qty = W.setCartQty(p.id, qty) || qty; paint(); W.openCart();
+  }
   \$('#addBtn').addEventListener('click',add);
   \$('#miniAdd').addEventListener('click',add);
   paint();

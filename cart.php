@@ -64,16 +64,19 @@ ob_start(); ?>
     var cart = W.cart(), rows = [], sub = 0;
     cart.forEach(function (l) {
       var p = W.BY_ID[l.id]; if (!p) return;
-      var lt = p.price * l.qty; sub += lt;
+      var lt = W.unitPrice(l) * l.qty; sub += lt;
+      var k = encodeURIComponent(W.lineKey(l));
+      var vlabel = [l.color, l.size].filter(Boolean).join(' · ');
       var stock = p.stock | 0, low = p.low | 0, atMax = l.qty >= stock;
       var note = atMax ? '<div class="cnote">' + (stock <= low ? 'Only ' + stock + ' left' : 'Max reached') + '</div>'
                        : (stock <= low ? '<div class="cnote">Only ' + stock + ' left</div>' : '');
       rows.push(
-        '<div class="crow" data-id="' + p.id + '">' +
+        '<div class="crow">' +
           '<img class="gimg" data-grade src="' + p.img + '" alt="">' +
           '<div><div class="br">' + p.brand + '</div><div class="ti">' + p.name + '</div>' +
-            '<span class="stepper"><button data-cdec="' + p.id + '">−</button><span class="q">' + l.qty + '</span><button data-cinc="' + p.id + '"' + (atMax ? ' disabled' : '') + '>+</button></span>' + note + '</div>' +
-          '<div class="r"><span class="pr">' + money(lt) + '</span><button class="rm" data-crm="' + p.id + '">Remove</button></div>' +
+            (vlabel ? '<div class="cvar">' + vlabel + '</div>' : '') +
+            '<span class="stepper"><button data-cdec="' + k + '">−</button><span class="q">' + l.qty + '</span><button data-cinc="' + k + '"' + (atMax ? ' disabled' : '') + '>+</button></span>' + note + '</div>' +
+          '<div class="r"><span class="pr">' + money(lt) + '</span><button class="rm" data-crm="' + k + '">Remove</button></div>' +
         '</div>'
       );
     });
@@ -108,9 +111,9 @@ ob_start(); ?>
 
   box.addEventListener('click', function (e) {
     var inc = e.target.closest('[data-cinc]'), dec = e.target.closest('[data-cdec]'), rm = e.target.closest('[data-crm]');
-    if (inc) { var l = W.cart().find(function (x) { return x.id === inc.dataset.cinc; }); W.setQty(inc.dataset.cinc, (l ? l.qty : 0) + 1); render(); }
-    if (dec) { var d = W.cart().find(function (x) { return x.id === dec.dataset.cdec; }); W.setQty(dec.dataset.cdec, (d ? d.qty : 0) - 1); render(); }
-    if (rm) { W.removeFromCart(rm.dataset.crm); render(); }
+    if (inc) { var k = decodeURIComponent(inc.dataset.cinc); var l = W.cart().find(function (x) { return W.lineKey(x) === k; }); if (l) W.setLineQty(k, l.qty + 1); render(); }
+    if (dec) { var k2 = decodeURIComponent(dec.dataset.cdec); var d = W.cart().find(function (x) { return W.lineKey(x) === k2; }); if (d) W.setLineQty(k2, d.qty - 1); render(); }
+    if (rm) { W.removeLine(decodeURIComponent(rm.dataset.crm)); render(); }
   });
 
   render();
