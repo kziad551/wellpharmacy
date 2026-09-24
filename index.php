@@ -244,20 +244,27 @@ include __DIR__ . '/inc/head.php';
       <h1 class="h1"><?= e(setting('hero_title','next-gen')) ?> <span class="script"><?= e(setting('hero_title_accent','wellness')) ?></span></h1>
       <p class="sub"><?= e(setting('hero_sub','Real results. Real confidence. Powered by science, dispensed with care — your everyday glow, distilled. ♡')) ?></p>
       <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="skincare">shop bestsellers</a>
-        <a class="btn btn-outline btn-lg" href="contact">talk to an expert</a>
+        <?php $c1l=setting('hero_cta1_label','shop bestsellers'); $c1h=setting('hero_cta1_link','skincare');
+              $c2l=setting('hero_cta2_label','talk to an expert'); $c2h=setting('hero_cta2_link','contact'); ?>
+        <?php if ($c1l !== ''): ?><a class="btn btn-primary btn-lg" href="<?= e($c1h) ?>"><?= e($c1l) ?></a><?php endif; ?>
+        <?php if ($c2l !== ''): ?><a class="btn btn-outline btn-lg" href="<?= e($c2h) ?>"><?= e($c2l) ?></a><?php endif; ?>
       </div>
       <div class="hero-feats">
-        <div><div class="k">100%</div><div class="l">authentic products</div></div>
-        <div><div class="k">4.8★</div><div class="l">7,000+ reviews</div></div>
-        <div><div class="k">24h</div><div class="l">beirut delivery</div></div>
+        <?php foreach ([['hero_stat1_k','100%','hero_stat1_l','authentic products'],
+                        ['hero_stat2_k','4.8★','hero_stat2_l','7,000+ reviews'],
+                        ['hero_stat3_k','24h','hero_stat3_l','beirut delivery']] as $st):
+                 $k=setting($st[0],$st[1]); $l=setting($st[2],$st[3]); if ($k==='' && $l==='') continue; ?>
+          <div><div class="k"><?= e($k) ?></div><div class="l"><?= e($l) ?></div></div>
+        <?php endforeach; ?>
       </div>
-      <div class="hero-dots" id="heroDots"><button class="on"></button><button></button><button></button><button></button></div>
+      <div class="hero-dots" id="heroDots"></div>
     </div>
     <div class="hero-visual graded" data-imgwrap>
       <img class="gimg" data-grade id="heroImg" alt="Editorial beauty">
-      <div class="hero-tag t1"><div class="sm">new in</div><div class="bg">glow serum</div></div>
-      <div class="hero-tag t2"><div class="sm">loved by 7,000+</div><div class="bg"><span class="s">★★★★★</span></div></div>
+      <?php $t1sm=setting('hero_tag1_sm','new in'); $t1bg=setting('hero_tag1_bg','glow serum'); ?>
+      <?php if ($t1sm!=='' || $t1bg!==''): ?><div class="hero-tag t1"><div class="sm"><?= e($t1sm) ?></div><div class="bg"><?= e($t1bg) ?></div></div><?php endif; ?>
+      <?php $t2sm=setting('hero_tag2_sm','loved by 7,000+'); $t2bg=setting('hero_tag2_bg','★★★★★'); ?>
+      <?php if ($t2sm!=='' || $t2bg!==''): ?><div class="hero-tag t2"><div class="sm"><?= e($t2sm) ?></div><div class="bg"><span class="s"><?= e($t2bg) ?></span></div></div><?php endif; ?>
     </div>
   </div>
 </section>
@@ -385,12 +392,16 @@ $PAGE_JS = <<<JS
   const W = WELL, \$ = (s)=>document.querySelector(s);
 
   // hero carousel
-  const heroImgs = [W.IMG.heroModel, W.IMG.heroSerum, W.IMG.pharmacist, W.IMG.quizFace];
+  const heroImgs = (W.HERO_IMGS && W.HERO_IMGS.length) ? W.HERO_IMGS
+                   : [W.IMG.heroModel, W.IMG.heroSerum, W.IMG.pharmacist, W.IMG.quizFace];
   let hi = 0; \$('#heroImg').src = heroImgs[0]; W.guardImages(\$('.hero-visual'));
+  const dotsWrap = \$('#heroDots');
+  if (dotsWrap) dotsWrap.innerHTML = heroImgs.length > 1
+      ? heroImgs.map((_,i)=>`<button\${i===0?' class="on"':''} aria-label="Slide \${i+1}"></button>`).join('') : '';
   const dots = [...document.querySelectorAll('#heroDots button')];
   function setHero(i){ hi=i; const im=\$('#heroImg'); im.dataset.failed=''; im.style.opacity=0; setTimeout(()=>{im.src=heroImgs[i]; im.style.transition='opacity .4s'; im.style.opacity=1; W.guardImages(\$('.hero-visual'));},180); dots.forEach((d,j)=>d.classList.toggle('on',j===i)); }
   dots.forEach((d,i)=>d.addEventListener('click',()=>setHero(i)));
-  if(!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(()=>setHero((hi+1)%heroImgs.length), 5000);
+  if(heroImgs.length > 1 && !matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(()=>setHero((hi+1)%heroImgs.length), 5000);
 
   // dynamic home sections (from database)
   const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);

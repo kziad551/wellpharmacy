@@ -31,6 +31,8 @@ $USER = $me ? [
 ] : null;
 
 $JE = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+$HERO_IMGS = array_values(array_filter(array_map(fn($k)=>trim(setting($k,'')), ['hero_img_1','hero_img_2','hero_img_3','hero_img_4'])));
+
 
 $products = [];
 foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") as $p) {
@@ -164,6 +166,7 @@ $SET = [
   W.BRANDS     = <?= json_encode($brands, $JE) ?>;
   W.COUPONS    = <?= json_encode($pubCoupons, $JE) ?>;   // public coupons only (private ones still redeem)
   W.SETTINGS   = <?= json_encode($SET, $JE) ?>;
+  W.HERO_IMGS  = <?= json_encode($HERO_IMGS, $JE) ?>;   // custom hero slides (admin Home Sections > Hero); empty = use defaults
   W.USER       = <?= json_encode($USER, $JE) ?>;   // null = guest (guests can still order)
   W.FLUSH_LOCAL = <?= $FLUSH ? 'true' : 'false' ?>;  // just signed out → clear this device's bag/favourites
 

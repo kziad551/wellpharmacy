@@ -14,10 +14,6 @@ $FIELDS = [
     'announce_1'           => ['store','text','Announcement bar — line 1',''],
     'announce_2'           => ['store','text','Announcement bar — line 2',''],
     'footer_about'         => ['store','textarea','Footer about text',''],
-    'hero_eyebrow'         => ['content','text','Hero eyebrow','Small label above the homepage headline'],
-    'hero_title'           => ['content','text','Hero title','Main homepage headline'],
-    'hero_title_accent'    => ['content','text','Hero title — accent word','Shown in the accent colour'],
-    'hero_sub'             => ['content','textarea','Hero subtitle',''],
     'promise_line1'        => ['content','text','Promise — line 1','The big lowercase line near the bottom of the home page'],
     'promise_accent'       => ['content','text','Promise — accent word',''],
     'promise_sub'          => ['content','textarea','Promise — subtitle',''],
@@ -59,7 +55,7 @@ if (is_post()) {
 
 $groups = [
     'store'    => ['Store', 'Identity, contact &amp; announcement bar'],
-    'content'  => ['Homepage', 'Hero &amp; promise text on the storefront home page'],
+    'content'  => ['Homepage', 'The &ldquo;promise&rdquo; text near the bottom of the home page. The hero banner at the top is edited under <a href="home-sections" style="text-decoration:underline">Home Sections &rarr; Hero</a>.'],
     'social'   => ['Social media', 'Links shown in the footer (only filled-in ones appear)'],
     'hours'    => ['Opening hours', 'Shown on the contact page'],
     'delivery' => ['Delivery', 'Shipping fees &amp; delivery promises by area'],

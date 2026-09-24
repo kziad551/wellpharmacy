@@ -63,7 +63,7 @@ admin_head('Home Sections', 'home-sections', list_count_label($total, 'section')
 </div>
 
 <div class="a-card"><div class="bd" style="padding:14px 16px">
-  <p class="hint" style="margin:0">The product sections on your homepage, top to bottom — lower <b>sort</b> shows first. <b>New Arrivals</b> pulls the products you flag in the product editor; a <b>Brand</b> section pulls every active product of that brand. Empty sections are skipped automatically.</p>
+  <p class="hint" style="margin:0">The product sections on your homepage, top to bottom — lower <b>sort</b> shows first. <b>New Arrivals</b> pulls the products you flag in the product editor; a <b>Brand</b> section pulls every active product of that brand. Empty sections are skipped automatically. The <b>Hero banner</b> at the top is the big home-page header — edit its text, buttons, stats, badges and slide images there.</p>
 </div></div>
 
 <div class="a-card"><div class="bd" style="padding:0">
@@ -73,6 +73,21 @@ admin_head('Home Sections', 'home-sections', list_count_label($total, 'section')
   <table class="a-table">
     <thead><tr><th>Sort</th><th>Section</th><th>Type</th><th>Shows</th><th>Row</th><th>Status</th><th></th></tr></thead>
     <tbody>
+      <tr>
+        <td data-label="Sort"><span class="faint">top</span></td>
+        <td class="c-main">
+          <a class="nm" href="hero-edit">Hero banner</a>
+          <div class="br">the big banner at the very top of the home page — text, buttons, stats, badges &amp; slides</div>
+        </td>
+        <td data-label="Type"><span class="pill pill-warn">Hero</span></td>
+        <td data-label="Shows">top of page</td>
+        <td data-label="Row">—</td>
+        <td data-label="Status"><span class="pill pill-good">Always on</span></td>
+        <td class="c-act" style="text-align:right;white-space:nowrap">
+          <a class="btn btn-ghost btn-sm" href="hero-edit">Edit</a>
+          <span class="pill pill-muted" title="Fixed section — the hero always shows">Fixed</span>
+        </td>
+      </tr>
     <?php foreach ($list as $s) home_section_row($s); ?>
     </tbody>
   </table>
