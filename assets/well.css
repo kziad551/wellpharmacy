@@ -626,7 +626,7 @@ select.input,.select{padding-right:34px}
    those two widths the bar used to overflow the page sideways on every tablet. */
 @media (max-width:1024px){
   /* the search moves to its own full-width row under the logo instead of hiding */
-  .hdr-main{flex-wrap:wrap; height:auto; padding-block:8px 14px; gap:10px}
+  .hdr-main{flex-wrap:wrap; height:auto; padding-block:8px 20px; gap:10px}
   .site-header.scrolled .hdr-main{height:auto}
   .hdr-search{display:block; order:10; flex:1 1 100%; max-width:none; margin-top:6px}
   .hdr-search .search{height:48px}
