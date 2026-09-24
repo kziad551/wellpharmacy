@@ -65,14 +65,24 @@ if (is_post()) {
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
 
-    /* When the product has priced options, the list price = the cheapest buyable combination
-       (cheapest size + cheapest colour surcharge). Keeps cards / search / sorting on a real
-       number instead of an unused base price. Base price is only used when there are no sizes. */
+    /* Sizes: every size gets an explicit price. A size typed WITHOUT a price defaults to
+       the product's base price (the "standard" size) and is saved with it filled in, so it
+       always shows up — e.g. base $15 + "30 ml" is stored as "30 ml|15". */
     $szOpts = parse_variant_opts($data['opt_sizes']);
+    if ($szOpts) {
+        $fmt = fn(float $n) => rtrim(rtrim(number_format($n, 2, '.', ''), '0'), '.');   // 15.00 -> 15, 15.50 -> 15.5
+        $lines = [];
+        foreach ($szOpts as $o) $lines[] = $o['label'] . '|' . $fmt($o['price'] !== null ? (float) $o['price'] : $price);
+        $data['opt_sizes'] = implode("
+", $lines);
+        $szOpts = parse_variant_opts($data['opt_sizes']);
+    }
     $clOpts = parse_variant_opts($data['opt_colors']);
+    /* List price = the cheapest buyable combination (cheapest size + cheapest colour surcharge),
+       so cards / search / sorting show a real number. The base price only applies with no sizes. */
     if ($szOpts || $clOpts) {
         $baseMin = $szOpts
-            ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $price, $szOpts))
+            ? min(array_map(fn($o) => (float) $o['price'], $szOpts))
             : $price;
         $surMin = $clOpts
             ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $clOpts))
@@ -227,7 +237,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
             <div class="hint">Add <code>|amount</code> to charge <b>extra</b> for a colour: <code>White|2</code> = +$2 on top. Leave it off for no surcharge.</div></div>
           <div class="field"><label>Sizes</label>
             <textarea class="input" name="opt_sizes" rows="4" placeholder="30 ml|10&#10;50 ml|15"><?= e($v['opt_sizes'] ?? '') ?></textarea>
-            <div class="hint">Add <code>|price</code> to set the price for that size: <code>30 ml|10</code>, <code>50 ml|15</code>. The size <b>is</b> the price.</div></div>
+            <div class="hint">Add <code>|price</code> to set a size's price: <code>50 ml|22</code>. A size with <b>no</b> price uses the product's base price (your standard size) — it's saved with that price filled in.</div></div>
         </div>
       </div></div>
 
