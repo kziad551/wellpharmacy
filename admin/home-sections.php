@@ -88,6 +88,21 @@ admin_head('Home Sections', 'home-sections', list_count_label($total, 'section')
           <span class="pill pill-muted" title="Fixed section — the hero always shows">Fixed</span>
         </td>
       </tr>
+      <tr>
+        <td data-label="Sort"><span class="faint">bottom</span></td>
+        <td class="c-main">
+          <a class="nm" href="promise-edit">Promise banner</a>
+          <div class="br">the big lowercase call-out near the bottom of the home page</div>
+        </td>
+        <td data-label="Type"><span class="pill pill-warn">Promise</span></td>
+        <td data-label="Shows">bottom of page</td>
+        <td data-label="Row">—</td>
+        <td data-label="Status"><span class="pill pill-good">Always on</span></td>
+        <td class="c-act" style="text-align:right;white-space:nowrap">
+          <a class="btn btn-ghost btn-sm" href="promise-edit">Edit</a>
+          <span class="pill pill-muted" title="Fixed section — always shows">Fixed</span>
+        </td>
+      </tr>
     <?php foreach ($list as $s) home_section_row($s); ?>
     </tbody>
   </table>

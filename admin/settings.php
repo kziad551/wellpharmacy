@@ -14,9 +14,6 @@ $FIELDS = [
     'announce_1'           => ['store','text','Announcement bar — line 1',''],
     'announce_2'           => ['store','text','Announcement bar — line 2',''],
     'footer_about'         => ['store','textarea','Footer about text',''],
-    'promise_line1'        => ['content','text','Promise — line 1','The big lowercase line near the bottom of the home page'],
-    'promise_accent'       => ['content','text','Promise — accent word',''],
-    'promise_sub'          => ['content','textarea','Promise — subtitle',''],
     'social_instagram'     => ['social','text','Instagram URL',''],
     'social_tiktok'        => ['social','text','TikTok URL',''],
     'social_facebook'      => ['social','text','Facebook URL',''],
@@ -55,7 +52,7 @@ if (is_post()) {
 
 $groups = [
     'store'    => ['Store', 'Identity, contact &amp; announcement bar'],
-    'content'  => ['Homepage', 'The &ldquo;promise&rdquo; text near the bottom of the home page. The hero banner at the top is edited under <a href="home-sections" style="text-decoration:underline">Home Sections &rarr; Hero</a>.'],
+
     'social'   => ['Social media', 'Links shown in the footer (only filled-in ones appear)'],
     'hours'    => ['Opening hours', 'Shown on the contact page'],
     'delivery' => ['Delivery', 'Shipping fees &amp; delivery promises by area'],

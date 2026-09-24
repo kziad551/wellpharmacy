@@ -187,7 +187,7 @@ select.input,.select{padding-right:34px}
 .field.invalid .err-msg{display:block}
 
 /* search pill */
-.search{display:flex; align-items:center; gap:10px; height:52px; padding:0 8px 0 18px;
+.search{display:flex; align-items:center; gap:10px; height:52px; padding:0 8px 0 18px; cursor:text;
   background:#fff; border:1px solid var(--border-2); border-radius:var(--r-pill); transition:box-shadow .18s,border-color .18s}
 .search:focus-within{border-color:var(--rose); box-shadow:0 0 0 4px rgba(156,129,88,.25)}
 .search svg{width:20px; height:20px; color:var(--text-muted); flex:none}
@@ -625,7 +625,11 @@ select.input,.select{padding-right:34px}
    icons, so it has to fold into the hamburger panel at 1024 — not at 760. Between
    those two widths the bar used to overflow the page sideways on every tablet. */
 @media (max-width:1024px){
-  .hdr-search{display:none}
+  /* the search moves to its own full-width row under the logo instead of hiding */
+  .hdr-main{flex-wrap:wrap; height:auto; padding-block:12px; gap:12px}
+  .site-header.scrolled .hdr-main{height:auto}
+  .hdr-search{display:block; order:10; flex:1 1 100%; max-width:none}
+  .hdr-search .search{height:48px}
   .hdr-expert{display:none}
   .nav-toggle{display:flex}
   .hdr-right{margin-left:auto; margin-right:0}

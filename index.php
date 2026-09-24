@@ -334,10 +334,12 @@ include __DIR__ . '/inc/head.php';
 
 <!-- PROMISE -->
 <section class="promise"><div class="wrap">
-  <span class="eyebrow">where wellness meets you</span>
+  <?php $pe=setting('promise_eyebrow','where wellness meets you'); ?>
+  <?php if ($pe !== ''): ?><span class="eyebrow"><?= e($pe) ?></span><?php endif; ?>
   <div class="big"><?= e(setting('promise_line1','glow,')) ?><br><span class="script"><?= e(setting('promise_accent','responsibly.')) ?></span></div>
   <p class="sub"><?= e(setting('promise_sub','Beirut-born, science-led skincare & wellness — dispensed with the care of your neighbourhood pharmacy, delivered to your door.')) ?></p>
-  <div class="hero-cta" style="justify-content:center; margin-top:28px"><a class="btn btn-primary btn-lg" href="skincare">start shopping</a></div>
+  <?php $pl=setting('promise_cta_label','start shopping'); $ph=setting('promise_cta_link','skincare'); ?>
+  <?php if ($pl !== ''): ?><div class="hero-cta" style="justify-content:center; margin-top:28px"><a class="btn btn-primary btn-lg" href="<?= e($ph) ?>"><?= e($pl) ?></a></div><?php endif; ?>
 </div></section>
 
 <!-- AS SEEN ON SOCIAL (Instagram / TikTok videos — admin → Social Videos) -->

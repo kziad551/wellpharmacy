@@ -654,6 +654,13 @@
       const nl = $('#navList');
       if (nl) nl.addEventListener('click', e => { if (e.target.closest('a')) hdr.classList.remove('nav-open'); });
     }
+    // clicking anywhere on the search pill (the icon or the padding, not only the
+    // input itself) should place the caret in the field — otherwise a click on the
+    // edge shows a text cursor but never focuses the input.
+    const sform = $('#siteHeader form.search');
+    if (sform) sform.addEventListener('mousedown', e => {
+      if (e.target.tagName !== 'INPUT') { e.preventDefault(); const i = sform.querySelector('input'); if (i) i.focus(); }
+    });
     drawerShell();
     syncBadges();
     initDialPickers();
