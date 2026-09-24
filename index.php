@@ -174,7 +174,7 @@ $HEAD_CSS = <<<CSS
   @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:1080px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(3,minmax(0,1fr))} .cats,.cats.cc3,.cats.cc5{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
-    .hero .wrap{grid-template-columns:1fr; padding-block:32px 44px} .hero-visual{order:-1; aspect-ratio:1/.82}
+    .hero .wrap{grid-template-columns:1fr; padding-block:24px 44px; gap:22px} .hero-visual{order:-1; aspect-ratio:1/.9}
     .editorial{grid-template-columns:1fr}
   }
   @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
