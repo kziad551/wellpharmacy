@@ -8,24 +8,32 @@ if (is_post() && input('action') === 'delete') {
     redirect('products');
 }
 
-/* ---- bulk stock actions: restock / out of stock for many products at once ---- */
+/* ---- bulk stock actions: restock / out of stock for many products at once ----
+   Two modes: an explicit list of ticked ids, OR "all matching" (every product in the
+   current search, across all infinite-scroll pages) via all=1. ---- */
 if (is_post() && input('action') === 'bulk') {
     csrf_check();
-    $ids = array_values(array_filter(array_map('strval', (array) ($_POST['ids'] ?? []))));
-    $op  = (string) input('op');
-    if ($ids && in_array($op, ['restock', 'outofstock'], true)) {
-        $ph = implode(',', array_fill(0, count($ids), '?'));
-        if ($op === 'outofstock') {
-            q("UPDATE products SET stock = 0 WHERE id IN ($ph)", $ids);
-            flash(count($ids) . ' product(s) marked out of stock.');
-        } else {
-            /* restock: bring anything at/below its low-stock line back up to a healthy
-               default, without ever lowering a product that already has more. */
-            q("UPDATE products SET stock = GREATEST(stock, 20) WHERE id IN ($ph)", $ids);
-            flash(count($ids) . ' product(s) restocked.');
-        }
+    $op = (string) input('op');
+    if (!in_array($op, ['restock', 'outofstock'], true)) { flash('Nothing selected.', 'err'); redirect('products'); }
+    $set  = $op === 'outofstock' ? 'stock = 0' : 'stock = GREATEST(stock, 20)';  // restock never lowers a higher stock
+    $word = $op === 'outofstock' ? 'marked out of stock' : 'restocked';
+
+    if (input('all') === '1') {
+        $q = trim((string) input('q'));
+        $w = ''; $a = [];
+        if ($q !== '') { $w = "WHERE (name LIKE ? OR brand LIKE ? OR id LIKE ?)"; $s = "%$q%"; $a = [$s, $s, $s]; }
+        $cnt = (int) val("SELECT COUNT(*) FROM products $w", $a);
+        q("UPDATE products SET $set $w", $a);
+        flash("$cnt product(s) $word.");
     } else {
-        flash('Nothing selected.', 'err');
+        $ids = array_values(array_filter(array_map('strval', (array) ($_POST['ids'] ?? []))));
+        if ($ids) {
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            q("UPDATE products SET $set WHERE id IN ($ph)", $ids);
+            flash(count($ids) . " product(s) $word.");
+        } else {
+            flash('Nothing selected.', 'err');
+        }
     }
     redirect('products' . ($_GET ? '?' . http_build_query($_GET) : ''));
 }
@@ -115,10 +123,13 @@ admin_head('Products', 'products', $sub);
   <?= csrf_field() ?>
   <input type="hidden" name="action" value="bulk">
   <input type="hidden" name="op" id="bulkOp" value="">
+  <input type="hidden" name="all" id="bulkAll" value="">
+  <input type="hidden" name="q" value="<?= e($search) ?>">
   <div id="bulkIds"></div>
 </form>
 <div class="bulkbar" id="bulkBar" hidden>
   <span class="bulkbar-n"><b id="bulkCount">0</b> selected</span>
+  <button type="button" class="btn btn-ghost btn-sm" id="selectAllMatching" hidden>Select all <?= (int) $total ?></button>
   <div class="spacer"></div>
   <button type="button" class="btn btn-ghost btn-sm" data-bulk="restock"><?= aicon('box') ?> Restock</button>
   <button type="button" class="btn btn-bad btn-sm" data-bulk="outofstock">Mark out of stock</button>
@@ -157,48 +168,88 @@ admin_head('Products', 'products', $sub);
 (function () {
   var table = document.getElementById('prodTable');
   if (!table) return;
+  var TOTAL = <?= (int) $total ?>;                       // every product matching the current view
   var bar = document.getElementById('bulkBar'),
       countEl = document.getElementById('bulkCount'),
       selAll = document.getElementById('selAll'),
+      allBtn = document.getElementById('selectAllMatching'),
       form = document.getElementById('bulkForm'),
       idsBox = document.getElementById('bulkIds'),
-      opField = document.getElementById('bulkOp');
+      opField = document.getElementById('bulkOp'),
+      allField = document.getElementById('bulkAll');
+  var allMode = false;   // true = "every matching product, across all pages" is selected
 
-  function selected() { return Array.prototype.slice.call(table.querySelectorAll('.rowsel:checked')); }
+  function boxes() { return Array.prototype.slice.call(table.querySelectorAll('.rowsel')); }
+  function checkedBoxes() { return boxes().filter(function (b) { return b.checked; }); }
+
   function refresh() {
-    var n = selected().length;
-    countEl.textContent = n;
-    bar.hidden = n === 0;
-    var boxes = table.querySelectorAll('.rowsel');
-    selAll.checked = boxes.length > 0 && n === boxes.length;
-    selAll.indeterminate = n > 0 && n < boxes.length;
+    var all = boxes(), n = checkedBoxes().length;
+    if (allMode) {
+      countEl.textContent = TOTAL;
+      bar.hidden = false;
+      allBtn.hidden = true;
+      selAll.checked = true; selAll.indeterminate = false;
+    } else {
+      countEl.textContent = n;
+      bar.hidden = n === 0;
+      selAll.checked = all.length > 0 && n === all.length;
+      selAll.indeterminate = n > 0 && n < all.length;
+      // offer "select all N" only when every loaded row is ticked but more pages exist
+      allBtn.hidden = !(n > 0 && n === all.length && all.length < TOTAL);
+    }
   }
-  // event delegation so infinite-scroll rows are covered too
-  table.addEventListener('change', function (e) { if (e.target.classList.contains('rowsel')) refresh(); });
+
+  // ticking/unticking a single row always drops out of "all matching" mode
+  table.addEventListener('change', function (e) {
+    if (!e.target.classList.contains('rowsel')) return;
+    allMode = false;
+    refresh();
+  });
+
   selAll.addEventListener('change', function () {
-    table.querySelectorAll('.rowsel').forEach(function (b) { b.checked = selAll.checked; });
+    allMode = false;
+    boxes().forEach(function (b) { b.checked = selAll.checked; });
     refresh();
   });
+
+  allBtn.addEventListener('click', function () {
+    allMode = true;
+    boxes().forEach(function (b) { b.checked = true; });
+    refresh();
+  });
+
   document.getElementById('bulkClear').addEventListener('click', function () {
-    table.querySelectorAll('.rowsel').forEach(function (b) { b.checked = false; });
+    allMode = false;
+    boxes().forEach(function (b) { b.checked = false; });
     refresh();
   });
-  // re-sync after each infinite-scroll slice loads
-  new MutationObserver(refresh).observe(table.querySelector('tbody'), { childList: true });
+
+  // when "all matching" is on, auto-tick rows as they stream in from infinite scroll
+  new MutationObserver(function () {
+    if (allMode) boxes().forEach(function (b) { b.checked = true; });
+    refresh();
+  }).observe(table.querySelector('tbody'), { childList: true });
 
   document.querySelectorAll('[data-bulk]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var ids = selected().map(function (b) { return b.value; });
-      if (!ids.length) return;
       var op = btn.getAttribute('data-bulk');
+      var count = allMode ? TOTAL : checkedBoxes().length;
+      if (!count) return;
+      var scope = allMode ? ('ALL ' + TOTAL + ' product(s) matching this view') : (count + ' product(s)');
       var msg = op === 'outofstock'
-        ? 'Mark ' + ids.length + ' product(s) as OUT OF STOCK?\n\nThey will show as sold out and can’t be ordered until you restock them.'
-        : 'Restock ' + ids.length + ' product(s)?\n\nAny that are sold out or low will be set back to 20 in stock (products already higher are left as they are).';
+        ? 'Mark ' + scope + ' as OUT OF STOCK?\n\nThey will show as sold out and can’t be ordered until you restock them.'
+        : 'Restock ' + scope + '?\n\nAnything sold out or low is set back to 20 in stock (products already higher are left as they are).';
       if (!confirm(msg)) return;
       opField.value = op;
-      idsBox.innerHTML = ids.map(function (id) {
-        var i = document.createElement('input'); i.type = 'hidden'; i.name = 'ids[]'; i.value = id; return i.outerHTML;
-      }).join('');
+      if (allMode) {
+        allField.value = '1';
+        idsBox.innerHTML = '';
+      } else {
+        allField.value = '';
+        idsBox.innerHTML = checkedBoxes().map(function (b) {
+          var i = document.createElement('input'); i.type = 'hidden'; i.name = 'ids[]'; i.value = b.value; return i.outerHTML;
+        }).join('');
+      }
       form.submit();
     });
   });
