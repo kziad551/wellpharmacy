@@ -182,7 +182,7 @@ $HEAD_CSS = <<<CSS
      one product per row so the name and price have room to read properly. */
   @media(max-width:450px){.prodgrid,.prodgrid.c4,.prodgrid.compact{grid-template-columns:minmax(0,1fr); gap:18px}}
   /* small phones: give the hero a touch more room under the stacked search */
-  @media(max-width:550px){ .hero .wrap{padding-block:44px 40px} }
+  @media(max-width:550px){ .hero .wrap{padding-block:16px 38px} }
   /* HOME rails become a horizontal swiper on phones — 2.5 cards peek so it's clear you can swipe.
      Scoped to .home-rail so the shop/search/category grids stay full grids. */
   @media(max-width:680px){
