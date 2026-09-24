@@ -96,6 +96,8 @@ $HEAD_CSS = <<<CSS
   .opt-btn:hover{border-color:var(--ink)}
   .opt-btn.on{border-color:var(--ink); background:var(--ink); color:#fff}
   #addBtn.is-disabled{opacity:.5}
+  .opt-btn .opt-x{opacity:.6; font-size:12px; margin-left:2px}
+  .opt-btn.on .opt-x{opacity:.85}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
   .instock .dot{width:8px; height:8px; border-radius:50%; background:var(--mint)}
   .promise{font-size:15px; color:var(--ink-soft); line-height:1.6; margin:0 0 18px; max-width:46ch}
@@ -282,12 +284,12 @@ include __DIR__ . '/inc/head.php';
       <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = parse_variant_opts($p['opt_sizes'] ?? ''); ?>
       <?php if ($vColors): ?>
       <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color</span><div class="opt-btns">
-        <?php foreach ($vColors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?></button><?php endforeach; ?>
+        <?php foreach ($vColors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
       <?php if ($vSizes): ?>
       <div class="opt-group" data-optgroup="size"><span class="opt-lbl">Size</span><div class="opt-btns">
-        <?php foreach ($vSizes as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?></button><?php endforeach; ?>
+        <?php foreach ($vSizes as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null): ?> <span class="opt-x"><?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
       <?php if (!empty($p['size'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px">Size: <b><?= e($p['size']) ?></b></div><?php endif; ?>
@@ -493,10 +495,11 @@ $PAGE_JS = <<<JS
   const HAS_OPTS = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);
   const SEL = { color: null, size: null };
   function optPrice(){
-    let pr = p.price;
-    const c = (p.colors || []).find(o => o.label === SEL.color); if (c && c.price != null) pr = c.price;
-    const z = (p.sizes  || []).find(o => o.label === SEL.size);  if (z && z.price != null) pr = z.price;   // size wins
-    return pr;
+    let base = p.price;
+    const z = (p.sizes  || []).find(o => o.label === SEL.size);  if (z && z.price != null) base = z.price;   // size sets the price
+    let sur = 0;
+    const c = (p.colors || []).find(o => o.label === SEL.color); if (c && c.price != null) sur = c.price;    // color adds a surcharge
+    return base + sur;
   }
   function optReady(){ return (!(p.colors && p.colors.length) || SEL.color) && (!(p.sizes && p.sizes.length) || SEL.size); }
   document.querySelectorAll('.opt-group').forEach(function(g){

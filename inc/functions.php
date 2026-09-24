@@ -297,14 +297,16 @@ function parse_variant_opts(?string $s): array {
 function variant_resolve(array $p, string $color, string $size): array {
     $colors = parse_variant_opts($p['opt_colors'] ?? '');
     $sizes  = parse_variant_opts($p['opt_sizes'] ?? '');
-    $price  = (float) $p['price'];
-    $labels = [];
+    $base      = (float) $p['price'];   // the SIZE sets the price...
+    $surcharge = 0.0;                    // ...and the COLOR adds an optional surcharge on top
+    $clabel = ''; $zlabel = '';
     $find = function (array $opts, string $want) {
         foreach ($opts as $o) if ($o['label'] === $want) return $o;
         return null;
     };
     $okColor = !$colors; $okSize = !$sizes;
-    if ($colors) { $c = $find($colors, $color); if ($c) { $okColor = true; $labels[] = $c['label']; if ($c['price'] !== null) $price = $c['price']; } }
-    if ($sizes)  { $z = $find($sizes,  $size);  if ($z) { $okSize  = true; $labels[] = $z['label']; if ($z['price'] !== null) $price = $z['price']; } }
-    return ['ok' => $okColor && $okSize, 'price' => round($price, 2), 'label' => implode(' · ', $labels)];
+    if ($sizes)  { $z = $find($sizes,  $size);  if ($z) { $okSize  = true; $zlabel = $z['label']; if ($z['price'] !== null) $base = $z['price']; } }
+    if ($colors) { $c = $find($colors, $color); if ($c) { $okColor = true; $clabel = $c['label']; if ($c['price'] !== null) $surcharge = $c['price']; } }
+    return ['ok' => $okColor && $okSize, 'price' => round($base + $surcharge, 2),
+            'label' => implode(' · ', array_filter([$clabel, $zlabel]))];
 }

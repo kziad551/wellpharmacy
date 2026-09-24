@@ -205,14 +205,14 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       </div></div>
 
       <div class="a-card"><div class="hd"><h2>Options / variants <span class="faint" style="font-weight:400;font-size:12.5px">(optional)</span></h2></div><div class="bd">
-        <p class="hint" style="margin:0 0 12px">One option per line. Add a price after a <code>|</code> to override the base price for that choice — leave it off to use the normal price. The customer must pick before adding to bag; the chosen option and its price go on the order.</p>
+        <p class="hint" style="margin:0 0 12px">One option per line. The customer must pick before adding to bag. <b>The size sets the price; a colour adds a surcharge on top.</b> Example: size <code>50 ml|15</code> and colour <code>White|2</code> → White 50 ml = <b>$17</b>.</p>
         <div class="f-row">
           <div class="field"><label>Colors</label>
-            <textarea class="input" name="opt_colors" rows="4" placeholder="White|14&#10;Black&#10;Pink"><?= e($v['opt_colors'] ?? '') ?></textarea>
-            <div class="hint">e.g. <code>White|14</code> (White costs $14), <code>Black</code> (base price).</div></div>
+            <textarea class="input" name="opt_colors" rows="4" placeholder="White|2&#10;Black&#10;Pink"><?= e($v['opt_colors'] ?? '') ?></textarea>
+            <div class="hint">Add <code>|amount</code> to charge <b>extra</b> for a colour: <code>White|2</code> = +$2 on top. Leave it off for no surcharge.</div></div>
           <div class="field"><label>Sizes</label>
             <textarea class="input" name="opt_sizes" rows="4" placeholder="30 ml|10&#10;50 ml|15"><?= e($v['opt_sizes'] ?? '') ?></textarea>
-            <div class="hint">e.g. <code>30 ml|10</code>, <code>50 ml|15</code> — same photos, different price.</div></div>
+            <div class="hint">Add <code>|price</code> to set the price for that size: <code>30 ml|10</code>, <code>50 ml|15</code>. The size <b>is</b> the price.</div></div>
         </div>
       </div></div>
 
