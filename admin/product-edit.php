@@ -65,28 +65,14 @@ if (is_post()) {
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
 
-    /* Sizes: every size gets an explicit price. A size typed WITHOUT a price defaults to
-       the product's base price (the "standard" size) and is saved with it filled in, so it
-       always shows up — e.g. base $15 + "30 ml" is stored as "30 ml|15". */
+    /* A size with NO price is the DEFAULT size and uses the product's base price. List price =
+       the cheapest buyable combination (cheapest size + cheapest colour surcharge) so cards /
+       search / sorting show a real number. The base price only applies when there are no sizes. */
     $szOpts = parse_variant_opts($data['opt_sizes']);
-    if ($szOpts) {
-        $fmt = fn(float $n) => rtrim(rtrim(number_format($n, 2, '.', ''), '0'), '.');   // 15.00 -> 15, 15.50 -> 15.5
-        $lines = [];
-        foreach ($szOpts as $o) $lines[] = $o['label'] . '|' . $fmt($o['price'] !== null ? (float) $o['price'] : $price);
-        $data['opt_sizes'] = implode("
-", $lines);
-        $szOpts = parse_variant_opts($data['opt_sizes']);
-    }
     $clOpts = parse_variant_opts($data['opt_colors']);
-    /* List price = the cheapest buyable combination (cheapest size + cheapest colour surcharge),
-       so cards / search / sorting show a real number. The base price only applies with no sizes. */
     if ($szOpts || $clOpts) {
-        $baseMin = $szOpts
-            ? min(array_map(fn($o) => (float) $o['price'], $szOpts))
-            : $price;
-        $surMin = $clOpts
-            ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $clOpts))
-            : 0.0;
+        $baseMin = $szOpts ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $price, $szOpts)) : $price;
+        $surMin  = $clOpts ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $clOpts)) : 0.0;
         $data['price'] = round($baseMin + $surMin, 2);
     }
 
@@ -233,11 +219,15 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         <p class="hint" style="margin:0 0 12px">One option per line. The customer must pick before adding to bag. <b>The size sets the price; a colour adds a surcharge on top.</b> Example: size <code>50 ml|15</code> and colour <code>White|2</code> → White 50 ml = <b>$17</b>.</p>
         <div class="f-row">
           <div class="field"><label>Colors</label>
-            <textarea class="input" name="opt_colors" rows="4" placeholder="White|2&#10;Black&#10;Pink"><?= e($v['opt_colors'] ?? '') ?></textarea>
-            <div class="hint">Add <code>|amount</code> to charge <b>extra</b> for a colour: <code>White|2</code> = +$2 on top. Leave it off for no surcharge.</div></div>
+            <input type="hidden" name="opt_colors" id="optColors" value="<?= e($v['opt_colors'] ?? '') ?>">
+            <div id="colorRows" class="var-rows"></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="addColor"><?= aicon('plus') ?> Add colour</button>
+            <div class="hint">Each colour can add to the price — e.g. <b>+2</b> = +$2 when that colour is picked. Leave the <b>+$</b> blank for no surcharge.</div></div>
           <div class="field"><label>Sizes</label>
-            <textarea class="input" name="opt_sizes" rows="4" placeholder="30 ml|10&#10;50 ml|15"><?= e($v['opt_sizes'] ?? '') ?></textarea>
-            <div class="hint">Add <code>|price</code> to set a size's price: <code>50 ml|22</code>. A size with <b>no</b> price uses the product's base price (your standard size) — it's saved with that price filled in.</div></div>
+            <input type="hidden" name="opt_sizes" id="optSizes" value="<?= e($v['opt_sizes'] ?? '') ?>">
+            <div id="sizeRows" class="var-rows"></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="addSize"><?= aicon('plus') ?> Add size</button>
+            <div class="hint">Pick one size as the <b>Default</b> — it uses the product's base price above. Give the other sizes their own price.</div></div>
         </div>
       </div></div>
 
@@ -369,6 +359,85 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   urlInput.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addUrl(); } });
 
   syncStore(); render();
+})();
+
+/* ---- variant row editors: sizes (one Default = base price) + colours (+$ surcharge) ---- */
+(function(){
+  var priceInput = document.querySelector('input[name="price"]');
+  function base(){ var v = parseFloat(priceInput ? priceInput.value : '0'); return isNaN(v) ? 0 : v; }
+  function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function fmt(n){ return (Math.round(n*100)/100).toString(); }
+  function parseOpts(str){
+    return String(str||'').split(/\r\n|\r|\n/).map(function(l){return l.trim();}).filter(Boolean).map(function(l){
+      var i=l.indexOf('|'); if(i<0) return {label:l, price:null};
+      var pr=l.slice(i+1).trim(); return {label:l.slice(0,i).trim(), price: pr===''?null:parseFloat(pr)};
+    }).filter(function(o){return o.label;});
+  }
+
+  /* SIZES: a row with price===null is the Default (uses the base price) */
+  var sizeWrap=document.getElementById('sizeRows'), sizeHidden=document.getElementById('optSizes');
+  var sizes=parseOpts(sizeHidden.value);
+  if(sizes.length && !sizes.some(function(s){return s.price===null;})) sizes[0].price=null;   // ensure one default
+  function saveSizes(){ sizeHidden.value = sizes.map(function(s){ return s.price===null ? s.label : (s.label+'|'+fmt(s.price)); }).join('\n'); }
+  function renderSizes(){
+    sizeWrap.innerHTML='';
+    sizes.forEach(function(s,idx){
+      var row=document.createElement('div'); row.className='var-row';
+      var isDef = s.price===null;
+      row.innerHTML =
+        '<input class="input vr-label" placeholder="e.g. 30 ml" value="'+esc(s.label)+'">'+
+        '<label class="vr-def"><input type="radio" name="sizeDefault" '+(isDef?'checked':'')+'> Default</label>'+
+        (isDef ? '<span class="vr-price vr-basep">$'+fmt(base())+'</span>'
+               : '<span class="vr-pfx">$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(s.price!=null?esc(s.price):'')+'" placeholder="price">')+
+        '<button type="button" class="vr-x" title="Remove">&times;</button>';
+      row.querySelector('.vr-label').addEventListener('input',function(e){ sizes[idx].label=e.target.value; saveSizes(); });
+      row.querySelector('input[type=radio]').addEventListener('change',function(){
+        sizes.forEach(function(x,j){ if(j!==idx && x.price===null) x.price=base(); });   // old default gets the base price to edit
+        sizes[idx].price=null; saveSizes(); renderSizes();
+      });
+      var pr=row.querySelector('input.vr-price');
+      if(pr) pr.addEventListener('input',function(e){ sizes[idx].price = e.target.value===''?0:parseFloat(e.target.value); saveSizes(); });
+      row.querySelector('.vr-x').addEventListener('click',function(){
+        sizes.splice(idx,1);
+        if(sizes.length && !sizes.some(function(x){return x.price===null;})) sizes[0].price=null;   // keep one default
+        saveSizes(); renderSizes();
+      });
+      sizeWrap.appendChild(row);
+    });
+    saveSizes();
+  }
+  document.getElementById('addSize').addEventListener('click',function(){
+    sizes.push({label:'', price: sizes.length? base() : null});   // first size is the default
+    renderSizes();
+    var last=sizeWrap.querySelector('.var-row:last-child .vr-label'); if(last) last.focus();
+  });
+  if(priceInput) priceInput.addEventListener('input',function(){ var d=sizeWrap.querySelector('.vr-basep'); if(d) d.textContent='$'+fmt(base()); });
+  renderSizes();
+
+  /* COLOURS: label + optional +$ surcharge */
+  var colWrap=document.getElementById('colorRows'), colHidden=document.getElementById('optColors');
+  var cols=parseOpts(colHidden.value);
+  function saveCols(){ colHidden.value = cols.map(function(c){ return (c.price!=null && c.price>0) ? (c.label+'|'+fmt(c.price)) : c.label; }).join('\n'); }
+  function renderCols(){
+    colWrap.innerHTML='';
+    cols.forEach(function(c,idx){
+      var row=document.createElement('div'); row.className='var-row';
+      row.innerHTML =
+        '<input class="input vr-label" placeholder="e.g. White" value="'+esc(c.label)+'">'+
+        '<span class="vr-pfx">+$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(c.price!=null&&c.price>0?esc(c.price):'')+'" placeholder="0">'+
+        '<button type="button" class="vr-x" title="Remove">&times;</button>';
+      row.querySelector('.vr-label').addEventListener('input',function(e){ cols[idx].label=e.target.value; saveCols(); });
+      row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price = e.target.value===''?0:parseFloat(e.target.value); saveCols(); });
+      row.querySelector('.vr-x').addEventListener('click',function(){ cols.splice(idx,1); saveCols(); renderCols(); });
+      colWrap.appendChild(row);
+    });
+    saveCols();
+  }
+  document.getElementById('addColor').addEventListener('click',function(){
+    cols.push({label:'', price:0}); renderCols();
+    var last=colWrap.querySelector('.var-row:last-child .vr-label'); if(last) last.focus();
+  });
+  renderCols();
 })();
 </script>
 <?php admin_foot();

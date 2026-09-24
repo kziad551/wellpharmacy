@@ -376,3 +376,14 @@ select.input{padding-right:34px}
   .a-card .hd{padding:12px}
   .btn{padding:0 12px;font-size:12.5px}
 }
+
+/* variant row editors (product editor: sizes / colours) */
+.var-rows{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.var-row{display:flex;align-items:center;gap:8px}
+.var-row .vr-label{flex:1;min-width:0}
+.var-row .vr-price{width:88px;flex:none}
+.var-row .vr-pfx{color:var(--a-soft);font-size:13px}
+.var-row .vr-basep{width:112px;flex:none;font-size:12.5px;color:var(--a-soft)}
+.var-row .vr-def{display:flex;align-items:center;gap:5px;font-size:12.5px;white-space:nowrap;color:var(--a-ink)}
+.var-row .vr-def input{width:15px;height:15px}
+.var-row .vr-x{border:0;background:none;font-size:20px;line-height:1;color:#b04a2f;cursor:pointer;flex:none;padding:0 4px}
