@@ -193,9 +193,9 @@ $HEAD_CSS = <<<CSS
       scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
       padding:2px 0 8px; scrollbar-width:none}
     .home-rail .prodgrid::-webkit-scrollbar{display:none}
-    .home-rail .prodgrid>*{flex:0 0 44%; scroll-snap-align:start; min-width:0}
+    .home-rail .prodgrid>*{flex:0 0 40%; scroll-snap-align:start; min-width:0}
   }
-  @media(max-width:420px){ .home-rail .prodgrid>*{flex:0 0 52%} }
+  @media(max-width:420px){ .home-rail .prodgrid>*{flex:0 0 46%} }
   /* narrow phones: two brand cards per row, and the name wraps inside the card
      instead of stretching the grid past the screen edge */
   @media(max-width:560px){
