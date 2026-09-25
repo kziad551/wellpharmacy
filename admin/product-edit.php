@@ -376,21 +376,25 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   }
   /* ===== SIZES: one permanent Default (base price, no remove) + extra priced sizes ===== */
   var sizeWrap=document.getElementById('sizeRows'), sizeHidden=document.getElementById('optSizes');
+  var DEF_EMPTY='Standard size — set it in the “Size” field above';
   var defLabel='', extras=[];
   parseOpts(sizeHidden.value).forEach(function(o){ if(o.price===null && defLabel==='') defLabel=o.label; else extras.push({label:o.label, price:o.price==null?base():o.price}); });
-  if(defLabel==='' && sizeInput && sizeInput.value.trim()) defLabel=sizeInput.value.trim();
+  /* the standard size name IS the "Size" field — mirror them so there's one place to type it */
+  if(sizeInput){ if(sizeInput.value.trim()) defLabel=sizeInput.value.trim(); else if(defLabel) sizeInput.value=defLabel; }
+  function curDef(){ return (sizeInput && sizeInput.value.trim()) || defLabel.trim() || ''; }
   function saveSizes(){
     if(!extras.filter(function(x){return x.label.trim();}).length){ sizeHidden.value=''; return; }
-    var d = defLabel.trim() || (sizeInput&&sizeInput.value.trim()) || 'Standard';
+    var d = curDef() || 'Standard';
     sizeHidden.value = [d].concat(extras.filter(function(x){return x.label.trim();}).map(function(x){return x.label.trim()+'|'+fmt(x.price||0);})).join('\n');
   }
   function renderSizes(){
     sizeWrap.innerHTML='';
     var d=document.createElement('div'); d.className='var-row is-default';
+    var nm=curDef();
     d.innerHTML='<span class="vr-dot vr-star">*</span>'+
-      '<input class="input vr-label" placeholder="'+esc((sizeInput&&sizeInput.value.trim())||'Standard size, e.g. 150 ml')+'" value="'+esc(defLabel)+'">'+
+      (nm ? '<span class="vr-name">'+esc(nm)+'</span>'
+          : '<span class="vr-name vr-name-empty">'+DEF_EMPTY+'</span>')+
       '<span class="vr-tag">Default</span><span class="vr-basep">$'+fmt(base())+'</span>';
-    d.querySelector('.vr-label').addEventListener('input',function(e){ defLabel=e.target.value; if(sizeInput) sizeInput.value=e.target.value; saveSizes(); });
     sizeWrap.appendChild(d);
     extras.forEach(function(x,idx){
       var row=document.createElement('div'); row.className='var-row';
@@ -407,7 +411,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   }
   document.getElementById('addSize').addEventListener('click',function(){ extras.push({label:'',price:base()}); renderSizes(); var l=sizeWrap.querySelector('.var-row:last-child .vr-label'); if(l) l.focus(); });
   if(priceInput) priceInput.addEventListener('input',function(){ var b=sizeWrap.querySelector('.vr-basep'); if(b) b.textContent='$'+fmt(base()); });
-  if(sizeInput) sizeInput.addEventListener('input',function(e){ defLabel=e.target.value; var l=sizeWrap.querySelector('.is-default .vr-label'); if(l && l!==document.activeElement) l.value=e.target.value; saveSizes(); });
+  if(sizeInput) sizeInput.addEventListener('input',function(){ defLabel=sizeInput.value.trim(); var n=sizeWrap.querySelector('.is-default .vr-name'); if(n){ var v=sizeInput.value.trim(); n.textContent=v||DEF_EMPTY; n.classList.toggle('vr-name-empty',!v); } saveSizes(); });
   renderSizes();
 
   /* ===== COLOURS: click a swatch to add it (name auto-filled), optional +$ surcharge ===== */

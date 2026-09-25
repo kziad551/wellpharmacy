@@ -390,8 +390,10 @@ select.input{padding-right:34px}
 /* colour dot + default marker */
 .var-row .vr-dot{width:18px;height:18px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.18);box-shadow:inset 0 0 0 2px #fff}
 .var-row .vr-star{display:flex;align-items:center;justify-content:center;background:var(--a-primary);color:#fff;font-size:12px;font-weight:700;box-shadow:none;border:0}
-.var-row.is-default .vr-tag{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--a-primary);background:var(--a-primary-tint);border-radius:6px;padding:3px 8px;flex:none}
-.var-row.is-default .vr-label{background:var(--a-primary-tint)}
+.var-row.is-default{background:var(--a-primary-tint);border-radius:10px;padding:6px 10px}
+.var-row.is-default .vr-tag{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--a-primary);background:#fff;border-radius:6px;padding:3px 8px;flex:none}
+.var-row .vr-name{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--a-ink);padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.var-row .vr-name-empty{font-weight:400;font-style:italic;color:var(--a-faint)}
 /* colour swatch palette */
 .swatch-pick{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
 .swatch-pick .sw{flex:none;width:28px;height:28px;border-radius:9px;border:1px solid rgba(0,0,0,.15);cursor:pointer;padding:0;position:relative;overflow:hidden;box-shadow:inset 0 0 0 2px #fff;transition:transform .08s}
