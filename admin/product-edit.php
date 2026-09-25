@@ -216,18 +216,18 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       </div></div>
 
       <div class="a-card"><div class="hd"><h2>Options / variants <span class="faint" style="font-weight:400;font-size:12.5px">(optional)</span></h2></div><div class="bd">
-        <p class="hint" style="margin:0 0 12px">One option per line. The customer must pick before adding to bag. <b>The size sets the price; a colour adds a surcharge on top.</b> Example: size <code>50 ml|15</code> and colour <code>White|2</code> → White 50 ml = <b>$17</b>.</p>
+        <p class="hint" style="margin:0 0 14px">Sizes and/or colours the customer picks before adding to bag. <b>The size sets the price; a colour adds a surcharge on top.</b> The <b>Default</b> size always uses the product's base price above.</p>
         <div class="f-row">
-          <div class="field"><label>Colors</label>
+          <div class="field"><label>Colours</label>
             <input type="hidden" name="opt_colors" id="optColors" value="<?= e($v['opt_colors'] ?? '') ?>">
             <div id="colorRows" class="var-rows"></div>
-            <button type="button" class="btn btn-ghost btn-sm" id="addColor"><?= aicon('plus') ?> Add colour</button>
-            <div class="hint">Each colour can add to the price — e.g. <b>+2</b> = +$2 when that colour is picked. Leave the <b>+$</b> blank for no surcharge.</div></div>
+            <div class="swatch-pick" id="swatchPick"></div>
+            <div class="hint">Click a colour to add it. Set a <b>+$</b> if it costs extra (0 = no surcharge).</div></div>
           <div class="field"><label>Sizes</label>
             <input type="hidden" name="opt_sizes" id="optSizes" value="<?= e($v['opt_sizes'] ?? '') ?>">
             <div id="sizeRows" class="var-rows"></div>
             <button type="button" class="btn btn-ghost btn-sm" id="addSize"><?= aicon('plus') ?> Add size</button>
-            <div class="hint">Pick one size as the <b>Default</b> — it uses the product's base price above. Give the other sizes their own price.</div></div>
+            <div class="hint">The <b>Default</b> row uses the base price and can't be removed. Extra sizes get their own price. Sizes only apply once you add at least one extra size.</div></div>
         </div>
       </div></div>
 
@@ -361,10 +361,11 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   syncStore(); render();
 })();
 
-/* ---- variant row editors: sizes (one Default = base price) + colours (+$ surcharge) ---- */
+/* ---- variant editors: sizes (permanent Default + extras) + colours (swatch palette) ---- */
 (function(){
   var priceInput = document.querySelector('input[name="price"]');
-  function base(){ var v = parseFloat(priceInput ? priceInput.value : '0'); return isNaN(v) ? 0 : v; }
+  var sizeInput  = document.querySelector('input[name="size"]');
+  function base(){ var v=parseFloat(priceInput?priceInput.value:'0'); return isNaN(v)?0:v; }
   function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function fmt(n){ return (Math.round(n*100)/100).toString(); }
   function parseOpts(str){
@@ -373,71 +374,78 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       var pr=l.slice(i+1).trim(); return {label:l.slice(0,i).trim(), price: pr===''?null:parseFloat(pr)};
     }).filter(function(o){return o.label;});
   }
-
-  /* SIZES: a row with price===null is the Default (uses the base price) */
+  /* ===== SIZES: one permanent Default (base price, no remove) + extra priced sizes ===== */
   var sizeWrap=document.getElementById('sizeRows'), sizeHidden=document.getElementById('optSizes');
-  var sizes=parseOpts(sizeHidden.value);
-  if(sizes.length && !sizes.some(function(s){return s.price===null;})) sizes[0].price=null;   // ensure one default
-  function saveSizes(){ sizeHidden.value = sizes.map(function(s){ return s.price===null ? s.label : (s.label+'|'+fmt(s.price)); }).join('\n'); }
+  var defLabel='', extras=[];
+  parseOpts(sizeHidden.value).forEach(function(o){ if(o.price===null && defLabel==='') defLabel=o.label; else extras.push({label:o.label, price:o.price==null?base():o.price}); });
+  if(defLabel==='' && sizeInput && sizeInput.value.trim()) defLabel=sizeInput.value.trim();
+  function saveSizes(){
+    if(!extras.filter(function(x){return x.label.trim();}).length){ sizeHidden.value=''; return; }
+    var d = defLabel.trim() || (sizeInput&&sizeInput.value.trim()) || 'Standard';
+    sizeHidden.value = [d].concat(extras.filter(function(x){return x.label.trim();}).map(function(x){return x.label.trim()+'|'+fmt(x.price||0);})).join('\n');
+  }
   function renderSizes(){
     sizeWrap.innerHTML='';
-    sizes.forEach(function(s,idx){
+    var d=document.createElement('div'); d.className='var-row is-default';
+    d.innerHTML='<span class="vr-dot vr-star">*</span>'+
+      '<input class="input vr-label" placeholder="'+esc((sizeInput&&sizeInput.value.trim())||'Standard size, e.g. 150 ml')+'" value="'+esc(defLabel)+'">'+
+      '<span class="vr-tag">Default</span><span class="vr-basep">$'+fmt(base())+'</span>';
+    d.querySelector('.vr-label').addEventListener('input',function(e){ defLabel=e.target.value; if(sizeInput) sizeInput.value=e.target.value; saveSizes(); });
+    sizeWrap.appendChild(d);
+    extras.forEach(function(x,idx){
       var row=document.createElement('div'); row.className='var-row';
-      var isDef = s.price===null;
-      row.innerHTML =
-        '<input class="input vr-label" placeholder="e.g. 30 ml" value="'+esc(s.label)+'">'+
-        '<label class="vr-def"><input type="radio" name="sizeDefault" '+(isDef?'checked':'')+'> Default</label>'+
-        (isDef ? '<span class="vr-price vr-basep">$'+fmt(base())+'</span>'
-               : '<span class="vr-pfx">$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(s.price!=null?esc(s.price):'')+'" placeholder="price">')+
+      row.innerHTML='<span class="vr-dot"></span>'+
+        '<input class="input vr-label" placeholder="e.g. 50 ml" value="'+esc(x.label)+'">'+
+        '<span class="vr-pfx">$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(x.price!=null?esc(x.price):'')+'" placeholder="price">'+
         '<button type="button" class="vr-x" title="Remove">&times;</button>';
-      row.querySelector('.vr-label').addEventListener('input',function(e){ sizes[idx].label=e.target.value; saveSizes(); });
-      row.querySelector('input[type=radio]').addEventListener('change',function(){
-        sizes.forEach(function(x,j){ if(j!==idx && x.price===null) x.price=base(); });   // old default gets the base price to edit
-        sizes[idx].price=null; saveSizes(); renderSizes();
-      });
-      var pr=row.querySelector('input.vr-price');
-      if(pr) pr.addEventListener('input',function(e){ sizes[idx].price = e.target.value===''?0:parseFloat(e.target.value); saveSizes(); });
-      row.querySelector('.vr-x').addEventListener('click',function(){
-        sizes.splice(idx,1);
-        if(sizes.length && !sizes.some(function(x){return x.price===null;})) sizes[0].price=null;   // keep one default
-        saveSizes(); renderSizes();
-      });
+      row.querySelector('.vr-label').addEventListener('input',function(e){ extras[idx].label=e.target.value; saveSizes(); });
+      row.querySelector('.vr-price').addEventListener('input',function(e){ extras[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveSizes(); });
+      row.querySelector('.vr-x').addEventListener('click',function(){ extras.splice(idx,1); saveSizes(); renderSizes(); });
       sizeWrap.appendChild(row);
     });
     saveSizes();
   }
-  document.getElementById('addSize').addEventListener('click',function(){
-    sizes.push({label:'', price: sizes.length? base() : null});   // first size is the default
-    renderSizes();
-    var last=sizeWrap.querySelector('.var-row:last-child .vr-label'); if(last) last.focus();
-  });
-  if(priceInput) priceInput.addEventListener('input',function(){ var d=sizeWrap.querySelector('.vr-basep'); if(d) d.textContent='$'+fmt(base()); });
+  document.getElementById('addSize').addEventListener('click',function(){ extras.push({label:'',price:base()}); renderSizes(); var l=sizeWrap.querySelector('.var-row:last-child .vr-label'); if(l) l.focus(); });
+  if(priceInput) priceInput.addEventListener('input',function(){ var b=sizeWrap.querySelector('.vr-basep'); if(b) b.textContent='$'+fmt(base()); });
+  if(sizeInput) sizeInput.addEventListener('input',function(e){ defLabel=e.target.value; var l=sizeWrap.querySelector('.is-default .vr-label'); if(l && l!==document.activeElement) l.value=e.target.value; saveSizes(); });
   renderSizes();
 
-  /* COLOURS: label + optional +$ surcharge */
-  var colWrap=document.getElementById('colorRows'), colHidden=document.getElementById('optColors');
-  var cols=parseOpts(colHidden.value);
-  function saveCols(){ colHidden.value = cols.map(function(c){ return (c.price!=null && c.price>0) ? (c.label+'|'+fmt(c.price)) : c.label; }).join('\n'); }
+  /* ===== COLOURS: click a swatch to add it (name auto-filled), optional +$ surcharge ===== */
+  var PALETTE=[['White','#ffffff'],['Black','#222222'],['Grey','#9ca3af'],['Silver','#cdd2d8'],['Red','#e23b3b'],['Pink','#f3a7c4'],['Orange','#f39a3e'],['Yellow','#f2d34e'],['Green','#4caf72'],['Teal','#16b8a6'],['Blue','#3b82f6'],['Navy','#25407a'],['Purple','#8b5cf6'],['Brown','#8a5a2b'],['Beige','#e7d5b8'],['Gold','#c9a24a']];
+  var HEX={}; PALETTE.forEach(function(pl){ HEX[pl[0].toLowerCase()]=pl[1]; });
+  function hexOf(name){ return HEX[String(name).toLowerCase()] || (/^#/.test(name)?name:'#d8cfc0'); }
+  var colWrap=document.getElementById('colorRows'), colHidden=document.getElementById('optColors'), pick=document.getElementById('swatchPick');
+  var cols=parseOpts(colHidden.value).map(function(o){return {label:o.label, price:(o.price!=null&&o.price>0)?o.price:0};});
+  function saveCols(){ colHidden.value = cols.filter(function(c){return String(c.label).trim();}).map(function(c){ return c.price>0 ? (String(c.label).trim()+'|'+fmt(c.price)) : String(c.label).trim(); }).join('\n'); }
   function renderCols(){
     colWrap.innerHTML='';
     cols.forEach(function(c,idx){
       var row=document.createElement('div'); row.className='var-row';
-      row.innerHTML =
-        '<input class="input vr-label" placeholder="e.g. White" value="'+esc(c.label)+'">'+
-        '<span class="vr-pfx">+$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(c.price!=null&&c.price>0?esc(c.price):'')+'" placeholder="0">'+
+      row.innerHTML='<span class="vr-dot" style="background:'+esc(hexOf(c.label))+'"></span>'+
+        '<input class="input vr-label" value="'+esc(c.label)+'" placeholder="colour name">'+
+        '<span class="vr-pfx">+$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(c.price>0?esc(c.price):'')+'" placeholder="0">'+
         '<button type="button" class="vr-x" title="Remove">&times;</button>';
       row.querySelector('.vr-label').addEventListener('input',function(e){ cols[idx].label=e.target.value; saveCols(); });
-      row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price = e.target.value===''?0:parseFloat(e.target.value); saveCols(); });
-      row.querySelector('.vr-x').addEventListener('click',function(){ cols.splice(idx,1); saveCols(); renderCols(); });
+      row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveCols(); });
+      row.querySelector('.vr-x').addEventListener('click',function(){ cols.splice(idx,1); saveCols(); renderCols(); renderPalette(); });
       colWrap.appendChild(row);
     });
     saveCols();
   }
-  document.getElementById('addColor').addEventListener('click',function(){
-    cols.push({label:'', price:0}); renderCols();
-    var last=colWrap.querySelector('.var-row:last-child .vr-label'); if(last) last.focus();
-  });
-  renderCols();
+  function renderPalette(){
+    pick.innerHTML='';
+    PALETTE.forEach(function(pl){
+      var used=cols.some(function(c){return String(c.label).toLowerCase()===pl[0].toLowerCase();});
+      var b=document.createElement('button'); b.type='button'; b.className='sw'+(used?' used':''); b.title=pl[0]; b.style.background=pl[1];
+      b.addEventListener('click',function(){ if(used) return; cols.push({label:pl[0], price:0}); saveCols(); renderCols(); renderPalette(); });
+      pick.appendChild(b);
+    });
+    var cw=document.createElement('label'); cw.className='sw sw-custom'; cw.title='Custom colour'; cw.appendChild(document.createTextNode('+'));
+    var ci=document.createElement('input'); ci.type='color'; ci.className='sw-cin';
+    ci.addEventListener('change',function(e){ var hex=e.target.value; HEX[hex.toLowerCase()]=hex; cols.push({label:hex, price:0}); saveCols(); renderCols(); renderPalette(); });
+    cw.appendChild(ci); pick.appendChild(cw);
+  }
+  renderCols(); renderPalette();
 })();
 </script>
 <?php admin_foot();
