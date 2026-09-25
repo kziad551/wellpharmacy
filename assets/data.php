@@ -33,7 +33,11 @@ $USER = $me ? [
 $JE = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
 
 $products = [];
-foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") as $p) {
+/* Only the columns the shape below actually uses. SELECT * also dragged in
+   long_desc, ingredients, how_to_use, benefits, arabic, barcode and sku for all
+   1742 rows, which nothing here reads. */
+$PCOLS = "id,name,brand,category,price,was,sale_pct,badge,rating,reviews,stock,low_stock,kw,descr,keywords,image,hover_image";
+foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, id") as $p) {
     $products[] = [
         'id'      => $p['id'],
         'brand'   => $p['brand'],
@@ -45,11 +49,9 @@ foreach (rows("SELECT * FROM products WHERE status='active' ORDER BY sort, id") 
         'cat'     => $p['category'],
         'img'     => $p['image'],
         'hover'   => $p['hover_image'],
-        'gallery' => array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($p['gallery'] ?? ''))))),
         'kw'      => $p['kw'],
         'desc'    => trim(preg_replace('/\s+/', ' ', strip_tags((string)$p['descr']))),   // card blurb: never render stray HTML
         'keywords'=> $p['keywords'] ?? '',
-        'size'    => $p['size'] ?? '',
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],
@@ -65,11 +67,8 @@ $NAV = array_merge(['Shop All', 'Brands', 'Offers'], $navCats);
 $NAV_INLINE_CATS = 7;
 $NAV_MORE = array_slice($navCats, $NAV_INLINE_CATS);
 
-$cats = [];
-foreach (rows("SELECT name, image, is_cross FROM categories ORDER BY sort") as $c) {
-    $cats[] = ['name' => $c['name'], 'img' => $c['image'], 'cross' => (bool)$c['is_cross']];
-}
-$brands = array_column(rows("SELECT name FROM brands ORDER BY featured DESC, sort"), 'name');
+/* W.CATEGORIES and W.BRANDS were written here but read nowhere on the front end
+   (brands.php builds its own grid server-side), so both queries are gone. */
 
 /* Coupons advertised on the Offers menu: live, unexpired and PUBLIC only.
    Private ones are deliberately absent here but still redeem fine at checkout. */
@@ -160,8 +159,6 @@ $SET = [
   const byId = {}; W.PRODUCTS.forEach(p => byId[p.id] = p); W.BY_ID = byId;
   W.NAV        = <?= json_encode($NAV, $JE) ?>;
   W.NAV_MORE   = <?= json_encode($NAV_MORE, $JE) ?>;   // shelves that live under the desktop "More" dropdown
-  W.CATEGORIES = <?= json_encode($cats, $JE) ?>;
-  W.BRANDS     = <?= json_encode($brands, $JE) ?>;
   W.COUPONS    = <?= json_encode($pubCoupons, $JE) ?>;   // public coupons only (private ones still redeem)
   W.SETTINGS   = <?= json_encode($SET, $JE) ?>;
   W.USER       = <?= json_encode($USER, $JE) ?>;   // null = guest (guests can still order)

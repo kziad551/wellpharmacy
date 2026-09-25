@@ -399,7 +399,7 @@
         <button type="button" class="nav-more-btn" aria-expanded="false" aria-haspopup="true">More<span class="chev">${I.chevron || '▾'}</span></button>
         <ul class="nav-more-list">${more.map(n => `<li${active === n ? ' class="active"' : ''}><a href="${hrefFor(n)}">${n}</a></li>`).join('')}</ul>
       </li>` : '';
-    ul.innerHTML = inline + moreHTML;
+    if (!ul.children.length) ul.innerHTML = inline + moreHTML;   // server-rendered already? leave it
 
     const moreLi = ul.querySelector('.nav-more');
     if (moreLi) {
@@ -642,7 +642,7 @@
   W.mountChrome = function (opts) {
     opts = opts || {};
     const top = $('#chrome-top');
-    if (top) top.innerHTML = utilBar() + header();
+    if (top && !top.firstElementChild) top.innerHTML = utilBar() + header();   // server-rendered already? leave it
     const foot = $('#chrome-foot');
     if (foot) foot.innerHTML = footer();
     waFab();

@@ -28,13 +28,13 @@ function brand_row(array $b): void { ?>
       <?php endif; ?>
     </td>
     <td class="c-main">
-      <a class="nm" href="brand-edit?id=<?= (int)$b['id'] ?>"><?= e($b['name']) ?></a>
+      <a class="nm" href="brand-edit?id=<?= (int)$b['id'] ?><?= e(admin_here_qs()) ?>"><?= e($b['name']) ?></a>
       <div class="br"><span class="faint"><?= e($b['slug']) ?></span></div>
     </td>
-    <td data-label="Products"><?= (int)$b['n'] ?></td>
+    <td data-label="Products"><?php if ((int)$b['n']): ?><a class="btn btn-ghost btn-sm" href="products?brand=<?= rawurlencode($b['name']) ?>" title="Manage this brand's products"><?= (int)$b['n'] ?> &rsaquo;</a><?php else: ?><span class="faint">0</span><?php endif; ?></td>
     <td data-label="Featured"><?php if ($b['featured']): ?><span class="pill pill-good">Homepage strip</span><?php else: ?><span class="pill pill-muted">Directory</span><?php endif; ?></td>
     <td class="c-act" style="text-align:right;white-space:nowrap">
-      <a class="btn btn-ghost btn-sm" href="brand-edit?id=<?= (int)$b['id'] ?>">Edit</a>
+      <a class="btn btn-ghost btn-sm" href="brand-edit?id=<?= (int)$b['id'] ?><?= e(admin_here_qs()) ?>">Edit</a>
       <form method="post" action="brands" style="display:inline" onsubmit="return confirm('Delete &quot;<?= e($b['name']) ?>&quot;?')">
         <?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
         <button class="btn btn-bad btn-sm">Delete</button>
@@ -50,7 +50,7 @@ admin_head('Brands', 'brands', list_count_label($total, 'brand'));
 <div class="page-actions">
   <?php admin_search('brands', $search, 'Search brands…'); ?>
   <div class="spacer"></div>
-  <a class="btn btn-primary" href="brand-edit"><?= aicon('plus') ?> Add brand</a>
+  <a class="btn btn-primary" href="brand-edit<?= e(admin_here_qs('?')) ?>"><?= aicon('plus') ?> Add brand</a>
 </div>
 
 <div class="a-card">

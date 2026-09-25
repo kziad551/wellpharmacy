@@ -64,7 +64,7 @@ if (is_post()) {
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
 
-    if ($name === '' || $newId === '') { flash('Name is required.', 'err'); redirect($editing ? "product-edit?id=$id" : 'product-edit'); }
+    if ($name === '' || $newId === '') { flash('Name is required.', 'err'); redirect($editing ? 'product-edit?id=' . rawurlencode($id) . admin_ret_qs() : 'product-edit' . admin_ret_qs('?')); }
 
     if ($editing) {
         /* remember the stock we're replacing so we can spot a 0 -> in-stock crossing */
@@ -83,14 +83,20 @@ if (is_post()) {
         }
         flash(($upErr ? 'Product updated — but the image was not changed: ' . $upErr : 'Product updated.') . $note, $upErr ? 'err' : 'ok');
     } else {
-        if (row("SELECT id FROM products WHERE id = ?", [$newId])) { flash('A product with that ID already exists.', 'err'); redirect('product-edit'); }
+        if (row("SELECT id FROM products WHERE id = ?", [$newId])) { flash('A product with that ID already exists.', 'err'); redirect('product-edit' . admin_ret_qs('?')); }
         $data['id'] = $newId;
         $cols = implode(', ', array_keys($data));
         $ph   = implode(', ', array_map(fn($k) => ":$k", array_keys($data)));
         q("INSERT INTO products ($cols) VALUES ($ph)", $data);
         flash($upErr ? 'Product created — but no image was added: ' . $upErr : 'Product created.', $upErr ? 'err' : 'ok');
     }
-    redirect('products');
+    /* Stay on the record just saved: an operator editing a product usually has more
+       to change on it, and the old redirect to the bare list meant re-finding it by
+       hand every time. "Save & back to list" is the explicit way out and keeps the
+       filters they arrived with. */
+    redirect(input('after') === 'list'
+        ? admin_back_href('products')
+        : 'product-edit?id=' . rawurlencode($newId) . admin_ret_qs());
 }
 
 /* defaults for the form */
@@ -102,8 +108,8 @@ $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','
 admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v['name'] : 'New product');
 ?>
 <form method="post" action="<?= $editing ? "product-edit?id=".e($id) : "product-edit" ?>" enctype="multipart/form-data">
-  <?= csrf_field() ?>
-  <div class="page-actions"><a class="btn btn-ghost" href="products">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save product</button></div>
+  <?= csrf_field() ?><?= admin_ret_field() ?>
+  <div class="page-actions"><a class="btn btn-ghost" href="<?= e(admin_back_href('products')) ?>">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save product</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
 
   <div class="a-grid" style="grid-template-columns:1.5fr 1fr">
     <div style="display:flex;flex-direction:column;gap:18px">
@@ -205,7 +211,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       </div></div>
     </div>
   </div>
-  <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save product</button></div>
+  <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save product</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
 </form>
 
 <style>

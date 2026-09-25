@@ -13,7 +13,7 @@ if (is_post()) {
     $upErr = null;
     if ($u = save_upload('image_file', $upErr)) $image = $u;
 
-    if ($name === '') { flash('Name is required.', 'err'); redirect($editing ? "category-edit?id=$id" : 'category-edit'); }
+    if ($name === '') { flash('Name is required.', 'err'); redirect($editing ? 'category-edit?id=' . $id . admin_ret_qs() : 'category-edit' . admin_ret_qs('?')); }
 
     $data = [
         'name'     => $name,
@@ -31,20 +31,25 @@ if (is_post()) {
         $data['id'] = $id;
         q("UPDATE categories SET name=:name, slug=:slug, image=:image, in_nav=:in_nav, is_cross=:is_cross, is_sale=:is_sale, sort=:sort WHERE id=:id", $data);
         flash($upErr ? 'Category updated — but the image was not changed: ' . $upErr : 'Category updated.', $upErr ? 'err' : 'ok');
+        $savedId = $id;
     } else {
-        if (row("SELECT id FROM categories WHERE slug = ?", [$slug])) { flash('A category with that URL slug already exists.', 'err'); redirect('category-edit'); }
+        if (row("SELECT id FROM categories WHERE slug = ?", [$slug])) { flash('A category with that URL slug already exists.', 'err'); redirect('category-edit' . admin_ret_qs('?')); }
         q("INSERT INTO categories (name,slug,image,in_nav,is_cross,is_sale,sort) VALUES (:name,:slug,:image,:in_nav,:is_cross,:is_sale,:sort)", $data);
         flash($upErr ? 'Category created — but no image was added: ' . $upErr : 'Category created.', $upErr ? 'err' : 'ok');
+        $savedId = (int) last_id();
     }
-    redirect('categories');
+    /* Back to the same category, not to the top of the list. See inc/list.php. */
+    redirect(input('after') === 'list'
+        ? admin_back_href('categories')
+        : 'category-edit?id=' . $savedId . admin_ret_qs());
 }
 
 $v = $editing ? $c : ['id'=>0,'name'=>'','slug'=>'','image'=>'','in_nav'=>1,'is_cross'=>0,'is_sale'=>0,'sort'=>0];
 admin_head($editing ? 'Edit category' : 'Add category', 'categories', $editing ? $v['name'] : 'New category');
 ?>
 <form method="post" action="<?= $editing ? "category-edit?id=".e($id) : "category-edit" ?>" enctype="multipart/form-data">
-  <?= csrf_field() ?>
-  <div class="page-actions"><a class="btn btn-ghost" href="categories">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save category</button></div>
+  <?= csrf_field() ?><?= admin_ret_field() ?>
+  <div class="page-actions"><a class="btn btn-ghost" href="<?= e(admin_back_href('categories')) ?>">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save category</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
 
   <div class="a-card"><div class="hd"><h2>Details</h2></div><div class="bd">
     <div class="f-row">
@@ -63,6 +68,6 @@ admin_head($editing ? 'Edit category' : 'Add category', 'categories', $editing ?
     <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="is_cross" value="1" <?= $v['is_cross']?'checked':'' ?>> Health-conditions style (cross icon)</label><br>
     <label class="switch"><input type="checkbox" name="is_sale" value="1" <?= $v['is_sale']?'checked':'' ?>> Highlight as a sale / offers category</label>
   </div></div>
-  <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save category</button></div>
+  <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save category</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
 </form>
 <?php admin_foot();

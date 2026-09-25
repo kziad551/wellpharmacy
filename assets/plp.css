@@ -90,3 +90,17 @@
 @media(max-width:450px){
   .plp-grid,.plp-grid.cols4{grid-template-columns:minmax(0,1fr); gap:18px}
 }
+
+/* Filter checkboxes: the checked state used var(--ink) (near-black), which read as
+   a dead square next to the warm palette. Use the brand rose and give keyboard
+   users a visible focus ring, which the opacity:0 input had removed entirely. */
+.fcheck input:checked+.box{background:var(--rose); border-color:var(--rose)}
+.fcheck input:focus-visible+.box{outline:2px solid var(--rose); outline-offset:2px}
+.fcheck .box svg{transition:opacity .15s}
+.fcheck input:checked~*{color:var(--ink)}
+/* the count sits right, and should dim rather than compete once selected */
+.fcheck input:checked+.box+.ct{color:var(--rose)}
+
+/* grid dims while new results are being fetched, so a filter click reads as
+   "working" instead of "nothing happened" */
+.plp-grid.is-loading{opacity:.45; pointer-events:none; transition:opacity .12s}
