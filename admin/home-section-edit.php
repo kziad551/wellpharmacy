@@ -57,7 +57,7 @@ $brandNames = array_values(array_unique(array_merge(
     array_column(rows("SELECT DISTINCT brand FROM products WHERE brand <> '' ORDER BY brand"), 'brand')
 )));
 sort($brandNames, SORT_FLAG_CASE | SORT_STRING);
-$pickProducts = rows("SELECT id, name, brand FROM products WHERE status='active' ORDER BY brand, sort, name");
+$pickProducts = rows("SELECT id, name, brand, image FROM products WHERE status='active' ORDER BY brand, sort, name");
 
 admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing ? 'Home section' : 'New home section');
 ?>
@@ -90,7 +90,10 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       <div class="field" id="pickRow" style="<?= $v['type']==='brand'?'':'display:none' ?>; grid-column:1/-1">
         <label>Show specific products <span class="faint">(optional — leave all unticked to show the whole brand, newest first)</span></label>
         <input type="hidden" name="product_ids" id="productIds" value="<?= e($v['product_ids'] ?? '') ?>">
-        <div class="brand-picker"><div class="bp-list" id="pickList" style="max-height:280px"><span class="faint" style="padding:8px">Pick a brand first…</span></div></div>
+        <div class="brand-picker">
+          <div class="bp-search"><input class="input" id="pickSearch" type="search" placeholder="Filter products…" autocomplete="off"></div>
+          <div class="bp-list bp-list-prod" id="pickList"><span class="faint" style="padding:8px">Pick a brand first…</span></div>
+        </div>
         <div class="hint" id="pickCount"></div>
       </div>
       <div class="field" id="brandsRow" style="<?= $v['type']==='mixed'?'':'display:none' ?>"><label>Brands to mix <span class="faint">(tick the brands you want — tick none for ALL brands)</span></label>
@@ -139,6 +142,15 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
   .brand-picker .bp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 14px;max-height:230px;overflow:auto;padding:10px 14px}
   .brand-picker .bp-item{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:14px;white-space:nowrap}
   .brand-picker input[type=checkbox]{width:16px;height:16px;flex:none;cursor:pointer}
+  /* the BRAND-PRODUCT picker: one clear row per product, with a thumbnail (names are long) */
+  .brand-picker .bp-search{padding:10px 12px;border-bottom:1px solid var(--line,#dcd6c9);background:rgba(0,0,0,.02)}
+  .brand-picker .bp-search .input{width:100%}
+  .brand-picker .bp-list-prod{display:block;max-height:340px}
+  .brand-picker .bp-list-prod .bp-item{white-space:normal;align-items:center;gap:11px;padding:7px 6px;border-radius:8px;line-height:1.35}
+  .brand-picker .bp-list-prod .bp-item:hover{background:rgba(0,0,0,.03)}
+  .brand-picker .bp-list-prod .bp-item.on{background:var(--a-primary-tint,#f1ece3)}
+  .brand-picker .bp-thumb{width:42px;height:42px;flex:none;border-radius:8px;object-fit:cover;background:#f2efe9;border:1px solid var(--a-border,#e7e2d8)}
+  .brand-picker .bp-name{flex:1;min-width:0}
 </style>
 <script>
   function secTypeChange(t){
@@ -164,33 +176,46 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
 
   // ---- pick specific products for a BRAND section ----
   (function(){
-    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'brand'=>$r['brand']], $pickProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'brand'=>$r['brand'],'img'=>($r['image']!==''?asrc($r['image']):'')], $pickProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
     var brandSel = document.querySelector('select[name="brand"]');
     var list = document.getElementById('pickList');
     var hidden = document.getElementById('productIds');
     var countEl = document.getElementById('pickCount');
+    var search = document.getElementById('pickSearch');
     if (!brandSel || !list || !hidden) return;
-    function chosen(){ return hidden.value.split(',').map(function(x){return x.trim();}).filter(Boolean); }
     function esc(t){ return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-    function build(){
+    /* selection is a persistent set so a live filter never drops a hidden pick */
+    var picked = {};
+    hidden.value.split(',').map(function(x){return x.trim();}).filter(Boolean).forEach(function(id){ picked[id]=true; });
+    function writeHidden(){
       var brand = brandSel.value;
-      var picked = chosen();
-      var items = ALL.filter(function(p){ return p.brand === brand; });
-      if (!brand){ list.innerHTML = '<span class="faint" style="padding:8px">Pick a brand first…</span>'; countEl.textContent=''; return; }
-      if (!items.length){ list.innerHTML = '<span class="faint" style="padding:8px">This brand has no active products.</span>'; countEl.textContent=''; return; }
-      list.innerHTML = items.map(function(p){
-        var on = picked.indexOf(p.id) >= 0 ? ' checked' : '';
-        return '<label class="bp-item"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+on+'> '+esc(p.name)+'</label>';
-      }).join('');
-      sync();
-    }
-    function sync(){
-      var ids = Array.prototype.slice.call(list.querySelectorAll('.pk:checked')).map(function(b){return b.value;});
+      var ids = ALL.filter(function(p){ return p.brand === brand && picked[p.id]; }).map(function(p){ return p.id; });   // natural (list) order
       hidden.value = ids.join(',');
       countEl.textContent = ids.length ? (ids.length + ' product(s) picked — only these will show, in this order.') : 'Nothing picked — the whole brand shows (newest first).';
     }
-    list.addEventListener('change', function(e){ if(e.target.classList.contains('pk')) sync(); });
-    brandSel.addEventListener('change', function(){ hidden.value=''; build(); });
+    function build(){
+      var brand = brandSel.value;
+      var q = (search && search.value ? search.value : '').trim().toLowerCase();
+      if (!brand){ list.innerHTML = '<span class="faint" style="padding:8px">Pick a brand first…</span>'; countEl.textContent=''; return; }
+      if (!ALL.some(function(p){ return p.brand === brand; })){ list.innerHTML = '<span class="faint" style="padding:8px">This brand has no active products.</span>'; countEl.textContent=''; return; }
+      var items = ALL.filter(function(p){ return p.brand === brand && (!q || p.name.toLowerCase().indexOf(q) >= 0); });
+      if (!items.length){ list.innerHTML = '<span class="faint" style="padding:8px">No products match “'+esc(q)+'”.</span>'; writeHidden(); return; }
+      list.innerHTML = items.map(function(p){
+        var on = !!picked[p.id];
+        var thumb = p.img ? '<img class="bp-thumb" src="'+esc(p.img)+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+                          : '<span class="bp-thumb"></span>';
+        return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+'</span></label>';
+      }).join('');
+      writeHidden();
+    }
+    list.addEventListener('change', function(e){
+      if(!e.target.classList.contains('pk')) return;
+      if(e.target.checked) picked[e.target.value]=true; else delete picked[e.target.value];
+      var lbl=e.target.closest('.bp-item'); if(lbl) lbl.classList.toggle('on', e.target.checked);
+      writeHidden();
+    });
+    brandSel.addEventListener('change', function(){ picked={}; hidden.value=''; if(search) search.value=''; build(); });
+    if (search) search.addEventListener('input', build);
     build();
   })();
 </script>
