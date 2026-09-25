@@ -241,20 +241,19 @@
     const buyPrice = `${money(p.price)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
     const noPrice = !(p.price > 0);   // price not set yet (e.g. a new brand awaiting prices) — show "coming soon" & block ordering
     const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
-    const hasRange = (p.sizes && p.sizes.length) || (p.colors && p.colors.some(c => c.price > 0));   // price varies by option → "from"
-    const fromPfx = hasRange ? '<span class="from">from </span>' : '';
-    const shownPrice = hasRange && p.from != null ? p.from : p.price;   // ranged → cheapest option ("from $X"); base price stays untouched
+    // Cards always show the DEFAULT (standard) item price; if the product has options the
+    // shopper picks one on the product page and the price updates there.
     const priceHtml = noPrice
       ? `<span class="price price-tba">Price coming soon</span>`
       : p.was   // desktop price row (old box)
-      ? `<span class="price sale">${fromPfx}<span class="now">${money(shownPrice)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
-      : `<span class="price">${fromPfx}${money(shownPrice)}${unitLbl}</span>`;
+      ? `<span class="price sale"><span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
+      : `<span class="price">${money(p.price)}${unitLbl}</span>`;
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';
-    const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);   // colors/sizes need a choice → send to the product page
-    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<button class="btn" disabled>Price coming soon</button>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">choose options</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
-    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<button class="buybtn" disabled>Price coming soon</button>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">choose options</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
+    const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);   // colors/sizes need a choice → the button opens the product page to pick
+    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<button class="btn" disabled>Price coming soon</button>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">add to bag</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
+    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<button class="buybtn" disabled>Price coming soon</button>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>

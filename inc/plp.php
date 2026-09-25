@@ -72,10 +72,15 @@ function well_product_card(array $p): string {
     }
 
     $buyPrice = well_money($price) . ($was !== null ? ' <s>' . well_money($was) . '</s>' : '');
+    $hasOpts  = (bool) (parse_variant_opts($p['opt_colors'] ?? '') || parse_variant_opts($p['opt_sizes'] ?? ''));
+    $href     = 'product?id=' . rawurlencode($id);
     if ($soldOut)      { $addBtn = '<button class="btn" disabled>Sold out</button>';
                          $buyBtn = '<button class="buybtn" disabled>Sold out</button>'; }
     elseif ($noPrice)  { $addBtn = '<button class="btn" disabled>Price coming soon</button>';
                          $buyBtn = '<button class="buybtn" disabled>Price coming soon</button>'; }
+    elseif ($hasOpts)  { /* colours/sizes need a choice — the button opens the product page; the price shows the default */
+                         $addBtn = '<a class="btn" href="' . e($href) . '">add to bag</a>';
+                         $buyBtn = '<a class="buybtn" href="' . e($href) . '">buy — ' . $buyPrice . '</a>'; }
     else               { $addBtn = '<button class="btn" data-add="' . e($id) . '">add to bag</button>';
                          $buyBtn = '<button class="buybtn" data-add="' . e($id) . '">buy — ' . $buyPrice . '</button>'; }
 
@@ -86,7 +91,6 @@ function well_product_card(array $p): string {
         : '<span class="muted" style="font-size:12px">No reviews yet</span>';
 
     $alt = e(trim($brand . ' ' . $name));
-    $href = 'product?id=' . rawurlencode($id);
 
     return '<article class="pcard' . ($soldOut ? ' is-sold' : '') . ($hover !== '' ? '' : ' no-hover') . '" data-pid="' . e($id) . '">
       <div class="media graded" data-imgwrap>

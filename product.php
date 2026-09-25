@@ -47,8 +47,6 @@ $badge = $p['badge'] && isset($BADGES[$p['badge']]) ? $BADGES[$p['badge']] : nul
 $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
 $noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming soon", block ordering
-$hasVarOpts = (bool) (parse_variant_opts($p['opt_colors'] ?? '') || parse_variant_opts($p['opt_sizes'] ?? ''));
-$fromMin    = variant_from_price($p);   // cheapest option — the "from $X" shown before a choice is made
 
 /* ---- back-in-stock alerts: only offered while the item is actually out of stock.
         Signed-in shoppers get their address filled in; guests can type one. ---- */
@@ -302,7 +300,7 @@ include __DIR__ . '/inc/head.php';
       <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a> <span class="muted">·</span> <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);font-weight:600"><?= $myReview ? 'Edit your review' : 'Write a review' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
       <div class="price-row">
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
-        <?php else: ?><span class="p" id="pdpPrice"><?= $hasVarOpts ? '<span class="from">from </span>' . money($fromMin) : money($p['price']) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
+        <?php else: ?><span class="p" id="pdpPrice"><?= money($p['price']) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
@@ -452,7 +450,7 @@ include __DIR__ . '/inc/head.php';
   <div class="wrap">
     <img class="gimg mini-img" data-grade id="miniImg">
     <div class="mini-title"><?= e($p['name']) ?></div>
-    <div class="mini-meta"><span class="pr" id="miniPrice"><?= $noPrice?'Price coming soon':($hasVarOpts?money($fromMin):money($p['price'])) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
+    <div class="mini-meta"><span class="pr" id="miniPrice"><?= $noPrice?'Price coming soon':money($p['price']) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
     <button class="btn btn-primary mini-btn" id="miniAdd" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':'Add to Bag' ?></button>
   </div>
 </div>
@@ -519,8 +517,9 @@ $PAGE_JS = <<<JS
   }
   const NOPRICE = !(p.price > 0);
   const HAS_OPTS = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);
-  const FROM_MIN = (p.from != null ? p.from : p.price);   // cheapest option — shown as "from" until a choice is made
   const SEL = { color: null, size: null };
+  // pre-select the STANDARD (default) size so the page opens at the default price and can be added right away; picking another size/colour updates it
+  if (p.sizes && p.sizes.length){ var _def = p.sizes.filter(function(o){ return o.price == null; })[0]; if (_def) SEL.size = _def.label; }
   function optPrice(){
     let base = p.price;
     const z = (p.sizes  || []).find(o => o.label === SEL.size);  if (z && z.price != null) base = z.price;   // size sets the price
@@ -538,14 +537,15 @@ $PAGE_JS = <<<JS
       });
     });
   });
+  // reflect the pre-selected standard size in the buttons
+  if (SEL.size){ document.querySelectorAll('.opt-group[data-optgroup="size"] .opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.size) b.classList.add('on'); }); }
   function paint(){
     \$('#qty').textContent = qty;
     const ready = optReady();
     const unit = HAS_OPTS ? optPrice() : p.price;
     if (!NOPRICE) {
-      const showUnit = (HAS_OPTS && !ready) ? FROM_MIN : unit;   // before a choice, show the cheapest ("from"); after, the chosen price
-      \$('#miniPrice').textContent = W.money(showUnit*qty);
-      const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = (HAS_OPTS && !ready ? '<span class="from">from </span>' : '') + W.money(showUnit);
+      \$('#miniPrice').textContent = W.money(unit*qty);
+      const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = W.money(unit);   // shows the default price, updates as options are chosen
     }
     let label;
     if (NOPRICE) label = 'Price coming soon';
