@@ -57,6 +57,7 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
         'unit'    => $p['unit'] ?? '',
         'colors'  => parse_variant_opts($p['opt_colors'] ?? ''),
         'sizes'   => parse_variant_opts($p['opt_sizes'] ?? ''),
+        'from'    => variant_from_price($p),   // cheapest buyable price — the "from $X" label (base price is untouched)
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],

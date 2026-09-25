@@ -65,16 +65,10 @@ if (is_post()) {
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
 
-    /* A size with NO price is the DEFAULT size and uses the product's base price. List price =
-       the cheapest buyable combination (cheapest size + cheapest colour surcharge) so cards /
-       search / sorting show a real number. The base price only applies when there are no sizes. */
-    $szOpts = parse_variant_opts($data['opt_sizes']);
-    $clOpts = parse_variant_opts($data['opt_colors']);
-    if ($szOpts || $clOpts) {
-        $baseMin = $szOpts ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $price, $szOpts)) : $price;
-        $surMin  = $clOpts ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $clOpts)) : 0.0;
-        $data['price'] = round($baseMin + $surMin, 2);
-    }
+    /* The base price is the STANDARD (default) size's price and is stored as typed —
+       never overwritten. The cheapest option is shown as "from $X" on cards / the product
+       page (computed at display time via variant_from_price), so this field stays the real
+       price of the default size, which variant_resolve() uses for it. */
 
     if ($name === '' || $newId === '') { flash('Name is required.', 'err'); redirect($editing ? 'product-edit?id=' . rawurlencode($id) . admin_ret_qs() : 'product-edit' . admin_ret_qs('?')); }
 

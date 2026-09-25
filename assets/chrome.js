@@ -243,11 +243,12 @@
     const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
     const hasRange = (p.sizes && p.sizes.length) || (p.colors && p.colors.some(c => c.price > 0));   // price varies by option → "from"
     const fromPfx = hasRange ? '<span class="from">from </span>' : '';
+    const shownPrice = hasRange && p.from != null ? p.from : p.price;   // ranged → cheapest option ("from $X"); base price stays untouched
     const priceHtml = noPrice
       ? `<span class="price price-tba">Price coming soon</span>`
       : p.was   // desktop price row (old box)
-      ? `<span class="price sale">${fromPfx}<span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
-      : `<span class="price">${fromPfx}${money(p.price)}${unitLbl}</span>`;
+      ? `<span class="price sale">${fromPfx}<span class="now">${money(shownPrice)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
+      : `<span class="price">${fromPfx}${money(shownPrice)}${unitLbl}</span>`;
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';

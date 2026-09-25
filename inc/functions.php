@@ -310,3 +310,16 @@ function variant_resolve(array $p, string $color, string $size): array {
     return ['ok' => $okColor && $okSize, 'price' => round($base + $surcharge, 2),
             'label' => implode(' · ', array_filter([$clabel, $zlabel]))];
 }
+
+/* The lowest price a shopper can actually pay = cheapest size (a size with no price
+   is the standard one, so it uses the product's base price) + cheapest colour surcharge.
+   Used ONLY for the "from $X" label on cards / the product page — it never touches the
+   stored base price (that stays the STANDARD size's price, which variant_resolve needs). */
+function variant_from_price(array $p): float {
+    $base   = (float) $p['price'];
+    $sizes  = parse_variant_opts($p['opt_sizes']  ?? '');
+    $colors = parse_variant_opts($p['opt_colors'] ?? '');
+    $baseMin = $sizes  ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $base, $sizes)) : $base;
+    $surMin  = $colors ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0,  $colors)) : 0.0;
+    return round($baseMin + $surMin, 2);
+}
