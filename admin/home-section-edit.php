@@ -193,21 +193,35 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       hidden.value = ids.join(',');
       countEl.textContent = ids.length ? (ids.length + ' product(s) picked — only these will show, in this order.') : 'Nothing picked — the whole brand shows (newest first).';
     }
+    /* progressive render: show PAGE rows, reveal more as you scroll (a brand can have 100+) */
+    var PAGE = 20, filtered = [], shown = 0;
+    function rowHtml(p){
+      var on = !!picked[p.id];
+      var thumb = p.img ? '<img class="bp-thumb" src="'+esc(p.img)+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
+                        : '<span class="bp-thumb"></span>';
+      return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+'</span></label>';
+    }
+    function renderMore(){
+      var next = filtered.slice(shown, shown + PAGE);
+      if (!next.length) return;
+      list.insertAdjacentHTML('beforeend', next.map(rowHtml).join(''));
+      shown += next.length;
+    }
+    function fill(){ var g = 0; while (shown < filtered.length && list.scrollHeight <= list.clientHeight + 4 && g++ < 60) renderMore(); }   // keep enough rows to stay scrollable
     function build(){
       var brand = brandSel.value;
       var q = (search && search.value ? search.value : '').trim().toLowerCase();
+      list.innerHTML = ''; shown = 0; filtered = [];
       if (!brand){ list.innerHTML = '<span class="faint" style="padding:8px">Pick a brand first…</span>'; countEl.textContent=''; return; }
       if (!ALL.some(function(p){ return p.brand === brand; })){ list.innerHTML = '<span class="faint" style="padding:8px">This brand has no active products.</span>'; countEl.textContent=''; return; }
-      var items = ALL.filter(function(p){ return p.brand === brand && (!q || p.name.toLowerCase().indexOf(q) >= 0); });
-      if (!items.length){ list.innerHTML = '<span class="faint" style="padding:8px">No products match “'+esc(q)+'”.</span>'; writeHidden(); return; }
-      list.innerHTML = items.map(function(p){
-        var on = !!picked[p.id];
-        var thumb = p.img ? '<img class="bp-thumb" src="'+esc(p.img)+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
-                          : '<span class="bp-thumb"></span>';
-        return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+'</span></label>';
-      }).join('');
+      filtered = ALL.filter(function(p){ return p.brand === brand && (!q || p.name.toLowerCase().indexOf(q) >= 0); });
+      if (!filtered.length){ list.innerHTML = '<span class="faint" style="padding:8px">No products match “'+esc(q)+'”.</span>'; writeHidden(); return; }
+      renderMore(); fill();
       writeHidden();
     }
+    list.addEventListener('scroll', function(){
+      if (shown < filtered.length && list.scrollTop + list.clientHeight >= list.scrollHeight - 48) renderMore();
+    });
     list.addEventListener('change', function(e){
       if(!e.target.classList.contains('pk')) return;
       if(e.target.checked) picked[e.target.value]=true; else delete picked[e.target.value];
