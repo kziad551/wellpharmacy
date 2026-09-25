@@ -259,17 +259,39 @@ $HEAD_CSS = <<<CSS
 </style>
 CSS;
 
+/* Inlined so the shared catalogue no longer has to carry a gallery for all 1742
+   products just so this one page can read a few urls.
+
+   The old parsing split on newlines, but admin stores this column as a JSON array,
+   so the split returned ONE element containing the whole JSON blob and every gallery
+   thumbnail pointed at a bogus url. Decode JSON first and keep the newline split only
+   as a fallback for any legacy row still stored that way. */
+$galRaw = trim((string) ($p['gallery'] ?? ''));
+$galArr = $galRaw === '' ? [] : json_decode($galRaw, true);
+if (!is_array($galArr)) $galArr = preg_split('/\r\n|\r|\n/', $galRaw);
+$galArr = array_values(array_filter(array_map('trim', array_filter($galArr, 'is_string'))));
+$jgallery = json_encode($galArr, JSON_UNESCAPED_SLASHES);
+
+/* Same list the JS builds: main image, hover image, then the gallery, de-duped in
+   order. Computed BEFORE head.php so the markup below can render the photo and the
+   thumbnails directly, instead of the browser showing its broken-image icon and the
+   alt text until assets/data.php and chrome.js have loaded. */
+$well_pdp_gallery = array_values(array_unique(array_filter(array_merge(
+    [(string) $p['image'], (string) ($p['hover_image'] ?? '')],
+    $galArr
+), 'strlen')));
+
 include __DIR__ . '/inc/head.php';
 ?>
 <div class="wrap pdp-w">
   <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><a href="skincare?cat=<?= urlencode($p['category']) ?>"><?= e($p['category']) ?></a><span class="sep">›</span><b><?= e($p['name']) ?></b></nav>
   <div class="pdp">
     <div class="gallery">
-      <div class="thumbs" id="thumbs"></div>
+      <div class="thumbs" id="thumbs"><?php foreach ($well_pdp_gallery as $i => $g): ?><button class="thumb-btn<?= $i === 0 ? ' on' : '' ?>" data-i="<?= $i ?>" type="button"><img class="gimg" data-grade src="<?= e($g) ?>" alt="" loading="lazy" width="72" height="72"></button><?php endforeach; ?></div>
       <div class="main-img graded" data-imgwrap id="mainImg">
         <?php if ($badge): ?><span class="badge <?= e($badge[0]) ?>" style="z-index:2"><?= e($badge[1]) ?></span><?php endif; ?>
         <button class="wish" data-wish="<?= e($p['id']) ?>" aria-label="Wishlist">♡</button>
-        <img class="gimg" data-grade id="mainPhoto" alt="<?= e($p['name']) ?>">
+        <img class="gimg" data-grade id="mainPhoto"<?php if (!empty($well_pdp_gallery[0])): ?> src="<?= e($well_pdp_gallery[0]) ?>"<?php endif; ?> alt="<?= e($p['name']) ?>" fetchpriority="high" width="600" height="600">
       </div>
     </div>
     <div class="buybox">
@@ -459,16 +481,17 @@ include __DIR__ . '/inc/head.php';
 <?php
 $pid      = json_encode($p['id']);
 $jrelated = json_encode(array_column($related,'id'), JSON_UNESCAPED_SLASHES);
+
 $PAGE_JS = <<<JS
 <script>
   const W = WELL, \$ = s=>document.querySelector(s), \$\$ = s=>[...document.querySelectorAll(s)];
   document.querySelectorAll('[data-wish]').forEach(b=>{ if(b.textContent.trim()==='♡') b.innerHTML = W.icon('heart'); });
   const p = W.BY_ID[{$pid}];
 
-  const gal = [...new Set([p.img, p.hover, ...(p.gallery||[])].filter(Boolean))];
-  \$('#thumbs').innerHTML = gal.map((g,i)=>`<button class="thumb-btn \${i===0?'on':''}" data-i="\${i}"><img class="gimg" data-grade src="\${g}" alt=""></button>`).join('');
+  const gal = [...new Set([p.img, p.hover, ...{$jgallery}].filter(Boolean))];
+  if (!\$('#thumbs').children.length) \$('#thumbs').innerHTML = gal.map((g,i)=>`<button class="thumb-btn \${i===0?'on':''}" data-i="\${i}"><img class="gimg" data-grade src="\${g}" alt=""></button>`).join('');
   function setPhoto(i){ \$('#mainPhoto').dataset.failed=''; \$('#mainPhoto').src=gal[i]; \$\$('.thumb-btn').forEach((b,j)=>b.classList.toggle('on',j===i)); W.guardImages(\$('#mainImg')); }
-  setPhoto(0);
+  if (!\$('#mainPhoto').getAttribute('src')) setPhoto(0);   // server already set it
   \$\$('.thumb-btn').forEach(b=>{ b.addEventListener('mouseenter',()=>setPhoto(+b.dataset.i)); b.addEventListener('click',()=>setPhoto(+b.dataset.i)); });
 
   \$('#mainImg').addEventListener('click',e=>{ if(e.target.closest('.wish'))return; \$('#lbImg').src=\$('#mainPhoto').src; \$('#lightbox').classList.add('open'); });

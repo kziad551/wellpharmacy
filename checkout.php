@@ -104,7 +104,7 @@ include __DIR__ . '/inc/head.php';
           <div class="field"><label>Full name *</label><input class="input" name="name" value="<?= e($pf['name']) ?>" required></div>
           <?= phone_field('phone', $pf['phone'], true) ?>
         </div>
-        <div class="field"><label>Email <span class="muted">(optional — for the receipt)</span></label><input class="input" type="email" name="email" value="<?= e($pf['email']) ?>"></div>
+        <div class="field"><label>Email * <span class="muted">(for your receipt)</span></label><input class="input" type="email" name="email" value="<?= e($pf['email']) ?>" required autocomplete="email"></div>
         <div class="field"><label>Address *</label><input class="input" name="address" value="<?= e($pf['address']) ?>" placeholder="Street, building, floor" required></div>
         <div class="co-two">
           <div class="field"><label>Governorate *</label>

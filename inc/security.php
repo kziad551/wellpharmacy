@@ -93,3 +93,37 @@ function admin_security_headers(): void {
     header('Cache-Control: no-store, no-cache, must-revalidate, private');
     header_remove('X-Powered-By');
 }
+
+/* ---- storefront preview while the coming-soon page is up -------------------
+   The value must match the cookie test in .htaccess. Using the token rather
+   than a literal "on" matters: a guessable value means anyone can set the
+   cookie in their console and walk straight past the holding page. */
+const PREVIEW_TOKEN = 'eae76dc95fbbb42b';
+
+function preview_cookie_secure(): bool {
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+        || (strpos((string) ($_SERVER['HTTP_CF_VISITOR'] ?? ''), 'https') !== false);
+}
+
+/* Signed-in admins get storefront access automatically, so "View store" in the
+   sidebar opens the real site instead of the holding page. */
+function grant_preview_cookie(): void {
+    if (headers_sent()) return;
+    if (($_COOKIE['wellpreview'] ?? '') === PREVIEW_TOKEN) return;
+    setcookie('wellpreview', PREVIEW_TOKEN, [
+        'expires'  => time() + 2592000,   // 30 days; a session cookie vanished
+                                          // on browser restart and broke the page
+        'path'     => '/',
+        'secure'   => preview_cookie_secure(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    $_COOKIE['wellpreview'] = PREVIEW_TOKEN;
+}
+
+function revoke_preview_cookie(): void {
+    if (headers_sent()) return;
+    setcookie('wellpreview', '', ['expires' => time() - 3600, 'path' => '/']);
+    unset($_COOKIE['wellpreview']);
+}

@@ -1,48 +1,62 @@
 <?php
 require __DIR__ . '/inc/functions.php';
+require __DIR__ . '/inc/plp.php';
 
-$cat   = trim((string) input('cat'));
-$brand = trim((string) input('brand'));
-$q     = trim((string) input('q'));
-$offers = !empty($OFFERS);   // set by offers.php — show only on-sale items
-
+$offers    = !empty($OFFERS);                 // set by offers.php
 $validCats = array_column(rows("SELECT name FROM categories ORDER BY sort"), 'name');
-if ($cat !== '' && !in_array($cat, $validCats, true)) $cat = '';
+$F         = well_plp_input($validCats, $offers);
+$page      = max(1, (int) input('page', 1));
 
-/* count for the hero */
-$cntSql = "SELECT COUNT(*) FROM products WHERE status='active'";
-$cntArg = [];
-if ($cat !== '')   { $cntSql .= " AND category = ?"; $cntArg[] = $cat; }
-if ($q !== '')     { $cntSql .= " AND (name LIKE ? OR brand LIKE ?)"; $cntArg[] = "%$q%"; $cntArg[] = "%$q%"; }
-if ($offers)       { $cntSql .= " AND (was IS NOT NULL OR sale_pct IS NOT NULL)"; }
-$count = (int) val($cntSql, $cntArg);
+/* ---- Load more asks for just the cards, same filters, no page chrome ---- */
+if (input('partial') === '1') {
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: private, no-store');
+    foreach (well_plp_page($F, $page) as $p) echo well_product_card($p);
+    exit;
+}
 
-$title  = $offers ? 'Offers & Sale' : ($cat !== '' ? $cat : ($q !== '' ? "Search: $q" : 'Shop All'));
-$ACTIVE = $offers ? 'Offers' : ($cat !== '' ? $cat : 'Shop All');
+$count  = well_plp_count($F);
+
+/* Nothing matched a search? Retry once with a loosened term before giving up, so
+   "battery" still finds BATTERIES. Only ever runs on an otherwise-empty result. */
+$didYouMean = '';
+if ($count === 0 && $F['q'] !== '') {
+    $stem = well_plp_stem($F['q']);
+    if ($stem !== '' && $stem !== mb_strtolower($F['q'])) {
+        $G = $F; $G['q'] = $stem;
+        if (well_plp_count($G) > 0) { $didYouMean = $F['q']; $F = $G; $count = well_plp_count($F); }
+    }
+}
+
+$items  = well_plp_page($F, $page);
+$brands = well_plp_brands($F);
+$ceil   = well_plp_price_ceiling($F);
+$shown  = ($page - 1) * PLP_PER_PAGE + count($items);
+$hasMore = $shown < $count;
+
+$title  = $offers ? 'Offers & Sale'
+        : ($F['cat'] !== '' ? $F['cat'] : ($F['q'] !== '' ? 'Search: ' . $F['q'] : 'Shop All'));
+$ACTIVE = $offers ? 'Offers' : ($F['cat'] !== '' ? $F['cat'] : 'Shop All');
 $PAGE_TITLE = "$title — " . setting('store_name', 'WELL SHOP');
 $USE_PLP = true;
 
-/* category quick-pills */
+/* current path so offers/search keep their own url when paging */
+$SELF = strtok($_SERVER['REQUEST_URI'] ?? 'skincare', '?');
+$SELF = ltrim($SELF, '/') ?: 'skincare';
+
 $pillCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
-
-/* Price slider ceiling. This used to be hardcoded at $50, which silently made every
-   product dearer than that UNREACHABLE from a listing page — strollers, devices, sets.
-   Derive it from the catalogue and round up so the top item is always inside range. */
-$maxPrice = (float) val("SELECT COALESCE(MAX(price),0) FROM products WHERE status='active'");
-$priceCeil = max(50, (int) ceil($maxPrice / 10) * 10);
-
 include __DIR__ . '/inc/head.php';
 ?>
 <section class="cat-hero">
   <div class="wrap">
     <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><b><?= e($title) ?></b></nav>
-    <span class="chip chip-glass"><?= $count ?> product<?= $count===1?'':'s' ?></span>
+    <span class="chip chip-glass"><?= $count ?> product<?= $count === 1 ? '' : 's' ?></span>
     <h1 class="h1" style="font-size:52px"><?= e($title) ?></h1>
     <p class="sub">Pharmacist-picked, derm-loved — sourced direct from trusted brands &amp; quality-checked for every wellness goal.</p>
     <div class="subcat-pills" id="subPills">
-      <a class="chip <?= $cat===''&&$q===''?'chip-active':'' ?>" href="skincare">All</a>
+      <a class="chip <?= $F['cat'] === '' && $F['q'] === '' ? 'chip-active' : '' ?>" href="skincare">All</a>
       <?php foreach ($pillCats as $pc): ?>
-        <a class="chip <?= $cat===$pc?'chip-active':'' ?>" href="skincare?cat=<?= urlencode($pc) ?>"><?= e($pc) ?></a>
+        <a class="chip <?= $F['cat'] === $pc ? 'chip-active' : '' ?>" href="skincare?cat=<?= rawurlencode($pc) ?>"><?= e($pc) ?></a>
       <?php endforeach; ?>
     </div>
   </div>
@@ -50,58 +64,108 @@ include __DIR__ . '/inc/head.php';
 
 <div class="plp-toolbar">
   <div class="wrap">
-    <button class="btn btn-ghost btn-sm" id="filterToggle" style="height:40px">⚙ Filters</button>
-    <div id="chips" class="row wrapf" style="gap:8px"></div>
+    <button class="btn btn-ghost btn-sm" id="filterToggle" style="height:40px" type="button">⚙ Filters</button>
+    <div id="chips" class="row wrapf" style="gap:8px">
+      <?php if ($didYouMean !== ''): ?><span class="chip chip-glass">No exact match for &ldquo;<?= e($didYouMean) ?>&rdquo; — showing &ldquo;<?= e($F['q']) ?>&rdquo;</span><?php endif; ?>
+      <?php if ($F['q'] !== ''): ?><span class="chip-rm">Search: <?= e($F['q']) ?><a href="<?= e($SELF . '?' . well_plp_qs($F, ['q' => null])) ?>" aria-label="Remove">✕</a></span><?php endif; ?>
+      <?php foreach ($F['brands'] as $b): ?><span class="chip-rm">Brand: <?= e($b) ?><a href="<?= e($SELF . '?' . well_plp_qs(['cat'=>$F['cat'],'q'=>$F['q'],'brands'=>array_values(array_diff($F['brands'],[$b])),'max'=>$F['max'],'rating'=>$F['rating'],'sale'=>$F['sale'],'sort'=>$F['sort']])) ?>" aria-label="Remove">✕</a></span><?php endforeach; ?>
+      <?php if ($F['sale']): ?><span class="chip-rm">On Sale<a href="<?= e($SELF . '?' . well_plp_qs($F, ['sale' => null])) ?>" aria-label="Remove">✕</a></span><?php endif; ?>
+      <?php if ($F['rating']): ?><span class="chip-rm">★ <?= e($F['rating']) ?> &amp; up<a href="<?= e($SELF . '?' . well_plp_qs($F, ['rating' => null])) ?>" aria-label="Remove">✕</a></span><?php endif; ?>
+      <?php if ($F['max'] !== null): ?><span class="chip-rm">Under $<?= (int) $F['max'] ?><a href="<?= e($SELF . '?' . well_plp_qs($F, ['max' => null])) ?>" aria-label="Remove">✕</a></span><?php endif; ?>
+      <?php if ($F['q'] !== '' || $F['brands'] || $F['sale'] || $F['rating'] || $F['max'] !== null): ?>
+        <a class="btn btn-ghost btn-sm" style="height:32px" href="<?= e($SELF . ($F['cat'] !== '' ? '?cat=' . rawurlencode($F['cat']) : '')) ?>">Clear all</a>
+      <?php endif; ?>
+    </div>
     <div class="grow"></div>
-    <span class="count"><b data-count>0</b> results</span>
-    <select class="sortsel" id="sortSel">
-      <option value="rec">Sort: Recommended</option>
-      <option value="reviews">Bestselling</option>
-      <option value="price-asc">Price: Low to High</option>
-      <option value="price-desc">Price: High to Low</option>
-      <option value="rating">Top Rated</option>
-      <option value="discount">Biggest Discount</option>
+    <span class="count"><b data-count><?= $count ?></b> results</span>
+    <select class="sortsel" id="sortSel" form="plpFilters" name="sort">
+      <?php foreach (well_plp_sorts() as $k => [$lbl]): ?>
+        <option value="<?= e($k) ?>" <?= $F['sort'] === $k ? 'selected' : '' ?>><?= e($lbl) ?></option>
+      <?php endforeach; ?>
     </select>
     <div class="viewtoggle">
-      <button data-view="grid" class="on" aria-label="Grid"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
-      <button data-view="list" aria-label="List"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+      <button data-view="grid" class="on" aria-label="Grid" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+      <button data-view="list" aria-label="List" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
     </div>
   </div>
 </div>
 
 <div class="wrap plp-body">
   <aside class="filters" id="filters">
-    <details class="fgroup" open>
-      <summary>Concern <span class="ar">▾</span></summary>
-      <div class="fbody" id="fConcern"></div>
-    </details>
-    <details class="fgroup" open>
-      <summary>Brand <span class="ar">▾</span></summary>
-      <div class="fbody"><input class="fsearch" data-brand-search placeholder="Search brands…"><div id="fBrand"></div></div>
-    </details>
-    <details class="fgroup" open>
-      <summary>Price <span class="ar">▾</span></summary>
-      <div class="fbody price-slider">
-        <input type="range" min="0" max="<?= $priceCeil ?>" value="<?= $priceCeil ?>" data-price>
-        <div class="vals"><span>$0</span><span data-price-val>$<?= $priceCeil ?></span></div>
-      </div>
-    </details>
-    <details class="fgroup">
-      <summary>Skin Type <span class="ar">▾</span></summary>
-      <div class="fbody" id="fSkin"></div>
-    </details>
-    <details class="fgroup">
-      <summary>Rating <span class="ar">▾</span></summary>
-      <div class="fbody stars-filter" id="fRating"></div>
-    </details>
-    <details class="fgroup" open>
-      <summary>On Sale <span class="ar">▾</span></summary>
-      <div class="fbody"><label class="fcheck"><input type="checkbox" data-f="sale"><span class="box">✓</span> Show only on sale</label></div>
-    </details>
+    <form id="plpFilters" method="get" action="<?= e($SELF) ?>">
+      <?php if ($F['cat'] !== ''): ?><input type="hidden" name="cat" value="<?= e($F['cat']) ?>"><?php endif; ?>
+
+      <details class="fgroup" open>
+        <summary>Search <?= $F['cat'] !== '' ? 'in ' . e($F['cat']) : 'products' ?> <span class="ar">▾</span></summary>
+        <div class="fbody">
+          <input class="fsearch" type="search" name="q" value="<?= e($F['q']) ?>"
+                 placeholder="<?= $F['cat'] !== '' ? 'Search in ' . e($F['cat']) . '…' : 'Search products…' ?>">
+          <div class="hint" style="margin-top:6px">Searches all <?= $count ?> matching item<?= $count === 1 ? '' : 's' ?>, not just the ones shown.</div>
+        </div>
+      </details>
+
+      <details class="fgroup" open>
+        <summary>Brand <span class="ar">▾</span></summary>
+        <div class="fbody">
+          <input class="fsearch" data-brand-search placeholder="Search brands…" type="search" autocomplete="off">
+          <div id="fBrand">
+            <?php foreach ($brands as $b): ?>
+              <div data-brand-row="<?= e($b['brand']) ?>">
+                <label class="fcheck"><input type="checkbox" name="brand[]" value="<?= e($b['brand']) ?>" <?= in_array($b['brand'], $F['brands'], true) ? 'checked' : '' ?>>
+                  <span class="box"><?= PLP_CHECK ?></span> <?= e($b['brand']) ?><span class="ct"><?= (int) $b['c'] ?></span></label>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      </details>
+
+      <details class="fgroup" open>
+        <summary>Price <span class="ar">▾</span></summary>
+        <div class="fbody price-slider">
+          <input type="range" min="0" max="<?= $ceil ?>" value="<?= $F['max'] !== null ? (int) $F['max'] : $ceil ?>" name="max" data-price>
+          <div class="vals"><span>$0</span><span data-price-val>$<?= $F['max'] !== null ? (int) $F['max'] : $ceil ?></span></div>
+        </div>
+      </details>
+
+      <details class="fgroup">
+        <summary>Rating <span class="ar">▾</span></summary>
+        <div class="fbody stars-filter">
+          <?php foreach ([4.5, 4, 3.5] as $r): ?>
+            <label class="fcheck"><input type="radio" name="rating" value="<?= $r ?>" <?= (float) $F['rating'] === (float) $r ? 'checked' : '' ?>>
+              <span class="box"><?= PLP_CHECK ?></span> <span class="s">★</span> <?= $r ?> &amp; up</label>
+          <?php endforeach; ?>
+        </div>
+      </details>
+
+      <details class="fgroup" open>
+        <summary>On Sale <span class="ar">▾</span></summary>
+        <div class="fbody"><label class="fcheck"><input type="checkbox" name="sale" value="1" <?= $F['sale'] ? 'checked' : '' ?>><span class="box"><?= PLP_CHECK ?></span> Show only on sale</label></div>
+      </details>
+
+      <button class="btn btn-primary btn-block" type="submit" id="plpApply" style="margin-top:12px">Apply filters</button>
+    </form>
   </aside>
 
   <main>
-    <div class="plp-grid" id="grid"></div>
+    <div class="plp-grid" id="grid">
+      <?php if (!$items): ?>
+        <div class="plp-empty"><h3 class="h3">No matches — try fewer filters</h3>
+          <p class="muted">Clear a filter or two and we'll find your glow.</p>
+          <a class="view-all" href="<?= e($SELF . ($F['cat'] !== '' ? '?cat=' . rawurlencode($F['cat']) : '')) ?>">Clear all filters</a></div>
+      <?php else: foreach ($items as $p) echo well_product_card($p); endif; ?>
+    </div>
+
+    <?php if ($hasMore): ?>
+      <div class="plp-more" style="text-align:center;margin:28px 0 8px">
+        <a class="btn btn-outline" id="loadMore"
+           data-next="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1])) ?>"
+           href="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1])) ?>">
+          Load more <span class="muted">(<?= $shown ?> of <?= $count ?>)</span>
+        </a>
+      </div>
+    <?php elseif ($count > 0): ?>
+      <p class="muted" style="text-align:center;margin:28px 0 8px">All <?= $count ?> item<?= $count === 1 ? '' : 's' ?> shown.</p>
+    <?php endif; ?>
   </main>
 </div>
 
@@ -119,47 +183,158 @@ include __DIR__ . '/inc/head.php';
 </section>
 
 <div class="filter-sheet-btn">
-  <button class="btn btn-outline btn-block" id="mFilter">⚙ Filters</button>
-  <button class="btn btn-primary btn-block" onclick="document.getElementById('sortSel').focus()">Apply (<span data-count>0</span>)</button>
+  <button class="btn btn-outline btn-block" id="mFilter" type="button">⚙ Filters</button>
+  <button class="btn btn-primary btn-block" type="submit" form="plpFilters">Apply (<span data-count><?= $count ?></span>)</button>
 </div>
 
 <div id="usp"></div>
 <?php
-$jcat = json_encode($cat); $jq = json_encode($q); $jbrand = json_encode($brand);
-$joffers = $offers ? 'true' : 'false';
-$PAGE_JS = <<<JS
+$PAGE_JS = <<<'JS'
 <script>
-  const W = WELL, \$ = s=>document.querySelector(s);
-  const CAT = {$jcat}, Q = {$jq}, BRAND = {$jbrand}, OFFERS = {$joffers};
-  let products = W.PRODUCTS.slice();
-  if (CAT) products = products.filter(p => p.cat === CAT);
-  if (Q) { const q = Q.toLowerCase(); products = products.filter(p => (p.name+' '+p.brand+' '+(p.kw||'')+' '+(p.desc||'')+' '+(p.keywords||'')).toLowerCase().includes(q)); }
-  if (OFFERS) products = products.filter(p => p.was || p.sale);
+(function () {
+  const W = WELL, $ = s => document.querySelector(s);
+  const form = $('#plpFilters');
+  const grid = $('#grid');
 
-  // filter options (concern/skin decorative as in design; brand + price + rating + sale are functional)
-  const ck = (f,v,ct)=>`<label class="fcheck"><input type="checkbox" data-f="\${f}" data-val="\${v}"><span class="box">\${W.icon('check')}</span> \${v}\${ct!=null?`<span class="ct">\${ct}</span>`:''}</label>`;
-  \$('#fConcern').innerHTML = ['Acne','Anti-Aging','Hyperpigmentation','Dryness','Sensitivity','Pores','Dullness'].map(c=>ck('concern',c)).join('');
-  const brands = [...new Set(products.map(p=>p.brand))].sort();
-  \$('#fBrand').innerHTML = brands.map(b=>`<div data-brand-row="\${b}">\${ck('brand',b,products.filter(p=>p.brand===b).length)}</div>`).join('');
-  \$('#fSkin').innerHTML = ['Oily','Dry','Combination','Normal','Sensitive'].map(s=>ck('skin',s)).join('');
-  \$('#fRating').innerHTML = [4.5,4,3.5].map(r=>`<label class="fcheck"><input type="radio" name="rt" data-f="rating" data-val="\${r}"><span class="box">\${W.icon('check')}</span> <span class="s">★</span> \${r} & up</label>`).join('');
+  /* Build the target url from the form. Values equal to their "unset" state are
+     dropped so the url stays short and the active-filter chips stay honest. */
+  function urlFromForm() {
+    const fd = new FormData(form);
+    const p = new URLSearchParams();
+    const slider = form.querySelector('[data-price]');
+    for (const [k, v] of fd.entries()) {
+      if (v === '' || v == null) continue;
+      if (k === 'max' && slider && String(v) === String(slider.max)) continue;  // full range = no filter
+      p.append(k, v);
+    }
+    const qs = p.toString();
+    return location.pathname + (qs ? '?' + qs : '');
+  }
 
-  const banner = `<div class="plp-banner"><div><span class="ey">Not sure where to start?</span><h3>Build Your Routine</h3><p>Chat with our licensed pharmacists for a derm-matched AM/PM routine.</p></div><a class="btn btn-rosegold" href="contact">Ask an Expert</a></div>`;
+  /* Swap only the regions the server recomputed. Fetching the whole page keeps
+     one source of truth (the same PHP that renders a normal visit), so counts,
+     chips and facet numbers can never drift from the grid. */
+  const SWAP = ['#grid', '#chips', '#fBrand', '.plp-more'];
+  let seq = 0;
 
-  WELL.initPLP({
-    products, gridEl:\$('#grid'),
-    filtersEl:\$('#filters'), chipsEl:\$('#chips'),
-    countEls:[...document.querySelectorAll('[data-count]')],
-    sortEl:\$('#sortSel'),
-    banner,
-    seed: BRAND ? [['brand', BRAND]] : null
+  async function load(url, push) {
+    const mine = ++seq;
+    grid.classList.add('is-loading');
+    try {
+      const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } });
+      if (!res.ok) throw new Error(res.status);
+      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+      if (mine !== seq) return;                      // a newer click already won
+
+      SWAP.forEach(sel => {
+        const next = doc.querySelector(sel), cur = document.querySelector(sel);
+        if (next && cur) cur.replaceWith(next);
+        else if (!next && cur) cur.remove();         // e.g. Load more disappears on the last page
+        else if (next && !cur) $('main').appendChild(next);
+      });
+      const n = doc.querySelector('[data-count]');
+      if (n) document.querySelectorAll('[data-count]').forEach(e => e.textContent = n.textContent);
+
+      if (push) history.pushState({ plp: 1 }, '', url);
+      applyBrandSearch();
+      wireLoadMore();
+      W.guardImages(document);
+    } catch (e) {
+      location.href = url;                           // never leave the user stuck
+    } finally {
+      if (mine === seq) grid.classList.remove('is-loading');
+    }
+  }
+
+  /* Filters no longer reload the page. The Apply button and a no-JS visitor still
+     get a normal form GET, so nothing depends on this running. */
+  if (form) {
+    form.addEventListener('submit', e => { e.preventDefault(); load(urlFromForm(), true); });
+    form.addEventListener('change', e => {
+      if (e.target.matches('[data-brand-search]')) return;
+      load(urlFromForm(), true);
+    });
+    let t;
+    const q = form.querySelector('input[name="q"]');
+    if (q) q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => load(urlFromForm(), true), 400); });
+  }
+
+  const slider = form && form.querySelector('[data-price]');
+  if (slider) {
+    const out = $('[data-price-val]');
+    slider.addEventListener('input', () => { if (out) out.textContent = '$' + slider.value; });
+  }
+
+  /* The brand box only hides rows visually; re-apply it after a swap replaces them. */
+  function applyBrandSearch() {
+    const b = form && form.querySelector('[data-brand-search]');
+    if (!b || !b.value) return;
+    const v = b.value.toLowerCase();
+    document.querySelectorAll('[data-brand-row]').forEach(r =>
+      r.style.display = r.dataset.brandRow.toLowerCase().includes(v) ? '' : 'none');
+  }
+  const bs = form && form.querySelector('[data-brand-search]');
+  if (bs) bs.addEventListener('input', applyBrandSearch);
+
+  /* Chips and "clear all" are plain links; intercept so they swap too. */
+  document.addEventListener('click', e => {
+    const a = e.target.closest('#chips a[href], .plp-empty a[href]');
+    if (!a || a.target === '_blank') return;
+    e.preventDefault();
+    load(a.getAttribute('href'), true);
   });
 
-  \$('#filterToggle').addEventListener('click', ()=>{ const f=\$('#filters'); f.style.display = (getComputedStyle(f).display==='none')?'block':''; });
-  \$('#mFilter').addEventListener('click', ()=>{ const f=\$('#filters'); f.style.cssText='display:block;position:static;max-height:none'; f.scrollIntoView(); });
+  function wireLoadMore() {
+    const more = $('#loadMore');
+    if (!more || more.dataset.wired) return;
+    more.dataset.wired = '1';
+    more.addEventListener('click', async ev => {
+      ev.preventDefault();
+      const next = more.dataset.next;
+      if (!next || more.dataset.busy) return;
+      more.dataset.busy = '1';
+      const label = more.innerHTML;
+      more.innerHTML = 'Loading…';
+      try {
+        const res = await fetch(next + '&partial=1', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(res.status);
+        grid.insertAdjacentHTML('beforeend', await res.text());
+        W.guardImages(grid);
+        const u = new URL(next, location.href);
+        const page = Number(u.searchParams.get('page') || 2);
+        const shown = grid.querySelectorAll('.pcard').length;
+        const total = Number(($('[data-count]') || {}).textContent || 0);
+        history.replaceState({ plp: 1 }, '', u.pathname + u.search);
+        if (shown >= total) { const w = more.closest('.plp-more'); if (w) w.innerHTML = '<p class="muted">All ' + total + ' items shown.</p>'; return; }
+        u.searchParams.set('page', page + 1);
+        more.dataset.next = u.pathname + u.search;
+        more.href = u.pathname + u.search;
+        more.innerHTML = 'Load more <span class="muted">(' + shown + ' of ' + total + ')</span>';
+      } catch (err) { more.innerHTML = label; location.href = next; }
+      finally { delete more.dataset.busy; }
+    });
+  }
+  wireLoadMore();
 
-  \$('#usp').innerHTML = W.uspHTML();
+  window.addEventListener('popstate', () => load(location.pathname + location.search, false));
+
+  $('#filterToggle').addEventListener('click', () => {
+    const f = $('#filters');
+    f.style.display = (getComputedStyle(f).display === 'none') ? 'block' : '';
+  });
+  $('#mFilter').addEventListener('click', () => {
+    const f = $('#filters');
+    f.style.cssText = 'display:block;position:static;max-height:none';
+    f.scrollIntoView();
+  });
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-view]').forEach(x => x.classList.toggle('on', x === b));
+    grid.classList.toggle('listview', b.dataset.view === 'list');
+  }));
+
+  $('#usp').innerHTML = W.uspHTML();
   W.guardImages(document);
+})();
 </script>
 JS;
 include __DIR__ . '/inc/foot.php';

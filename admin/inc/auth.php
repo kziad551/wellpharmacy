@@ -46,6 +46,7 @@ function require_login(): void {
         redirect('login');
     }
     $_SESSION['admin_seen'] = time();
+    grant_preview_cookie();   // "View store" should open the real site, not the holding page
 }
 
 /* A real bcrypt hash that no password matches. Verifying against it when the
@@ -71,7 +72,10 @@ function admin_login(string $user, string $pass): bool {
     return true;
 }
 
-function admin_logout(): void { unset($_SESSION['admin']); }
+function admin_logout(): void {
+    unset($_SESSION['admin']);
+    revoke_preview_cookie();   // signing out drops storefront preview access too
+}
 
 /* one-shot flash messages */
 function flash(string $msg, string $type = 'ok'): void { $_SESSION['flash'] = ['m'=>$msg, 't'=>$type]; }

@@ -44,6 +44,8 @@ if ($acct) {
 /* The browser checks these too, but never trust it — a bypassed form must not
    create an order, move stock or send any email. */
 if ($name === '' || $phone === '' || $address === '') fail('Please fill in your name, phone and address.');
+if ($email === '') fail('Please enter your email address so we can send your receipt.');
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail('That email address does not look right.');
 if ($gov === '' || !in_array($gov, lebanon_governorates(), true)) fail('Please choose a valid delivery area.');
 
 /* ---- payment method ---- */
@@ -119,7 +121,7 @@ try {
 try {
     $order  = row("SELECT * FROM orders WHERE id = ?", [$oid]);
     $oitems = rows("SELECT * FROM order_items WHERE order_id = ?", [$oid]);
-    send_order_confirmation($order, $oitems);   // no-op if a guest left email blank
+    send_order_confirmation($order, $oitems);   // email is required at checkout; the mailer still guards for old rows
     send_admin_order_alert($order, $oitems);    // admin hears about guest AND account orders
 } catch (Throwable $e) { /* ignore — the order stands */ }
 

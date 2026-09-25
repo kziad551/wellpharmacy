@@ -83,10 +83,83 @@ function admin_search(string $action, string $q, string $placeholder = 'Search�
         <input class="input tb-search" type="search" name="q" value="<?= e($q) ?>"
                placeholder="<?= e($placeholder) ?>" aria-label="<?= e($placeholder) ?>">
         <?php if ($q !== ''): ?>
-          <a class="tb-clear" href="<?= e($action) ?>" aria-label="Clear search" title="Clear search">&times;</a>
+          <?php /* keep every other active filter; only the query is cleared */
+                $rest = $_GET; unset($rest['q'], $rest['page'], $rest['partial']);
+                $clearHref = $action . ($rest ? '?' . http_build_query($rest) : ''); ?>
+          <a class="tb-clear" href="<?= e($clearHref) ?>" aria-label="Clear search" title="Clear search">&times;</a>
         <?php endif; ?>
       </div>
       <?= $extra ?>
     </form>
     <?php
 }
+
+/* ============================================================
+   RETURN CONTEXT ("ret") — don't lose the operator's place on save
+
+   Saving an edit used to end in redirect('products'), which threw away the
+   search, the category/brand filter and the row they came from. They landed at
+   the top of the unfiltered list and had to hunt for the record again just to
+   make a second change. Two pieces fix that:
+
+     list pages  stamp their active filters onto every Edit link   (admin_here_qs)
+     edit pages  carry that through the POST and hand it to Back   (admin_ret_*)
+
+   Saving now returns to the SAME edit screen. "Save & back to list" is the
+   explicit way out, and it lands on the filtered list, not a bare one.
+
+   The value rides in on the query string, so it is never trusted: the page part
+   must be one of ADMIN_RET_PAGES and the query is rebuilt from parsed pairs, so
+   "//evil.com", "javascript:" and header injection cannot survive the round trip.
+   'page' is dropped deliberately — these lists are infinite-scroll, so page=3 on
+   its own would render rows 41-60 with nothing above them.
+   ============================================================ */
+const ADMIN_RET_PAGES = ['products','brands','categories','coupons','journal','pages','orders',
+                         'customers','messages','home-sections','subscribers','restock','social',
+                         'appearance','dashboard'];
+
+/** Reduce a return target to "<known page>[?<safe query>]", or '' if it isn't one. */
+function admin_ret_clean(string $raw): string {
+    $raw = trim($raw);
+    if ($raw === '' || strlen($raw) > 300) return '';
+    $bits = explode('?', $raw, 2);
+    $page = $bits[0];
+    if (!in_array($page, ADMIN_RET_PAGES, true)) return '';
+    if (($bits[1] ?? '') === '') return $page;
+    parse_str($bits[1], $qs);
+    unset($qs['partial'], $qs['page'], $qs['ret']);
+    foreach ($qs as $k => $v) if (!is_scalar($v) || (string) $v === '') unset($qs[$k]);
+    return $qs ? $page . '?' . http_build_query($qs) : $page;
+}
+
+/** The list context this edit page was opened from, already validated. '' when there is none. */
+function admin_ret(): string { return admin_ret_clean((string) input('ret', '')); }
+
+/** Hidden field so the context survives the form POST. */
+function admin_ret_field(): string {
+    $r = admin_ret();
+    return $r === '' ? '' : '<input type="hidden" name="ret" value="' . e($r) . '">';
+}
+
+/** Where "Back" and "Save & back to list" should land. */
+function admin_back_href(string $fallback): string {
+    $r = admin_ret();
+    return $r !== '' ? $r : $fallback;
+}
+
+/** "&ret=..." to re-attach when an edit page redirects to itself; '' when there is no context. */
+function admin_ret_qs(string $sep = '&'): string {
+    $r = admin_ret();
+    return $r === '' ? '' : $sep . 'ret=' . rawurlencode($r);
+}
+
+/** This list page plus its active filters, for stamping onto Edit links. */
+function admin_here(): string {
+    $qs = $_GET;
+    unset($qs['partial'], $qs['page'], $qs['ret']);
+    $base = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '.php');
+    return $qs ? $base . '?' . http_build_query($qs) : $base;
+}
+
+/** "&ret=..." (pass '?' for the first param) to append to an Edit link on a list page. */
+function admin_here_qs(string $sep = '&'): string { return $sep . 'ret=' . rawurlencode(admin_here()); }

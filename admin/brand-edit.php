@@ -15,7 +15,7 @@ if (is_post()) {
     $upErr = null;
     if ($u = save_upload('logo_file', $upErr)) $logo = $u;
 
-    if ($name === '') { flash('Name is required.', 'err'); redirect($editing ? "brand-edit?id=$id" : 'brand-edit'); }
+    if ($name === '') { flash('Name is required.', 'err'); redirect($editing ? 'brand-edit?id=' . $id . admin_ret_qs() : 'brand-edit' . admin_ret_qs('?')); }
 
     $data = [
         'name'     => $name,
@@ -33,20 +33,25 @@ if (is_post()) {
         $data['id'] = $id;
         q("UPDATE brands SET name=:name, slug=:slug, color=:color, logo=:logo, logo_mode=:logo_mode, featured=:featured, sort=:sort WHERE id=:id", $data);
         flash($upErr ? 'Brand updated — but the logo was not changed: ' . $upErr : 'Brand updated.', $upErr ? 'err' : 'ok');
+        $savedId = $id;
     } else {
-        if (row("SELECT id FROM brands WHERE slug = ?", [$slug])) { flash('A brand with that URL slug already exists.', 'err'); redirect('brand-edit'); }
+        if (row("SELECT id FROM brands WHERE slug = ?", [$slug])) { flash('A brand with that URL slug already exists.', 'err'); redirect('brand-edit' . admin_ret_qs('?')); }
         q("INSERT INTO brands (name,slug,color,logo,logo_mode,featured,sort) VALUES (:name,:slug,:color,:logo,:logo_mode,:featured,:sort)", $data);
         flash($upErr ? 'Brand created — but no logo was added: ' . $upErr : 'Brand created.', $upErr ? 'err' : 'ok');
+        $savedId = (int) last_id();
     }
-    redirect('brands');
+    /* Back to the same brand, not to the top of the list. See inc/list.php. */
+    redirect(input('after') === 'list'
+        ? admin_back_href('brands')
+        : 'brand-edit?id=' . $savedId . admin_ret_qs());
 }
 
 $v = $editing ? $b : ['id'=>0,'name'=>'','slug'=>'','color'=>'','logo'=>'','logo_mode'=>'auto','featured'=>0,'sort'=>0];
 admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'] : 'New brand');
 ?>
 <form method="post" action="<?= $editing ? "brand-edit?id=".e($id) : "brand-edit" ?>" enctype="multipart/form-data">
-  <?= csrf_field() ?>
-  <div class="page-actions"><a class="btn btn-ghost" href="brands">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save brand</button></div>
+  <?= csrf_field() ?><?= admin_ret_field() ?>
+  <div class="page-actions"><a class="btn btn-ghost" href="<?= e(admin_back_href('brands')) ?>">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save brand</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
 
   <div class="a-card"><div class="hd"><h2>Details</h2></div><div class="bd">
     <div class="f-row">
@@ -81,6 +86,6 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
     </div>
     <label class="switch"><input type="checkbox" name="featured" value="1" <?= $v['featured']?'checked':'' ?>> Feature in the homepage “trusted brands” strip</label>
   </div></div>
-  <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save brand</button></div>
+  <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save brand</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
 </form>
 <?php admin_foot();
