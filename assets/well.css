@@ -264,6 +264,12 @@ select.input,.select{padding-right:34px}
 .citem .ci-var{font-size:12px; color:var(--text-muted); margin:2px 0 4px}
 .crow .cvar{font-size:12.5px; color:var(--text-muted); margin:2px 0 6px}
 .pcard .buybtn:hover s{color:rgba(255,255,255,.55)}
+/* no price yet: a soft beige "coming soon" pill instead of a greyed-out button — short
+   enough to fit the narrowest card, and clearly not something to tap */
+.pcard .buybtn.soon,.pcard .add .btn.soon{justify-content:center; align-items:center; gap:6px; background:#F3EEE4; border-color:transparent;
+  color:var(--taupe); font-weight:600; font-style:normal; cursor:default; pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:none}
+.pcard .add .btn.soon{display:inline-flex}
+.pcard .soon svg{width:14px; height:14px; flex:none; opacity:.8}
 
 /* star row helper */
 .starline{display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted)}

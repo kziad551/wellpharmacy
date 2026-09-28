@@ -76,8 +76,9 @@ function well_product_card(array $p): string {
     $href     = 'product?id=' . rawurlencode($id);
     if ($soldOut)      { $addBtn = '<button class="btn" disabled>Sold out</button>';
                          $buyBtn = '<button class="buybtn" disabled>Sold out</button>'; }
-    elseif ($noPrice)  { $addBtn = '<button class="btn" disabled>Price coming soon</button>';
-                         $buyBtn = '<button class="buybtn" disabled>Price coming soon</button>'; }
+    elseif ($noPrice)  { $soon   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon';
+                         $addBtn = '<span class="btn soon" title="Price coming soon">' . $soon . '</span>';
+                         $buyBtn = '<span class="buybtn soon" title="Price coming soon">' . $soon . '</span>'; }
     elseif ($hasOpts)  { /* colours/sizes need a choice — the button opens the product page; the price shows the default */
                          $addBtn = '<a class="btn" href="' . e($href) . '">add to bag</a>';
                          $buyBtn = '<a class="buybtn" href="' . e($href) . '">buy — ' . $buyPrice . '</a>'; }

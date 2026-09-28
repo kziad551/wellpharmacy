@@ -252,8 +252,8 @@
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';
     const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);   // colors/sizes need a choice → the button opens the product page to pick
-    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<button class="btn" disabled>Price coming soon</button>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">add to bag</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
-    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<button class="buybtn" disabled>Price coming soon</button>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
+    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<span class="btn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">add to bag</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
+    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<span class="buybtn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>
