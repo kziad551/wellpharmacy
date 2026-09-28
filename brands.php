@@ -21,6 +21,7 @@ $HEAD_CSS = <<<CSS
   .brandcard .brand-logo-text{font-family:var(--fp);font-weight:700;font-size:22px;line-height:1.1;letter-spacing:.5px;text-transform:uppercase;color:var(--ink);transition:color .25s}
   .brandcard:hover .brand-logo-text{color:var(--rose-deep)}
   .brandcard .brand-logo{max-height:64px;max-width:100%;width:auto;object-fit:contain}
+  .brandcard .brand-logo.fit{max-height:100%;height:auto}
   .brandcard .ct{position:absolute;top:10px;right:12px;font-size:11px;color:var(--text-muted)}
   .br-sec-h{display:flex;align-items:center;gap:12px;margin-top:26px}
   .br-sec-h .eyebrow{white-space:nowrap}
@@ -43,7 +44,8 @@ CSS;
 /* renders a single brand tile linking to its filtered listing */
 function brand_tile(array $b): string {
     $href = 'skincare?brand=' . urlencode($b['name']);
-    $inner = $b['logo']
+    /* "Name only" in admin → Brands shows the name even when a logo is uploaded */
+    $inner = $b['logo'] && ($b['logo_mode'] ?? 'auto') !== 'name'
         ? '<img class="brand-logo" src="' . e($b['logo']) . '" alt="' . e($b['name']) . '" loading="lazy">'
         : '<span class="brand-logo-text"' . ($b['color'] ? ' style="color:' . e($b['color']) . '"' : '') . '>' . e($b['name']) . '</span>';
     $count = $b['n'] > 0 ? '<span class="ct">' . (int)$b['n'] . '</span>' : '';
@@ -77,5 +79,25 @@ include __DIR__ . '/inc/head.php';
 
 <div id="usp"></div>
 <?php
-$PAGE_JS = "<script>document.getElementById('usp').innerHTML = WELL.uspHTML(); WELL.guardImages(document);</script>";
+$PAGE_JS = <<<'JS'
+<script>
+document.getElementById('usp').innerHTML = WELL.uspHTML(); WELL.guardImages(document);
+/* size each logo by its shape (same as the home "shop trusted brands" strip): a wide
+   wordmark gets width, a square badge gets height, so they all look equally weighted */
+(() => {
+  const fit = img => {
+    if (!img.naturalWidth) return;
+    const card = img.parentElement, cs = getComputedStyle(card);
+    const cw = card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const ch = card.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const ar = img.naturalWidth / img.naturalHeight, area = cw * ch * 0.34;
+    img.style.width = Math.round(Math.min(Math.min(ch, Math.sqrt(area / ar)) * ar, cw * 0.86)) + 'px';
+    img.classList.add('fit');
+  };
+  const logos = document.querySelectorAll('.brandcard .brand-logo');
+  logos.forEach(img => img.complete ? fit(img) : img.addEventListener('load', () => fit(img)));
+  let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => logos.forEach(fit), 120); });
+})();
+</script>
+JS;
 include __DIR__ . '/inc/foot.php';
