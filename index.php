@@ -51,6 +51,13 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
     } elseif ($hs['type'] === 'new_arrivals') {
         $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
         $ids = array_column(rows($sql), 'id');
+        /* fewer products ticked "New Arrivals" than the section should show? fill the
+           rest with the newest products, so 20 asked for = 20 shown */
+        if ($f > 0 && count($ids) < $f) {
+            $ph   = $ids ? ' AND id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')' : '';
+            $more = rows("SELECT id FROM products WHERE status='active'$ph ORDER BY created_at DESC, id DESC LIMIT " . ($f - count($ids)), $ids);
+            $ids  = array_merge($ids, array_column($more, 'id'));
+        }
         if (!$ids) continue;
         $default = 'New Arrivals'; $viewAll = 'skincare';
     } elseif ($hs['type'] === 'mixed') {
@@ -217,15 +224,16 @@ $HEAD_CSS = <<<CSS
     .home-rail .prodgrid>*{flex:0 0 40%; scroll-snap-align:start; min-width:0}
   }
   @media(max-width:420px){ .home-rail .prodgrid>*{flex:0 0 46%} }
-  /* sections with a mobile layout set in admin → Home Sections: the products are laid
-     out in rows of --mcols; the screen shows --mview of them across and the rows swipe
-     sideways together for the rest (.mfit = the whole row fits, nothing to swipe) */
+  /* sections with a mobile layout set in admin → Home Sections: the products are split
+     (by the script below) into rows of --mcols, each row its own swiper showing --mview
+     cards at a time (.mfit = a whole row fits the screen, so it's a plain grid) */
   @media(max-width:680px){
-    .home-rail .prodgrid.mrows{
-      display:grid; grid-auto-flow:row;
-      grid-template-columns:repeat(var(--mcols,5),calc((100% - (var(--mview,2.5) - 1) * 12px) / var(--mview,2.5)));
-      gap:18px 12px}
-    .home-rail .prodgrid.mrows.mfit{grid-template-columns:repeat(var(--mcols,2),minmax(0,1fr)); overflow:visible}
+    .home-rail .prodgrid.mrows{display:flex; flex-direction:column; gap:18px; overflow:visible; scroll-snap-type:none; padding:0}
+    .home-rail .prodgrid.mrows>.mrow{display:flex; gap:12px; flex:none; width:100%; overflow-x:auto;
+      scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:2px 0 6px}
+    .home-rail .prodgrid.mrows>.mrow::-webkit-scrollbar{display:none}
+    .home-rail .prodgrid.mrows>.mrow>*{flex:0 0 calc((100% - (var(--mview,2.5) - 1) * 12px) / var(--mview,2.5)); scroll-snap-align:start; min-width:0}
+    .home-rail .prodgrid.mrows.mfit{display:grid; grid-template-columns:repeat(var(--mcols,2),minmax(0,1fr)); gap:18px 12px}
     /* 3+ cards across: smaller type so the name and the buy button still fit */
     .home-rail .prodgrid.dense .pcard .name{font-size:11.5px; letter-spacing:.02em}
     .home-rail .prodgrid.dense .pcard .stars{font-size:11px; gap:3px}
@@ -375,10 +383,10 @@ include __DIR__ . '/inc/head.php';
       $gid   = 'homeSec' . $i;
     ?>
     <?php if ($dShow < $all || $mShow < $all): ?><style>
-      <?php if ($dShow < $all): ?>@media(min-width:681px){#<?= $gid ?>>:nth-child(n+<?= $dShow + 1 ?>){display:none}}<?php endif; ?>
-      <?php if ($mShow < $all): ?>@media(max-width:680px){#<?= $gid ?>>:nth-child(n+<?= $mShow + 1 ?>){display:none}}<?php endif; ?>
+      <?php if ($dShow < $all): ?>@media(min-width:681px){#<?= $gid ?>>.pcard:nth-child(n+<?= $dShow + 1 ?>){display:none}}<?php endif; ?>
+      <?php if ($mShow < $all): ?>@media(max-width:680px){#<?= $gid ?>>.pcard:nth-child(n+<?= $mShow + 1 ?>){display:none}}<?php endif; ?>
     </style><?php endif; ?>
-    <div class="<?= $cls ?>"<?= $style ? ' style="' . $style . '"' : '' ?> id="<?= $gid ?>"></div>
+    <div class="<?= $cls ?>"<?= $style ? ' style="' . $style . '"' : '' ?><?= $mcust && !$mfit ? ' data-mcols="' . $mcols . '" data-mshow="' . $mShow . '"' : '' ?> id="<?= $gid ?>"></div>
   <?php endif; ?>
 </section>
 <?php endforeach; ?>
@@ -488,7 +496,24 @@ $PAGE_JS = <<<JS
   // dynamic home sections (from database)
   const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);
   const SECTIONS = $SECTIONS_JSON;
-  SECTIONS.forEach((ids,i)=>{ if(!ids) return; const el=\$('#homeSec'+i); if(el) W.renderProducts(el, pick(ids)); });
+  /* on a phone, a section with "products per row" set is split into rows that each
+     swipe on their own; on bigger screens it stays one grid. Redone if the screen
+     crosses the phone size (rotating a tablet, resizing a window). */
+  const phone = matchMedia('(max-width:680px)');
+  const renderSec = (ids, i) => {
+    const el = \$('#homeSec'+i); if (!el || !ids) return;
+    const list = pick(ids), per = +el.dataset.mcols;
+    if (!(phone.matches && per > 0)) { W.renderProducts(el, list); return; }
+    W.renderProducts(el, list.slice(0, +el.dataset.mshow || list.length));
+    const cards = [...el.children]; el.textContent = '';
+    for (let k = 0; k < cards.length; k += per) {
+      const row = document.createElement('div'); row.className = 'mrow';
+      cards.slice(k, k + per).forEach(c => row.appendChild(c));
+      el.appendChild(row);
+    }
+  };
+  SECTIONS.forEach(renderSec);
+  phone.addEventListener('change', () => SECTIONS.forEach((ids, i) => { if (\$('#homeSec'+i)?.dataset.mcols) renderSec(ids, i); }));
 
   /* ---------- as seen on social ----------
      Cards are thumbnails; clicking opens the real Instagram/TikTok player in a

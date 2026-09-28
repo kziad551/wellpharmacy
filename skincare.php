@@ -42,7 +42,9 @@ $USE_PLP = true;
 
 /* current path so offers/search keep their own url when paging */
 $SELF = strtok($_SERVER['REQUEST_URI'] ?? 'skincare', '?');
-$SELF = ltrim($SELF, '/') ?: 'skincare';
+/* just the page name ("skincare" / "offers"): links are relative to the page, so a
+   folder in front ("wellpharmacy/skincare" on a local copy) would be added twice */
+$SELF = basename($SELF) ?: 'skincare';
 
 $pillCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
 include __DIR__ . '/inc/head.php';
@@ -156,7 +158,9 @@ include __DIR__ . '/inc/head.php';
     </div>
 
     <?php if ($hasMore): ?>
-      <div class="plp-more" style="text-align:center;margin:28px 0 8px">
+      <!-- overflow-anchor:none: without it the browser keeps this button pinned in view as the
+           new cards land above it, so on a phone you'd jump past everything that just loaded -->
+      <div class="plp-more" style="text-align:center;margin:28px 0 8px;overflow-anchor:none">
         <a class="btn btn-outline" id="loadMore"
            data-next="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1])) ?>"
            href="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1])) ?>">
