@@ -93,8 +93,9 @@ CREATE TABLE home_sections (
   show_title  TINYINT      NOT NULL DEFAULT 1,       -- allow hiding the whole title
   item_count  INT          NOT NULL DEFAULT 5,       -- how many products; 0 = all
   cols        INT          NOT NULL DEFAULT 5,       -- products per row on desktop (3–6)
-  m_rows      TINYINT      NOT NULL DEFAULT 1,       -- rows in the phone swiper (1–3)
+  m_rows      TINYINT      NOT NULL DEFAULT 1,       -- rows in the phone swiper (0 = as many as needed)
   m_per_row   DECIMAL(3,1) NOT NULL DEFAULT 0,       -- cards across on a phone (0 = auto)
+  m_count     INT          NULL DEFAULT NULL,        -- products on a phone (NULL = same as computer, 0 = all)
   enabled     TINYINT      NOT NULL DEFAULT 1,
   sort        INT          NOT NULL DEFAULT 0,
   KEY idx_enabled (enabled, sort)

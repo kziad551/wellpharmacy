@@ -30,7 +30,10 @@ function sec_title_html(string $t): string {
 $CAT_GRADS = ['linear-gradient(160deg,#F2EFE6,#E7E2D5)','linear-gradient(160deg,#EFEBE0,#E4DFCF)','linear-gradient(160deg,#F1EEE4,#E6E1D2)','linear-gradient(160deg,#EEEADF,#E2DDCC)','linear-gradient(160deg,#F0ECE2,#E5E0D0)'];
 $SECTIONS = [];
 foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") as $hs) {
-    $n = (int) $hs['item_count'];
+    $n  = (int) $hs['item_count'];                                   // products on a computer (0 = all)
+    $mc = ($hs['m_count'] ?? null) === null ? null : (int) $hs['m_count'];  // on a phone (null = same, 0 = all)
+    /* fetch enough for whichever screen shows more; CSS hides the extras per screen */
+    $f  = ($n === 0 || $mc === 0) ? 0 : max($n, $mc ?? $n);
     $ids = null; $panels = null;
     if ($hs['type'] === 'category') {
         $cats = rows("SELECT name, image FROM categories ORDER BY sort" . ($n > 0 ? " LIMIT $n" : ""));
@@ -46,7 +49,7 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         }
         $default = 'Shop by Category'; $viewAll = 'skincare';
     } elseif ($hs['type'] === 'new_arrivals') {
-        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort" . ($n > 0 ? " LIMIT $n" : "");
+        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
         $ids = array_column(rows($sql), 'id');
         if (!$ids) continue;
         $default = 'New Arrivals'; $viewAll = 'skincare';
@@ -61,7 +64,7 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
             $where .= ' AND brand IN (' . implode(',', array_fill(0, count($brandList), '?')) . ')';
             $args   = $brandList;
         }
-        $sql = "SELECT id FROM products WHERE $where ORDER BY RAND($seed)" . ($n > 0 ? " LIMIT $n" : " LIMIT 10");
+        $sql = "SELECT id FROM products WHERE $where ORDER BY RAND($seed)" . ($f > 0 ? " LIMIT $f" : " LIMIT 10");
         $ids = array_column(rows($sql, $args), 'id');
         if (!$ids) continue;
         $default = 'Featured'; $viewAll = $brandList && count($brandList) === 1 ? 'skincare?brand=' . urlencode($brandList[0]) : 'skincare';
@@ -72,9 +75,9 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
             $ph  = implode(',', array_fill(0, count($picked), '?'));
             $have = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND status='active'", $picked), 'id');
             $ids = array_values(array_filter($picked, fn($x) => in_array($x, $have, true)));   // keep the admin's order
-            if ($n > 0) $ids = array_slice($ids, 0, $n);
+            if ($f > 0) $ids = array_slice($ids, 0, $f);
         } else {
-            $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($n > 0 ? " LIMIT $n" : "");
+            $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($f > 0 ? " LIMIT $f" : "");
             $ids = array_column(rows($sql, [$hs['brand']]), 'id');
         }
         if (!$ids) continue;
@@ -87,8 +90,10 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         'title'    => $hs['show_title'] ? $title : '',
         'subtitle' => $hs['subtitle'],
         'cols'     => (int) $hs['cols'],
-    'm_rows'   => max(1, min(3, (int) ($hs['m_rows'] ?? 1))),
-    'm_per'    => (float) ($hs['m_per_row'] ?? 0),
+    'm_rows'   => max(0, (int) ($hs['m_rows'] ?? 1)),              // 0 = as many rows as needed
+    'm_per'    => (float) ($hs['m_per_row'] ?? 0),                  // 0 = auto
+    'd_count'  => $n,
+    'm_count'  => $mc ?? $n,
         'view_all' => $viewAll,
         'ids'      => $ids,
         'panels'   => $panels,
@@ -220,13 +225,24 @@ $HEAD_CSS = <<<CSS
       grid-template-rows:repeat(var(--mrows,1),auto);
       grid-auto-columns:calc((100% - (var(--mper,2.5) - 1) * 12px) / var(--mper,2.5));
       gap:18px 12px}
+    /* every card shown, row after row, no swiping */
+    .home-rail .prodgrid.mfull{
+      display:grid; overflow:visible; grid-auto-flow:row;
+      grid-template-columns:repeat(var(--mcols,2),minmax(0,1fr)); gap:18px 12px}
     /* 3+ cards across: smaller type so the name and the buy button still fit */
-    .home-rail .prodgrid.mgrid.dense .pcard .name{font-size:11.5px; letter-spacing:.02em}
-    .home-rail .prodgrid.mgrid.dense .pcard .stars{font-size:11px; gap:3px}
-    .home-rail .prodgrid.mgrid.dense .pcard .stars .s{width:11px}
-    .home-rail .prodgrid.mgrid.dense .pcard .buybtn{height:32px; font-size:10px; padding:0 5px; gap:3px; letter-spacing:0}
-    .home-rail .prodgrid.mgrid.dense .pcard .pc-top{padding:9px 8px 0 9px}
-    .home-rail .prodgrid.mgrid.dense .pcard .wish{transform:scale(.8)}
+    .home-rail .prodgrid.dense .pcard .name{font-size:11.5px; letter-spacing:.02em}
+    .home-rail .prodgrid.dense .pcard .stars{font-size:11px; gap:3px}
+    .home-rail .prodgrid.dense .pcard .stars .s{width:11px}
+    .home-rail .prodgrid.dense .pcard .buybtn{height:32px; font-size:10px; padding:0 5px; gap:3px; letter-spacing:0}
+    .home-rail .prodgrid.dense .pcard .pc-top{padding:9px 8px 0 9px}
+    .home-rail .prodgrid.dense .pcard .wish{transform:scale(.8)}
+    /* 4+ across: tiny cards — drop the reviews line and squeeze the buy pill */
+    .home-rail .prodgrid.tiny{column-gap:8px}
+    .home-rail .prodgrid.tiny .pcard .stars{display:none}
+    .home-rail .prodgrid.tiny .pcard .name{font-size:10px; letter-spacing:0}
+    .home-rail .prodgrid.tiny .pcard .buybtn{width:100%; min-width:0; height:28px; font-size:9px; padding:0 2px; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; border-width:1px}
+    .home-rail .prodgrid.tiny .pcard .media img{padding:4px}
+    .home-rail .prodgrid.tiny .pcard .badge-slot,.home-rail .prodgrid.tiny .pcard .wish{display:none}
   }
   /* narrow phones: two brand cards per row, and the name wraps inside the card
      instead of stretching the grid past the screen edge */
@@ -347,10 +363,25 @@ include __DIR__ . '/inc/head.php';
     <?php
       $pcols = in_array($sec['cols'], [3,4,5,6], true) ? $sec['cols'] : 5;   /* desktop per-row count */
       /* phone layout: only when the admin changed it from the default 1 row / auto */
-      $mgrid = $sec['m_rows'] > 1 || $sec['m_per'] > 0;
-      $mper  = $sec['m_per'] > 0 ? $sec['m_per'] : 2.5;
+      $all   = count($sec['ids']);
+      $dShow = $sec['d_count'] > 0 ? min($sec['d_count'], $all) : $all;   // cards on a computer
+      $mShow = $sec['m_count'] > 0 ? min($sec['m_count'], $all) : $all;   // cards on a phone
+      $mrows = $sec['m_rows'];
+      $mper  = $sec['m_per'] > 0 ? $sec['m_per'] : ($mrows === 0 ? 2 : 2.5);
+      /* "as many rows as needed" (0), or enough rows to hold every card anyway,
+         = a plain grid with no swiping; otherwise N rows that swipe sideways */
+      $mfull = $mrows === 0 || $mrows * ceil($mper) >= $mShow;
+      $mgrid = $mfull || $mrows > 1 || $sec['m_per'] > 0;
+      $cls   = 'prodgrid' . ($pcols !== 5 ? ' c' . $pcols : '') . ($dShow > $pcols ? ' compact' : '')
+             . ($mgrid ? ($mfull ? ' mfull' : ' mgrid') . ($mper >= 3 ? ' dense' : '') . ($mper >= 4 ? ' tiny' : '') : '');
+      $style = $mgrid ? '--mrows:' . max(1, $mrows) . ';--mper:' . $mper . ';--mcols:' . max(1, (int) floor($mper)) : '';
+      $gid   = 'homeSec' . $i;
     ?>
-    <div class="prodgrid<?= $pcols !== 5 ? ' c' . $pcols : '' ?><?= count($sec['ids']) > $pcols ? ' compact' : '' ?><?= $mgrid ? ' mgrid' . ($mper >= 3 ? ' dense' : '') : '' ?>"<?= $mgrid ? ' style="--mrows:' . $sec['m_rows'] . ';--mper:' . $mper . '"' : '' ?> id="homeSec<?= $i ?>"></div>
+    <?php if ($dShow < $all || $mShow < $all): ?><style>
+      <?php if ($dShow < $all): ?>@media(min-width:681px){#<?= $gid ?>>:nth-child(n+<?= $dShow + 1 ?>){display:none}}<?php endif; ?>
+      <?php if ($mShow < $all): ?>@media(max-width:680px){#<?= $gid ?>>:nth-child(n+<?= $mShow + 1 ?>){display:none}}<?php endif; ?>
+    </style><?php endif; ?>
+    <div class="<?= $cls ?>"<?= $style ? ' style="' . $style . '"' : '' ?> id="<?= $gid ?>"></div>
   <?php endif; ?>
 </section>
 <?php endforeach; ?>

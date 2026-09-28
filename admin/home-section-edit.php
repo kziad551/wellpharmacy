@@ -27,8 +27,9 @@ if (is_post()) {
         'show_title' => input('show_title') ? 1 : 0,
         'item_count' => max(0, (int) input('item_count')),
         'cols'       => in_array((int) input('cols'), [3,4,5,6], true) ? (int) input('cols') : 5,
-        'm_rows'     => in_array((int) input('m_rows'), [1,2,3], true) ? (int) input('m_rows') : 1,
-        'm_per_row'  => in_array((string) input('m_per_row'), ['2','2.5','3','3.5','4'], true) ? (float) input('m_per_row') : 0,
+        'm_rows'     => max(0, min(100, (int) input('m_rows'))),                             // 0 = as many as needed
+        'm_per_row'  => round(max(0, min(6, (float) input('m_per_row'))) * 2) / 2,            // 0 = auto, halves allowed
+        'm_count'    => trim((string) input('m_count')) === '' ? null : max(0, (int) input('m_count')),  // null = same as computer
         'enabled'    => input('enabled') ? 1 : 0,
         'sort'       => (int) input('sort'),
     ];
@@ -40,17 +41,17 @@ if (is_post()) {
     if ($editing) {
         $data['id'] = $id;
         q("UPDATE home_sections SET type=:type, brand=:brand, brands=:brands, product_ids=:product_ids, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
-              show_title=:show_title, item_count=:item_count, cols=:cols, m_rows=:m_rows, m_per_row=:m_per_row, enabled=:enabled, sort=:sort WHERE id=:id", $data);
+              show_title=:show_title, item_count=:item_count, cols=:cols, m_rows=:m_rows, m_per_row=:m_per_row, m_count=:m_count, enabled=:enabled, sort=:sort WHERE id=:id", $data);
         flash('Section updated.');
     } else {
-        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,m_rows,m_per_row,enabled,sort)
-           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:m_rows,:m_per_row,:enabled,:sort)", $data);
+        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,m_rows,m_per_row,m_count,enabled,sort)
+           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:m_rows,:m_per_row,:m_count,:enabled,:sort)", $data);
         flash('Section created.');
     }
     redirect('home-sections');
 }
 
-$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'m_rows'=>1,'m_per_row'=>0,'enabled'=>1,'sort'=>0];
+$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'m_rows'=>1,'m_per_row'=>0,'m_count'=>null,'enabled'=>1,'sort'=>0];
 $pickedBrands = array_filter(array_map('trim', explode(',', (string)($v['brands'] ?? ''))));   // for the Mixed multi-select
 
 /* brand options: every brand that exists in the brands table OR is used by a product */
@@ -121,7 +122,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       <input class="input" name="subtitle" value="<?= e($v['subtitle']) ?>"></div>
 
     <div class="f-row-3">
-      <div class="field"><label>Products to show</label><input class="input" type="number" name="item_count" min="0" value="<?= e($v['item_count']) ?>">
+      <div class="field"><label>Products to show <span class="faint">(computer &amp; tablet)</span></label><input class="input" type="number" name="item_count" min="0" value="<?= e($v['item_count']) ?>">
         <div class="hint">0 = all. On a computer: 5 per row × 2 rows = 10…</div></div>
       <div class="field"><label>Per row <span class="faint">(computer)</span></label>
         <select class="input" name="cols">
@@ -134,26 +135,44 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
         <div class="hint">Lower shows first.</div></div>
     </div>
 
-    <?php if ($v['type'] !== 'category'): $mr = (int)($v['m_rows'] ?? 1); $mp = (string)(float)($v['m_per_row'] ?? 0); ?>
-    <div class="f-row">
-      <div class="field"><label>Rows on phones</label>
-        <select class="input" name="m_rows">
-          <option value="1" <?= $mr===1?'selected':'' ?>>1 row — swipe sideways</option>
-          <option value="2" <?= $mr===2?'selected':'' ?>>2 rows — swipe sideways</option>
-          <option value="3" <?= $mr===3?'selected':'' ?>>3 rows — swipe sideways</option>
-        </select>
-        <div class="hint">On a phone the products scroll sideways. With 2 rows, each swipe shows two rows of products stacked.</div></div>
-      <div class="field"><label>Products across on phones</label>
-        <select class="input" name="m_per_row">
-          <option value="0" <?= $mp==='0'?'selected':'' ?>>Auto (2½ — the half card hints you can swipe)</option>
-          <option value="2" <?= $mp==='2'?'selected':'' ?>>2 per row</option>
-          <option value="2.5" <?= $mp==='2.5'?'selected':'' ?>>2½ per row</option>
-          <option value="3" <?= $mp==='3'?'selected':'' ?>>3 per row</option>
-          <option value="3.5" <?= $mp==='3.5'?'selected':'' ?>>3½ per row</option>
-          <option value="4" <?= $mp==='4'?'selected':'' ?>>4 per row (small cards)</option>
-        </select>
-        <div class="hint">How many products fit across the phone screen before you swipe. Example: 2 rows × 3 per row = 6 products on screen.</div></div>
+    <?php if ($v['type'] !== 'category'):
+      $mr = (int)($v['m_rows'] ?? 1);
+      $mp = (float)($v['m_per_row'] ?? 0);
+      $mc = ($v['m_count'] ?? null) === null ? '' : (int)$v['m_count']; ?>
+    <div class="ph-box">
+      <div class="ph-h">On phones</div>
+      <div class="f-row-3">
+        <div class="field"><label>Products to show</label>
+          <input class="input" type="number" name="m_count" id="mCount" min="0" value="<?= e($mc) ?>" placeholder="same as computer">
+          <div class="hint">Empty = same as the computer. 0 = all.</div></div>
+        <div class="field"><label>Products per row</label>
+          <input class="input" type="number" name="m_per_row" id="mPer" min="0" max="6" step="0.5" value="<?= $mp > 0 ? e(rtrim(rtrim(number_format($mp, 1, '.', ''), '0'), '.')) : '' ?>" placeholder="auto (2½)">
+          <div class="hint">How many fit across the screen. 2.5 = two and a half, so you see there is more to swipe. Empty = auto.</div></div>
+        <div class="field"><label>Rows</label>
+          <input class="input" type="number" name="m_rows" id="mRows" min="0" max="100" value="<?= e($mr) ?>">
+          <div class="hint">0 = as many rows as the products need — everything shows, no swiping.</div></div>
+      </div>
+      <div class="ph-sum" id="mSum"></div>
     </div>
+    <script>
+    (() => {
+      const c = document.getElementById('mCount'), p = document.getElementById('mPer'), r = document.getElementById('mRows'),
+            dc = document.querySelector('[name=item_count]'), out = document.getElementById('mSum');
+      const upd = () => {
+        const count = c.value === '' ? (+dc.value || 0) : +c.value, rows = +r.value || 0;
+        const per = +p.value > 0 ? +p.value : (rows === 0 ? 2 : 2.5), across = Math.max(1, Math.floor(per));
+        const n = count > 0 ? count + ' products' : 'all products';
+        if (rows === 0 || (count > 0 && rows * Math.ceil(per) >= count)) {
+          const rr = count > 0 ? Math.ceil(count / across) + ' rows × ' + across : across + ' per row';
+          out.textContent = 'Phone: ' + n + ' shown as ' + rr + ' — all visible, no swiping.';
+        } else {
+          const screens = count > 0 ? ' (about ' + Math.ceil(count / (rows * per)) + ' swipes to see them all)' : '';
+          out.textContent = 'Phone: ' + n + ' — ' + rows + (rows === 1 ? ' row' : ' rows') + ' × ' + per + ' across, swipe sideways for more' + screens + '.';
+        }
+      };
+      [c, p, r, dc].forEach(el => el && el.addEventListener('input', upd)); upd();
+    })();
+    </script>
     <?php endif; ?>
 
     <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="show_title" value="1" <?= $v['show_title']?'checked':'' ?>> Show the eyebrow / title header</label><br>
@@ -162,6 +181,9 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
   <div class="page-actions" style="margin-top:18px"><div class="spacer"></div><button class="btn btn-primary">Save section</button></div>
 </form>
 <style>
+  .ph-box{border:1px solid var(--line,#dcd6c9);border-radius:12px;padding:14px 16px 6px;margin:4px 0 18px;background:rgba(0,0,0,.015)}
+  .ph-box .ph-h{font-weight:700;font-size:14px;margin-bottom:10px}
+  .ph-box .ph-sum{font-size:13px;font-weight:600;color:var(--ink,#2b2520);background:#fff;border-radius:8px;padding:8px 12px;margin:2px 0 10px}
   .brand-picker{border:1px solid var(--line,#dcd6c9);border-radius:12px;overflow:hidden}
   .brand-picker .bp-all{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line,#dcd6c9);background:rgba(0,0,0,.03);cursor:pointer;font-size:14px}
   .brand-picker .bp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 14px;max-height:230px;overflow:auto;padding:10px 14px}
