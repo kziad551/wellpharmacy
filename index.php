@@ -164,6 +164,7 @@ $HEAD_CSS = <<<CSS
   .brandcard .brand-logo-text{font-family:var(--fp); font-weight:700; font-size:23px; text-align:center; line-height:1.1; letter-spacing:.5px; text-transform:uppercase; color:var(--ink); transition:color .25s}
   .brandcard:hover .brand-logo-text{color:var(--rose-deep)}
   .brandcard .brand-logo{max-height:60px; max-width:100%; width:auto; object-fit:contain}
+  .brandcard .brand-logo.fit{max-height:100%; height:auto}
   .brandcard.both{flex-direction:column; gap:9px}
   .brandcard.both .brand-logo{max-height:44px}
   .brandcard.both .brand-logo-text{font-size:15px}
@@ -485,6 +486,23 @@ $PAGE_JS = <<<JS
     else inner = hasLogo ? img : txt;
     return `<a class="\${cls}" href="brands" aria-label="\${b.name}">\${inner}</a>`;
   }).join('');
+  // size each logo by its shape so they look equally weighted: a wide wordmark
+  // (SKIN1004) gets width, a square badge (Some By Mi) gets height, instead of
+  // every picture being squeezed into the same box
+  const fitLogo = img => {
+    if (!img.naturalWidth) return;
+    const card = img.parentElement, cs = getComputedStyle(card);
+    const cw = card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const ch = card.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const ar = img.naturalWidth / img.naturalHeight, area = cw * ch * 0.34;
+    let w = Math.min(ch, Math.sqrt(area / ar)) * ar;
+    w = Math.min(w, cw * 0.86);
+    img.style.width = Math.round(w) + 'px';
+    img.classList.add('fit');
+  };
+  const fitLogos = () => document.querySelectorAll('#brandGrid .brandcard:not(.both) .brand-logo').forEach(fitLogo);
+  document.querySelectorAll('#brandGrid .brandcard:not(.both) .brand-logo').forEach(img => img.complete ? fitLogo(img) : img.addEventListener('load', () => fitLogo(img)));
+  let fitT; addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(fitLogos, 120); });
 
   // journal (from database)
   const blogs = $BLOGS_JSON;
