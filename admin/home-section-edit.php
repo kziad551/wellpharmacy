@@ -26,7 +26,9 @@ if (is_post()) {
         'subtitle'   => trim((string) input('subtitle')),
         'show_title' => input('show_title') ? 1 : 0,
         'item_count' => max(0, (int) input('item_count')),
-        'cols'       => in_array((int) input('cols'), [3,4,5], true) ? (int) input('cols') : 5,
+        'cols'       => in_array((int) input('cols'), [3,4,5,6], true) ? (int) input('cols') : 5,
+        'm_rows'     => in_array((int) input('m_rows'), [1,2,3], true) ? (int) input('m_rows') : 1,
+        'm_per_row'  => in_array((string) input('m_per_row'), ['2','2.5','3','3.5','4'], true) ? (float) input('m_per_row') : 0,
         'enabled'    => input('enabled') ? 1 : 0,
         'sort'       => (int) input('sort'),
     ];
@@ -38,17 +40,17 @@ if (is_post()) {
     if ($editing) {
         $data['id'] = $id;
         q("UPDATE home_sections SET type=:type, brand=:brand, brands=:brands, product_ids=:product_ids, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
-              show_title=:show_title, item_count=:item_count, cols=:cols, enabled=:enabled, sort=:sort WHERE id=:id", $data);
+              show_title=:show_title, item_count=:item_count, cols=:cols, m_rows=:m_rows, m_per_row=:m_per_row, enabled=:enabled, sort=:sort WHERE id=:id", $data);
         flash('Section updated.');
     } else {
-        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,enabled,sort)
-           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:enabled,:sort)", $data);
+        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,m_rows,m_per_row,enabled,sort)
+           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:m_rows,:m_per_row,:enabled,:sort)", $data);
         flash('Section created.');
     }
     redirect('home-sections');
 }
 
-$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'enabled'=>1,'sort'=>0];
+$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'m_rows'=>1,'m_per_row'=>0,'enabled'=>1,'sort'=>0];
 $pickedBrands = array_filter(array_map('trim', explode(',', (string)($v['brands'] ?? ''))));   // for the Mixed multi-select
 
 /* brand options: every brand that exists in the brands table OR is used by a product */
@@ -120,9 +122,10 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
 
     <div class="f-row-3">
       <div class="field"><label>Products to show</label><input class="input" type="number" name="item_count" min="0" value="<?= e($v['item_count']) ?>">
-        <div class="hint">0 = all. 5 = one row, 10 = two rows…</div></div>
-      <div class="field"><label>Per row</label>
+        <div class="hint">0 = all. On a computer: 5 per row × 2 rows = 10…</div></div>
+      <div class="field"><label>Per row <span class="faint">(computer)</span></label>
         <select class="input" name="cols">
+          <option value="6" <?= (int)$v['cols']===6?'selected':'' ?>>6 per row</option>
           <option value="5" <?= (int)$v['cols']===5?'selected':'' ?>>5 per row</option>
           <option value="4" <?= (int)$v['cols']===4?'selected':'' ?>>4 per row</option>
           <option value="3" <?= (int)$v['cols']===3?'selected':'' ?>>3 per row</option>
@@ -130,6 +133,28 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       <div class="field"><label>Sort order</label><input class="input" type="number" name="sort" value="<?= e($v['sort']) ?>">
         <div class="hint">Lower shows first.</div></div>
     </div>
+
+    <?php if ($v['type'] !== 'category'): $mr = (int)($v['m_rows'] ?? 1); $mp = (string)(float)($v['m_per_row'] ?? 0); ?>
+    <div class="f-row">
+      <div class="field"><label>Rows on phones</label>
+        <select class="input" name="m_rows">
+          <option value="1" <?= $mr===1?'selected':'' ?>>1 row — swipe sideways</option>
+          <option value="2" <?= $mr===2?'selected':'' ?>>2 rows — swipe sideways</option>
+          <option value="3" <?= $mr===3?'selected':'' ?>>3 rows — swipe sideways</option>
+        </select>
+        <div class="hint">On a phone the products scroll sideways. With 2 rows, each swipe shows two rows of products stacked.</div></div>
+      <div class="field"><label>Products across on phones</label>
+        <select class="input" name="m_per_row">
+          <option value="0" <?= $mp==='0'?'selected':'' ?>>Auto (2½ — the half card hints you can swipe)</option>
+          <option value="2" <?= $mp==='2'?'selected':'' ?>>2 per row</option>
+          <option value="2.5" <?= $mp==='2.5'?'selected':'' ?>>2½ per row</option>
+          <option value="3" <?= $mp==='3'?'selected':'' ?>>3 per row</option>
+          <option value="3.5" <?= $mp==='3.5'?'selected':'' ?>>3½ per row</option>
+          <option value="4" <?= $mp==='4'?'selected':'' ?>>4 per row (small cards)</option>
+        </select>
+        <div class="hint">How many products fit across the phone screen before you swipe. Example: 2 rows × 3 per row = 6 products on screen.</div></div>
+    </div>
+    <?php endif; ?>
 
     <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="show_title" value="1" <?= $v['show_title']?'checked':'' ?>> Show the eyebrow / title header</label><br>
     <label class="switch"><input type="checkbox" name="enabled" value="1" <?= $v['enabled']?'checked':'' ?>> Visible on the homepage</label>

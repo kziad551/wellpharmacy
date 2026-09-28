@@ -87,6 +87,8 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         'title'    => $hs['show_title'] ? $title : '',
         'subtitle' => $hs['subtitle'],
         'cols'     => (int) $hs['cols'],
+    'm_rows'   => max(1, min(3, (int) ($hs['m_rows'] ?? 1))),
+    'm_per'    => (float) ($hs['m_per_row'] ?? 0),
         'view_all' => $viewAll,
         'ids'      => $ids,
         'panels'   => $panels,
@@ -128,6 +130,8 @@ $HEAD_CSS = <<<CSS
   @media(prefers-reduced-motion:reduce){.strip-track{animation:none}}
   .prodgrid{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px}
   .prodgrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}   /* New Arrivals: 4-up on wide screens */
+  .prodgrid.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .prodgrid.c6{grid-template-columns:repeat(6,minmax(0,1fr))}
   /* product rails — spacing knobs (adjust the px values):
      .home-rail padding-top        = gap ABOVE the section (separates it from the section above)
      .home-rail .sec-head .lead margin-bottom = gap BELOW the subtitle, before the products
@@ -181,23 +185,25 @@ $HEAD_CSS = <<<CSS
   .promise .big{font-family:var(--fp); font-weight:600; text-transform:lowercase; font-size:clamp(34px,12vw,180px); line-height:.86; color:var(--ink); letter-spacing:-.025em; overflow-wrap:break-word}
   .promise .big .script{color:var(--rose-deep)}
   .promise .sub{color:var(--ink-soft); max-width:46ch; margin:22px auto 0; font-size:16px}
-  @media(max-width:1300px){.prodgrid{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
-  @media(max-width:1080px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(3,minmax(0,1fr))} .cats,.cats.cc3,.cats.cc5{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1300px){.prodgrid,.prodgrid.c6{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
+  @media(max-width:1080px){.prodgrid,.prodgrid.c4,.prodgrid.c6{grid-template-columns:repeat(3,minmax(0,1fr))} .cats,.cats.cc3,.cats.cc5{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
     .hero .wrap{grid-template-columns:1fr; padding-block:24px 44px; gap:22px} .hero-visual{order:-1; aspect-ratio:1/1; max-height:50vh} .hero-visual>img{width:90%; height:90%}
     .editorial{grid-template-columns:1fr}
   }
-  @media(max-width:680px){.prodgrid,.prodgrid.c4{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
+  @media(max-width:680px){.prodgrid,.prodgrid.c3,.prodgrid.c4,.prodgrid.c6{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
   /* Phones (every portrait handset is <=450 CSS px, incl. the 430px Pro Max sizes):
      one product per row so the name and price have room to read properly. */
-  @media(max-width:450px){.prodgrid,.prodgrid.c4,.prodgrid.compact{grid-template-columns:minmax(0,1fr); gap:18px}}
+  @media(max-width:450px){.prodgrid,.prodgrid.c3,.prodgrid.c4,.prodgrid.c6,.prodgrid.compact{grid-template-columns:minmax(0,1fr); gap:18px}}
   /* small phones: give the hero a touch more room under the stacked search */
   @media(max-width:550px){ .hero .wrap{padding-block:16px 38px} }
   /* HOME rails become a horizontal swiper on phones — 2.5 cards peek so it's clear you can swipe.
      Scoped to .home-rail so the shop/search/category grids stay full grids. */
   @media(max-width:680px){
     .home-rail .prodgrid,
+    .home-rail .prodgrid.c3,
     .home-rail .prodgrid.c4,
+    .home-rail .prodgrid.c6,
     .home-rail .prodgrid.compact{
       display:flex; grid-template-columns:none; overflow-x:auto; gap:12px;
       scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
@@ -206,6 +212,22 @@ $HEAD_CSS = <<<CSS
     .home-rail .prodgrid>*{flex:0 0 40%; scroll-snap-align:start; min-width:0}
   }
   @media(max-width:420px){ .home-rail .prodgrid>*{flex:0 0 46%} }
+  /* sections with a phone layout set in admin → Home Sections: N rows that swipe
+     sideways together, with a chosen number of cards across (--mrows / --mper) */
+  @media(max-width:680px){
+    .home-rail .prodgrid.mgrid{
+      display:grid; grid-auto-flow:column; grid-template-columns:none;
+      grid-template-rows:repeat(var(--mrows,1),auto);
+      grid-auto-columns:calc((100% - (var(--mper,2.5) - 1) * 12px) / var(--mper,2.5));
+      gap:18px 12px}
+    /* 3+ cards across: smaller type so the name and the buy button still fit */
+    .home-rail .prodgrid.mgrid.dense .pcard .name{font-size:11.5px; letter-spacing:.02em}
+    .home-rail .prodgrid.mgrid.dense .pcard .stars{font-size:11px; gap:3px}
+    .home-rail .prodgrid.mgrid.dense .pcard .stars .s{width:11px}
+    .home-rail .prodgrid.mgrid.dense .pcard .buybtn{height:32px; font-size:10px; padding:0 5px; gap:3px; letter-spacing:0}
+    .home-rail .prodgrid.mgrid.dense .pcard .pc-top{padding:9px 8px 0 9px}
+    .home-rail .prodgrid.mgrid.dense .pcard .wish{transform:scale(.8)}
+  }
   /* narrow phones: two brand cards per row, and the name wraps inside the card
      instead of stretching the grid past the screen edge */
   @media(max-width:560px){
@@ -322,8 +344,13 @@ include __DIR__ . '/inc/head.php';
       <?php endforeach; ?>
     </div>
   <?php else: ?>
-    <?php $pcols = $sec['cols'] === 4 ? 4 : 5; /* effective desktop per-row count */ ?>
-    <div class="prodgrid<?= $sec['cols'] === 4 ? ' c4' : '' ?><?= count($sec['ids']) > $pcols ? ' compact' : '' ?>" id="homeSec<?= $i ?>"></div>
+    <?php
+      $pcols = in_array($sec['cols'], [3,4,5,6], true) ? $sec['cols'] : 5;   /* desktop per-row count */
+      /* phone layout: only when the admin changed it from the default 1 row / auto */
+      $mgrid = $sec['m_rows'] > 1 || $sec['m_per'] > 0;
+      $mper  = $sec['m_per'] > 0 ? $sec['m_per'] : 2.5;
+    ?>
+    <div class="prodgrid<?= $pcols !== 5 ? ' c' . $pcols : '' ?><?= count($sec['ids']) > $pcols ? ' compact' : '' ?><?= $mgrid ? ' mgrid' . ($mper >= 3 ? ' dense' : '') : '' ?>"<?= $mgrid ? ' style="--mrows:' . $sec['m_rows'] . ';--mper:' . $mper . '"' : '' ?> id="homeSec<?= $i ?>"></div>
   <?php endif; ?>
 </section>
 <?php endforeach; ?>
