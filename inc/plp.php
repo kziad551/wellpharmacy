@@ -173,6 +173,7 @@ function well_plp_input(array $validCats, bool $offers = false): array {
     $cat = trim((string) input('cat'));
     if ($cat !== '' && !in_array($cat, $validCats, true)) $cat = '';
     $brands = input('brand');
+    if (is_string($brands) && trim($brands) !== '') $brands = [trim($brands)];   // brands page links ?brand=Name
     $brands = is_array($brands) ? array_values(array_filter(array_map('strval', $brands), 'strlen')) : [];
     $max    = input('max');
     $rating = (float) input('rating', 0);

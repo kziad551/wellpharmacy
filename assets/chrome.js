@@ -671,6 +671,142 @@
   }
 
   /* ============================================================
+     Search suggestions (header search box)
+     As you type: word completions, matching brands/categories, then products
+     20 at a time — more load as you scroll the panel, and a "See all" bar at the
+     bottom goes to the full results page. Data comes from actions/suggest.php.
+     ============================================================ */
+  function initSuggest(form) {
+    const input = form.querySelector('input[name=q]');
+    if (!input) return;
+    const box = form.parentNode;                       // .hdr-search, position:relative
+    const panel = document.createElement('div');
+    panel.className = 'sugg'; panel.id = 'searchSugg'; panel.hidden = true;
+    panel.setAttribute('role', 'listbox');
+    panel.innerHTML = '<div class="sugg-scroll"></div><a class="sugg-all" data-sugg-item></a>';
+    box.appendChild(panel);
+    const scroll = panel.firstElementChild, allLink = panel.lastElementChild;
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-controls', 'searchSugg');
+    input.setAttribute('aria-expanded', 'false');
+
+    const cache = {};
+    let seq = 0, timer = 0, q = '', next = null, loading = false, active = -1;
+
+    const url = (o) => 'actions/suggest.php?q=' + encodeURIComponent(q) + (o ? '&offset=' + o : '');
+    const get = (u) => cache[u] ? Promise.resolve(cache[u])
+      : fetch(u).then(r => r.json()).then(d => (cache[u] = d));
+    // bold the part of each word that matches what was typed
+    const words = () => q.toLowerCase().split(/\s+/).filter(Boolean)
+      .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const hl = (s) => {
+      let h = esc(s);
+      const ws = words(); if (!ws.length) return h;
+      const re = new RegExp('(^|[^\\p{L}\\p{N}])(' + ws.join('|') + ')', 'giu');
+      return h.replace(re, '$1<mark>$2</mark>');
+    };
+    const open = (o) => {
+      panel.hidden = !o; input.setAttribute('aria-expanded', o ? 'true' : 'false');
+      box.classList.toggle('sugg-open', o);
+      document.body.classList.toggle('sugg-on', o);   // hides the WhatsApp bubble on phones so it can't cover the list
+      if (!o) setActive(-1);
+    };
+    const items = () => Array.from(panel.querySelectorAll('[data-sugg-item]'));
+    function setActive(i) {
+      const all = items();
+      all.forEach(el => el.classList.remove('is-active'));
+      active = i;
+      if (i >= 0 && all[i]) { all[i].classList.add('is-active'); all[i].scrollIntoView({ block: 'nearest' }); }
+    }
+
+    const prodRow = (p) => {
+      const price = p.price > 0
+        ? money(p.price) + (p.was ? ' <s>' + money(p.was) + '</s>' : '')
+        : '<span class="tba">Price soon</span>';
+      return '<a class="sugg-prod' + (p.out ? ' is-out' : '') + '" data-sugg-item href="product?id=' + encodeURIComponent(p.id) + '">'
+        + '<span class="sp-img">' + (p.image ? '<img class="gimg" src="' + esc(p.image) + '" alt="" loading="lazy">' : '') + '</span>'
+        + '<span class="sp-txt">' + (p.brand ? '<small>' + esc(p.brand) + '</small>' : '')
+        + '<span class="sp-name">' + hl(p.name) + '</span></span>'
+        + '<span class="sp-price">' + (p.out ? '<em>Sold out</em>' : price) + '</span></a>';
+    };
+    const searchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+
+    function render(d) {
+      let h = '';
+      const terms = d.terms || [], brands = d.brands || [], cats = d.cats || [];
+      if (terms.length) h += '<div class="sugg-terms">' + terms.map(t =>
+        '<a class="sugg-term" data-sugg-item href="search?q=' + encodeURIComponent(t) + '">' + searchIcon + '<span>' + hl(t) + '</span></a>').join('') + '</div>';
+      if (brands.length || cats.length) h += '<div class="sugg-chips">'
+        + brands.map(b => '<a class="sugg-chip" data-sugg-item href="skincare?brand=' + encodeURIComponent(b.name) + '"><span>' + hl(b.name) + '</span><i>' + b.count + '</i></a>').join('')
+        + cats.map(c => '<a class="sugg-chip is-cat" data-sugg-item href="skincare?cat=' + encodeURIComponent(c) + '"><span>in ' + hl(c) + '</span></a>').join('')
+        + '</div>';
+      if (d.products.length) {
+        h += '<div class="sugg-h">Products <span>' + d.total + '</span></div><div class="sugg-prods">' + d.products.map(prodRow).join('') + '</div>';
+      } else {
+        h += '<div class="sugg-empty">No products match “' + esc(q) + '”. Press Enter to search anyway.</div>';
+      }
+      h += '<div class="sugg-more"' + (d.next ? '' : ' hidden') + '>Loading more…</div>';
+      scroll.innerHTML = h;
+      scroll.scrollTop = 0;
+      allLink.href = 'search?q=' + encodeURIComponent(q);
+      allLink.innerHTML = d.total ? 'See all ' + d.total + ' results for “' + esc(q) + '” →' : 'Search for “' + esc(q) + '” →';
+      next = d.next;
+      W.guardImages(scroll);
+      setActive(-1);
+      open(true);
+      watchMore();
+    }
+
+    function lookup() {
+      q = input.value.trim();
+      if (!q) { open(false); return; }
+      const my = ++seq;
+      get(url(0)).then(d => { if (my === seq) render(d); }).catch(() => {});
+    }
+
+    // infinite scroll inside the panel: when the "Loading more…" row comes into
+    // view, fetch the next 20 and append them
+    let io = null;
+    function watchMore() {
+      const s = scroll.querySelector('.sugg-more');
+      if (!s || !next) return;
+      if (!io) io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) loadMore(); }, { root: scroll, rootMargin: '120px' });
+      io.disconnect(); io.observe(s);
+    }
+    function loadMore() {
+      if (loading || next == null) return;
+      loading = true;
+      const my = seq, qq = q;
+      get(url(next)).then(d => {
+        loading = false;
+        if (my !== seq || qq !== q) return;
+        const list = scroll.querySelector('.sugg-prods'), more = scroll.querySelector('.sugg-more');
+        if (list) { list.insertAdjacentHTML('beforeend', d.products.map(prodRow).join('')); W.guardImages(list); }
+        next = d.next;
+        if (more) more.hidden = !next;
+        if (!next && io) io.disconnect();
+      }).catch(() => { loading = false; });
+    }
+
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(lookup, 140); });
+    input.addEventListener('focus', () => { if (input.value.trim() && scroll.firstChild) open(true); else if (input.value.trim()) lookup(); });
+    input.addEventListener('keydown', (e) => {
+      if (panel.hidden) { if (e.key === 'ArrowDown' && input.value.trim()) { lookup(); e.preventDefault(); } return; }
+      const all = items();
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(active + 1, all.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(active - 1, -1)); }
+      else if (e.key === 'Escape') { open(false); }
+      else if (e.key === 'Enter' && active >= 0 && all[active]) { e.preventDefault(); location.href = all[active].href; }
+    });
+    // keep focus in the input while clicking/scrolling the panel
+    panel.addEventListener('mousedown', (e) => { e.preventDefault(); });
+    input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) open(false); }, 120));
+    document.addEventListener('click', (e) => { if (!box.contains(e.target)) open(false); });
+  }
+
+  /* ============================================================
      PUBLIC: mountChrome
      ============================================================ */
   W.mountChrome = function (opts) {
@@ -695,6 +831,7 @@
     if (sform) sform.addEventListener('mousedown', e => {
       if (e.target.tagName !== 'INPUT') { e.preventDefault(); const i = sform.querySelector('input'); if (i) i.focus(); }
     });
+    if (sform) initSuggest(sform);
     drawerShell();
     syncBadges();
     initDialPickers();

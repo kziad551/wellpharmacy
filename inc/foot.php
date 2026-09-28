@@ -57,7 +57,12 @@
   if(!pop) return;
   function close(){ pop.classList.remove('open'); try{localStorage.setItem(KEY,'1')}catch(e){} }
   if(!(function(){try{return localStorage.getItem(KEY)}catch(e){return 1}})()){
-    setTimeout(function(){ pop.classList.add('open'); }, 2200);
+    /* never pop over someone who is typing (e.g. using the search suggestions) — wait until they're done */
+    (function show(){ setTimeout(function(){
+      var a=document.activeElement;
+      if(a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA')) return show();
+      pop.classList.add('open');
+    }, 2200); })();
   }
   pop.querySelectorAll('[data-nl-close]').forEach(function(b){ b.addEventListener('click', close); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && pop.classList.contains('open')) close(); });
