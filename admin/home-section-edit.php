@@ -27,9 +27,9 @@ if (is_post()) {
         'show_title' => input('show_title') ? 1 : 0,
         'item_count' => max(0, (int) input('item_count')),
         'cols'       => in_array((int) input('cols'), [3,4,5,6], true) ? (int) input('cols') : 5,
-        'm_rows'     => max(0, min(100, (int) input('m_rows'))),                             // 0 = as many as needed
-        'm_per_row'  => round(max(0, min(6, (float) input('m_per_row'))) * 2) / 2,            // 0 = auto, halves allowed
-        'm_count'    => trim((string) input('m_count')) === '' ? null : max(0, (int) input('m_count')),  // null = same as computer
+        'm_cols'     => max(0, (int) input('m_cols')),                                        // per row on mobile; 0 = all in one row
+        'm_per_row'  => in_array((string) input('m_per_row'), ['1','1.5','2','2.5','3'], true) ? (float) input('m_per_row') : 0,  // swiper view
+        'm_count'    => trim((string) input('m_count')) === '' ? null : max(0, (int) input('m_count')),  // null = same as desktop view
         'enabled'    => input('enabled') ? 1 : 0,
         'sort'       => (int) input('sort'),
     ];
@@ -41,17 +41,17 @@ if (is_post()) {
     if ($editing) {
         $data['id'] = $id;
         q("UPDATE home_sections SET type=:type, brand=:brand, brands=:brands, product_ids=:product_ids, eyebrow=:eyebrow, title=:title, subtitle=:subtitle,
-              show_title=:show_title, item_count=:item_count, cols=:cols, m_rows=:m_rows, m_per_row=:m_per_row, m_count=:m_count, enabled=:enabled, sort=:sort WHERE id=:id", $data);
+              show_title=:show_title, item_count=:item_count, cols=:cols, m_cols=:m_cols, m_per_row=:m_per_row, m_count=:m_count, enabled=:enabled, sort=:sort WHERE id=:id", $data);
         flash('Section updated.');
     } else {
-        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,m_rows,m_per_row,m_count,enabled,sort)
-           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:m_rows,:m_per_row,:m_count,:enabled,:sort)", $data);
+        q("INSERT INTO home_sections (type,brand,brands,product_ids,eyebrow,title,subtitle,show_title,item_count,cols,m_cols,m_per_row,m_count,enabled,sort)
+           VALUES (:type,:brand,:brands,:product_ids,:eyebrow,:title,:subtitle,:show_title,:item_count,:cols,:m_cols,:m_per_row,:m_count,:enabled,:sort)", $data);
         flash('Section created.');
     }
     redirect('home-sections');
 }
 
-$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'m_rows'=>1,'m_per_row'=>0,'m_count'=>null,'enabled'=>1,'sort'=>0];
+$v = $editing ? $s : ['id'=>0,'type'=>'brand','brand'=>'','brands'=>'','product_ids'=>'','eyebrow'=>'','title'=>'','subtitle'=>'','show_title'=>1,'item_count'=>5,'cols'=>5,'m_cols'=>0,'m_per_row'=>0,'m_count'=>null,'enabled'=>1,'sort'=>0];
 $pickedBrands = array_filter(array_map('trim', explode(',', (string)($v['brands'] ?? ''))));   // for the Mixed multi-select
 
 /* brand options: every brand that exists in the brands table OR is used by a product */
@@ -122,9 +122,9 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       <input class="input" name="subtitle" value="<?= e($v['subtitle']) ?>"></div>
 
     <div class="f-row-3">
-      <div class="field"><label>Products to show <span class="faint">(computer &amp; tablet)</span></label><input class="input" type="number" name="item_count" min="0" value="<?= e($v['item_count']) ?>">
-        <div class="hint">0 = all. On a computer: 5 per row × 2 rows = 10…</div></div>
-      <div class="field"><label>Per row <span class="faint">(computer)</span></label>
+      <div class="field"><label>Products to show <span class="faint">(desktop view)</span></label><input class="input" type="number" name="item_count" min="0" value="<?= e($v['item_count']) ?>">
+        <div class="hint">0 = all. 5 per row × 2 rows = 10… Tablets use these too.</div></div>
+      <div class="field"><label>Per row <span class="faint">(desktop view)</span></label>
         <select class="input" name="cols">
           <option value="6" <?= (int)$v['cols']===6?'selected':'' ?>>6 per row</option>
           <option value="5" <?= (int)$v['cols']===5?'selected':'' ?>>5 per row</option>
@@ -136,41 +136,45 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
     </div>
 
     <?php if ($v['type'] !== 'category'):
-      $mr = (int)($v['m_rows'] ?? 1);
-      $mp = (float)($v['m_per_row'] ?? 0);
-      $mc = ($v['m_count'] ?? null) === null ? '' : (int)$v['m_count']; ?>
+      $mcol = (int)($v['m_cols'] ?? 0);
+      $mv   = (float)($v['m_per_row'] ?? 0); if ($mv <= 0) $mv = 2.5;
+      $mc   = ($v['m_count'] ?? null) === null ? '' : (int)$v['m_count']; ?>
     <div class="ph-box">
-      <div class="ph-h">On phones</div>
+      <div class="ph-h">Mobile view</div>
       <div class="f-row-3">
-        <div class="field"><label>Products to show</label>
-          <input class="input" type="number" name="m_count" id="mCount" min="0" value="<?= e($mc) ?>" placeholder="same as computer">
-          <div class="hint">Empty = same as the computer. 0 = all.</div></div>
-        <div class="field"><label>Products per row</label>
-          <input class="input" type="number" name="m_per_row" id="mPer" min="0" max="6" step="0.5" value="<?= $mp > 0 ? e(rtrim(rtrim(number_format($mp, 1, '.', ''), '0'), '.')) : '' ?>" placeholder="auto (2½)">
-          <div class="hint">How many fit across the screen. 2.5 = two and a half, so you see there is more to swipe. Empty = auto.</div></div>
-        <div class="field"><label>Rows</label>
-          <input class="input" type="number" name="m_rows" id="mRows" min="0" max="100" value="<?= e($mr) ?>">
-          <div class="hint">0 = as many rows as the products need — everything shows, no swiping.</div></div>
+        <div class="field"><label>Products to show <span class="faint">(mobile)</span></label>
+          <input class="input" type="number" name="m_count" id="mCount" min="0" value="<?= e($mc) ?>" placeholder="same as desktop view">
+          <div class="hint">Empty = same as desktop view. 0 = all.</div></div>
+        <div class="field"><label>Products per row <span class="faint">(mobile)</span></label>
+          <input class="input" type="number" name="m_cols" id="mCols" min="0" value="<?= $mcol > 0 ? $mcol : '' ?>" placeholder="all in one row">
+          <div class="hint">The rows are worked out for you: 20 products, 5 per row = 4 rows. Empty = all in one row.</div></div>
+        <div class="field"><label>Swiper view on mobile</label>
+          <select class="input" name="m_per_row" id="mView">
+            <?php foreach (['1'=>'1 — one big product','1.5'=>'1.5 — one and a half','2'=>'2 products','2.5'=>'2.5 — two and a half (default)','3'=>'3 products'] as $val => $lab): ?>
+              <option value="<?= $val ?>" <?= abs($mv - (float)$val) < 0.01 ? 'selected' : '' ?>><?= $lab ?></option>
+            <?php endforeach; ?>
+          </select>
+          <div class="hint">How many products you see on the screen at once. The rest of the row you swipe to. A half shows there is more to swipe.</div></div>
       </div>
       <div class="ph-sum" id="mSum"></div>
     </div>
     <script>
     (() => {
-      const c = document.getElementById('mCount'), p = document.getElementById('mPer'), r = document.getElementById('mRows'),
+      const c = document.getElementById('mCount'), k = document.getElementById('mCols'), v = document.getElementById('mView'),
             dc = document.querySelector('[name=item_count]'), out = document.getElementById('mSum');
       const upd = () => {
-        const count = c.value === '' ? (+dc.value || 0) : +c.value, rows = +r.value || 0;
-        const per = +p.value > 0 ? +p.value : (rows === 0 ? 2 : 2.5), across = Math.max(1, Math.floor(per));
+        const count = c.value === '' ? (+dc.value || 0) : +c.value, view = +v.value;
+        const per = +k.value > 0 ? +k.value : 0;
         const n = count > 0 ? count + ' products' : 'all products';
-        if (rows === 0 || (count > 0 && rows * Math.ceil(per) >= count)) {
-          const rr = count > 0 ? Math.ceil(count / across) + ' rows × ' + across : across + ' per row';
-          out.textContent = 'Phone: ' + n + ' shown as ' + rr + ' — all visible, no swiping.';
-        } else {
-          const screens = count > 0 ? ' (about ' + Math.ceil(count / (rows * per)) + ' swipes to see them all)' : '';
-          out.textContent = 'Phone: ' + n + ' — ' + rows + (rows === 1 ? ' row' : ' rows') + ' × ' + per + ' across, swipe sideways for more' + screens + '.';
+        if (!per) {
+          out.textContent = 'Mobile: ' + n + ' in one row — you see ' + view + ' at a time and swipe sideways for the rest.'; return;
         }
+        const rows = count > 0 ? Math.ceil(count / per) : null;
+        const shape = (rows ? rows + (rows === 1 ? ' row' : ' rows') + ' × ' : 'rows of ') + per;
+        out.textContent = 'Mobile: ' + n + ' → ' + shape + ' per row. ' +
+          (per <= view ? 'The whole row fits on the screen — no swiping.' : 'You see ' + view + ' at a time and swipe sideways for the rest of each row.');
       };
-      [c, p, r, dc].forEach(el => el && el.addEventListener('input', upd)); upd();
+      [c, k, v, dc].forEach(el => el && el.addEventListener('input', upd)); v.addEventListener('change', upd); upd();
     })();
     </script>
     <?php endif; ?>

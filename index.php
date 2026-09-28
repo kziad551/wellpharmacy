@@ -30,8 +30,8 @@ function sec_title_html(string $t): string {
 $CAT_GRADS = ['linear-gradient(160deg,#F2EFE6,#E7E2D5)','linear-gradient(160deg,#EFEBE0,#E4DFCF)','linear-gradient(160deg,#F1EEE4,#E6E1D2)','linear-gradient(160deg,#EEEADF,#E2DDCC)','linear-gradient(160deg,#F0ECE2,#E5E0D0)'];
 $SECTIONS = [];
 foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") as $hs) {
-    $n  = (int) $hs['item_count'];                                   // products on a computer (0 = all)
-    $mc = ($hs['m_count'] ?? null) === null ? null : (int) $hs['m_count'];  // on a phone (null = same, 0 = all)
+    $n  = (int) $hs['item_count'];                                   // products in desktop view (0 = all)
+    $mc = ($hs['m_count'] ?? null) === null ? null : (int) $hs['m_count'];  // on mobile (null = same as desktop, 0 = all)
     /* fetch enough for whichever screen shows more; CSS hides the extras per screen */
     $f  = ($n === 0 || $mc === 0) ? 0 : max($n, $mc ?? $n);
     $ids = null; $panels = null;
@@ -90,8 +90,8 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         'title'    => $hs['show_title'] ? $title : '',
         'subtitle' => $hs['subtitle'],
         'cols'     => (int) $hs['cols'],
-    'm_rows'   => max(0, (int) ($hs['m_rows'] ?? 1)),              // 0 = as many rows as needed
-    'm_per'    => (float) ($hs['m_per_row'] ?? 0),                  // 0 = auto
+    'm_cols'   => max(0, (int) ($hs['m_cols'] ?? 0)),              // products per row on mobile (0 = all in one row)
+    'm_view'   => (float) ($hs['m_per_row'] ?? 0),                  // swiper view: products on screen (0 = 2.5)
     'd_count'  => $n,
     'm_count'  => $mc ?? $n,
         'view_all' => $viewAll,
@@ -217,18 +217,15 @@ $HEAD_CSS = <<<CSS
     .home-rail .prodgrid>*{flex:0 0 40%; scroll-snap-align:start; min-width:0}
   }
   @media(max-width:420px){ .home-rail .prodgrid>*{flex:0 0 46%} }
-  /* sections with a phone layout set in admin → Home Sections: N rows that swipe
-     sideways together, with a chosen number of cards across (--mrows / --mper) */
+  /* sections with a mobile layout set in admin → Home Sections: the products are laid
+     out in rows of --mcols; the screen shows --mview of them across and the rows swipe
+     sideways together for the rest (.mfit = the whole row fits, nothing to swipe) */
   @media(max-width:680px){
-    .home-rail .prodgrid.mgrid{
-      display:grid; grid-auto-flow:column; grid-template-columns:none;
-      grid-template-rows:repeat(var(--mrows,1),auto);
-      grid-auto-columns:calc((100% - (var(--mper,2.5) - 1) * 12px) / var(--mper,2.5));
+    .home-rail .prodgrid.mrows{
+      display:grid; grid-auto-flow:row;
+      grid-template-columns:repeat(var(--mcols,5),calc((100% - (var(--mview,2.5) - 1) * 12px) / var(--mview,2.5)));
       gap:18px 12px}
-    /* every card shown, row after row, no swiping */
-    .home-rail .prodgrid.mfull{
-      display:grid; overflow:visible; grid-auto-flow:row;
-      grid-template-columns:repeat(var(--mcols,2),minmax(0,1fr)); gap:18px 12px}
+    .home-rail .prodgrid.mrows.mfit{grid-template-columns:repeat(var(--mcols,2),minmax(0,1fr)); overflow:visible}
     /* 3+ cards across: smaller type so the name and the buy button still fit */
     .home-rail .prodgrid.dense .pcard .name{font-size:11.5px; letter-spacing:.02em}
     .home-rail .prodgrid.dense .pcard .stars{font-size:11px; gap:3px}
@@ -364,17 +361,17 @@ include __DIR__ . '/inc/head.php';
       $pcols = in_array($sec['cols'], [3,4,5,6], true) ? $sec['cols'] : 5;   /* desktop per-row count */
       /* phone layout: only when the admin changed it from the default 1 row / auto */
       $all   = count($sec['ids']);
-      $dShow = $sec['d_count'] > 0 ? min($sec['d_count'], $all) : $all;   // cards on a computer
-      $mShow = $sec['m_count'] > 0 ? min($sec['m_count'], $all) : $all;   // cards on a phone
-      $mrows = $sec['m_rows'];
-      $mper  = $sec['m_per'] > 0 ? $sec['m_per'] : ($mrows === 0 ? 2 : 2.5);
-      /* "as many rows as needed" (0), or enough rows to hold every card anyway,
-         = a plain grid with no swiping; otherwise N rows that swipe sideways */
-      $mfull = $mrows === 0 || $mrows * ceil($mper) >= $mShow;
-      $mgrid = $mfull || $mrows > 1 || $sec['m_per'] > 0;
+      $dShow = $sec['d_count'] > 0 ? min($sec['d_count'], $all) : $all;   // cards in desktop view
+      $mShow = $sec['m_count'] > 0 ? min($sec['m_count'], $all) : $all;   // cards on mobile
+      /* mobile: rows of m_cols products (rows = products ÷ per row), m_view on screen at once */
+      $mcols = $sec['m_cols'] > 0 ? min($sec['m_cols'], $mShow) : $mShow;
+      $mview = $sec['m_view'] > 0 ? $sec['m_view'] : 2.5;
+      $mcust = $sec['m_cols'] > 0 || $sec['m_view'] > 0;   // untouched = the classic one-row swiper
+      $mfit  = $mcols <= $mview;                           // a whole row fits on screen → no swiping
+      $vis   = $mfit ? $mcols : $mview;                    // cards across the screen
       $cls   = 'prodgrid' . ($pcols !== 5 ? ' c' . $pcols : '') . ($dShow > $pcols ? ' compact' : '')
-             . ($mgrid ? ($mfull ? ' mfull' : ' mgrid') . ($mper >= 3 ? ' dense' : '') . ($mper >= 4 ? ' tiny' : '') : '');
-      $style = $mgrid ? '--mrows:' . max(1, $mrows) . ';--mper:' . $mper . ';--mcols:' . max(1, (int) floor($mper)) : '';
+             . ($mcust ? ' mrows' . ($mfit ? ' mfit' : '') . ($vis >= 3 ? ' dense' : '') . ($vis >= 4 ? ' tiny' : '') : '');
+      $style = $mcust ? '--mcols:' . $mcols . ';--mview:' . $mview : '';
       $gid   = 'homeSec' . $i;
     ?>
     <?php if ($dShow < $all || $mShow < $all): ?><style>
