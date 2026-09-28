@@ -692,6 +692,17 @@
     input.setAttribute('aria-controls', 'searchSugg');
     input.setAttribute('aria-expanded', 'false');
 
+    // ✕ inside the search pill: shows once something is typed; tapping it clears the
+    // box, closes the list and drops the phone keyboard so the page scrolls normally
+    const clear = document.createElement('button');
+    clear.type = 'button'; clear.className = 'sugg-x'; clear.hidden = true;
+    clear.setAttribute('aria-label', 'Clear search');
+    clear.innerHTML = I.close;
+    form.appendChild(clear);
+    const syncClear = () => { clear.hidden = !input.value; };
+    clear.addEventListener('mousedown', (e) => e.preventDefault());
+    clear.addEventListener('click', () => { input.value = ''; syncClear(); open(false); input.blur(); });
+
     const cache = {};
     let seq = 0, timer = 0, q = '', next = null, loading = false, active = -1;
 
@@ -790,7 +801,7 @@
       }).catch(() => { loading = false; });
     }
 
-    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(lookup, 140); });
+    input.addEventListener('input', () => { syncClear(); clearTimeout(timer); timer = setTimeout(lookup, 140); });
     input.addEventListener('focus', () => { if (input.value.trim() && scroll.firstChild) open(true); else if (input.value.trim()) lookup(); });
     input.addEventListener('keydown', (e) => {
       if (panel.hidden) { if (e.key === 'ArrowDown' && input.value.trim()) { lookup(); e.preventDefault(); } return; }
@@ -803,7 +814,11 @@
     // keep focus in the input while clicking/scrolling the panel
     panel.addEventListener('mousedown', (e) => { e.preventDefault(); });
     input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) open(false); }, 120));
-    document.addEventListener('click', (e) => { if (!box.contains(e.target)) open(false); });
+    // a tap or scroll that starts anywhere outside the search closes the list (and the
+    // keyboard) — so on a phone you can just swipe the page below it to get back to it
+    const outside = (e) => { if (!panel.hidden && !box.contains(e.target)) { open(false); input.blur(); } };
+    document.addEventListener('click', outside);
+    document.addEventListener('touchstart', outside, { passive: true });
   }
 
   /* ============================================================

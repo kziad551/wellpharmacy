@@ -331,6 +331,11 @@ select.input,.select{padding-right:34px}
   border:1px solid var(--border-2); border-radius:18px; box-shadow:var(--sh-xl); overflow:hidden; display:flex; flex-direction:column;
   max-height:min(72vh,620px)}
 .sugg[hidden]{display:none}
+.sugg-x{flex:none; width:32px; height:32px; margin-right:4px; border:0; border-radius:50%; background:var(--cream); color:var(--ink);
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
+.sugg-x[hidden]{display:none}
+.sugg-x svg{width:16px; height:16px; stroke-width:2.2}
+.sugg-x:hover{background:var(--cream-2)}
 .sugg-scroll{overflow-y:auto; overscroll-behavior:contain; padding:8px 0; flex:1 1 auto; -webkit-overflow-scrolling:touch}
 .sugg mark{background:none; color:inherit; font-weight:700}
 .sugg a{color:var(--ink); text-decoration:none}
@@ -361,9 +366,13 @@ select.input,.select{padding-right:34px}
 .sugg-chip:hover,.sugg-chip.is-active{border-color:var(--rose)}
 .sugg-all:hover,.sugg-all.is-active{background:var(--cream-2)}
 @media (max-width:1024px){
-  .sugg{min-width:0; top:calc(100% + 6px); max-height:calc(100dvh - 180px); border-radius:14px}
+  /* stop well short of the bottom so part of the page stays visible — a tap or swipe
+     there closes the list; the ✕ in the search pill does the same */
+  .sugg{min-width:0; top:calc(100% + 6px); max-height:min(62dvh,560px); border-radius:14px}
+  .sugg-x{width:36px; height:36px}
   .sugg-prod,.sugg-term{padding-block:10px}
   body.sugg-on .wa-fab{display:none}
+  body.sugg-on::after{content:""; position:fixed; inset:0; z-index:59; background:rgba(44,38,31,.28)}   /* under the sticky header (60) */
 }
 /* margin-left:auto pins this to the container's right edge. Without it the capped
    search box leaves dead space to its right, so the row-1 icons stop short and no
