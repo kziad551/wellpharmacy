@@ -161,7 +161,7 @@ $HEAD_CSS = <<<CSS
   .brandcard{display:flex; align-items:center; justify-content:center; height:108px; padding:22px 24px;
     background:#fff; border:1px solid var(--border); border-radius:var(--r-card); box-shadow:var(--sh-xs); transition:transform .25s,box-shadow .25s,border-color .25s}
   .brandcard:hover{transform:translateY(-5px); box-shadow:var(--sh-rose); border-color:var(--rose)}
-  .brandcard .brand-logo-text{font-family:var(--fp); font-weight:700; font-size:23px; text-align:center; line-height:1.1; letter-spacing:.2px; color:var(--ink); transition:color .25s}
+  .brandcard .brand-logo-text{font-family:var(--fp); font-weight:700; font-size:23px; text-align:center; line-height:1.1; letter-spacing:.5px; text-transform:uppercase; color:var(--ink); transition:color .25s}
   .brandcard:hover .brand-logo-text{color:var(--rose-deep)}
   .brandcard .brand-logo{max-height:60px; max-width:100%; width:auto; object-fit:contain}
   .brandcard.both{flex-direction:column; gap:9px}
