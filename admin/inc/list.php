@@ -116,7 +116,7 @@ function admin_search(string $action, string $q, string $placeholder = 'Searchâ€
    ============================================================ */
 const ADMIN_RET_PAGES = ['products','brands','categories','coupons','journal','pages','orders',
                          'customers','messages','home-sections','subscribers','restock','social',
-                         'appearance','dashboard'];
+                         'appearance','dashboard','gifts','popups'];
 
 /** Reduce a return target to "<known page>[?<safe query>]", or '' if it isn't one. */
 function admin_ret_clean(string $raw): string {

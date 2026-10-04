@@ -218,6 +218,23 @@ select.input,.select{padding-right:34px}
 /* (mobile keeps the big title visible + scrim, sized down in the ≤760 block — like rhode Image #33) */
 .pcard .badge-slot{flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:6px}
 .pcard .badge-slot .badge{background:var(--ink); color:#F1EDE3; border:0}
+/* free gift chip: the 2nd child of .pc-top, so space-between parks it top-right while the
+   badges stay top-left. Not a .badge, so the ink override above never reaches it.
+   margin-left:auto keeps it right when it is alone (index.php tiny rails hide the badge
+   slot), and wrap drops it under the badges, still on the right, when a card is too
+   narrow for both instead of letting .media's overflow:hidden clip it. */
+.pcard .pc-top:has(.pc-gift){flex-wrap:wrap}
+.pcard .pc-top .pc-gift{flex:none; margin-left:auto; display:inline-flex; align-items:center; gap:4px; height:24px; padding:0 9px 0 7px; border-radius:var(--r-pill);
+  background:var(--cream); color:var(--rose-deep); border:1px solid var(--rose); font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; line-height:1; white-space:nowrap}
+.pcard .pc-gift svg{width:14px; height:14px; flex:none}
+/* narrow desktop cards (3-up PLP near 900px, the 5-up "you may also love" row): a long
+   badge (BESTSELLER is ~94px) next to the labelled chip (~64px) needs ~197px, so with a
+   badge the chip goes icon-only, as it does on phones. .media is the size container. */
+@container (max-width:230px){
+  .pcard .pc-top:has(.badge) .pc-gift{width:22px; height:22px; padding:0; justify-content:center}
+  .pcard .pc-top:has(.badge) .pc-gift svg{width:13px; height:13px}
+  .pcard .pc-top:has(.badge) .pc-gift>span{display:none}
+}
 .wish{position:absolute; top:64px; right:20px; width:38px; height:38px; border-radius:var(--r-pill);
   background:rgba(255,255,255,.92); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; z-index:4; color:var(--ink); opacity:0; transition:opacity .25s,transform .2s,color .2s}
 .pcard:hover .wish{opacity:1}
@@ -261,8 +278,8 @@ select.input,.select{padding-right:34px}
 .pcard .buybtn s{color:var(--text-faint); font-weight:400; text-decoration:line-through}
 .pprice .unit-lbl{font-size:12px; color:var(--text-muted); font-weight:500}
 .price .from{font-size:.72em; color:var(--text-muted); font-weight:500}
-.citem .ci-var{font-size:12px; color:var(--text-muted); margin:2px 0 4px}
-.crow .cvar{font-size:12.5px; color:var(--text-muted); margin:2px 0 6px}
+.citem .ci-var{font-size:12px; color:var(--text-muted); margin:2px 0 4px; overflow-wrap:anywhere}
+.crow .cvar{font-size:12.5px; color:var(--text-muted); margin:2px 0 6px; overflow-wrap:anywhere}
 .pcard .buybtn:hover s{color:rgba(255,255,255,.55)}
 /* no price yet: a soft beige "coming soon" pill instead of a greyed-out button — short
    enough to fit the narrowest card, and clearly not something to tap */
@@ -612,6 +629,43 @@ select.input,.select{padding-right:34px}
 .cart-empty{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; text-align:center; padding:40px}
 .cart-empty .ic{width:72px; height:72px; border-radius:var(--r-pill); background:var(--blush-tint); display:flex; align-items:center; justify-content:center; color:var(--rose-deep)}
 
+/* ---------- free gift rows (W.giftRowHTML): display-only, right under the parent line ---------- */
+.gift-row{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:10px; padding:8px 12px 8px 8px;
+  border:1px dashed var(--rose); border-radius:12px; background:var(--cream); color:var(--ink)}
+.gift-row>.gimg,.gift-row>.gr-ic{width:40px; height:40px; border-radius:9px; background:#fff; object-fit:cover}
+.gift-row>.gr-ic{display:flex; align-items:center; justify-content:center; color:var(--rose-deep)}
+.gift-row>.gr-ic svg{width:20px; height:20px}
+.gift-row .gr-b{display:flex; flex-direction:column; gap:1px; min-width:0}
+.gift-row .gr-tag{display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--rose-deep)}
+.gift-row .gr-tag svg{width:12px; height:12px; flex:none}
+.gift-row .gr-name{font-size:12.5px; line-height:1.3; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.gift-row .gr-q{font-size:12px; font-weight:600; color:var(--ink-soft); white-space:nowrap}   /* not --text-muted: 3.3:1 on cream fails AA */
+.gift-row .gr-free{padding:3px 8px; border-radius:var(--r-pill); background:var(--rose-deep); color:var(--cream); font-size:10.5px; font-weight:700; letter-spacing:.6px; white-space:nowrap}
+/* drawer: sits under the parent's text column (64px thumb + 12px gap) and takes over the
+   divider line the parent .citem gives up */
+.citem.has-gift{border-bottom:0; padding-bottom:8px}
+.gift-row--drawer{position:relative; margin:0 0 16px 76px}
+.gift-row--drawer::after{content:""; position:absolute; left:-76px; right:0; bottom:-16px; border-bottom:1px solid var(--border-2)}
+/* bag page: hugs its .crow (14px padding + 88px photo + 16px gap) */
+.gift-row--cart{margin:-6px 0 0 118px; padding:10px 14px 10px 10px}
+.gift-row--cart>.gimg,.gift-row--cart>.gr-ic{width:48px; height:48px; border-radius:10px}
+.gift-row--cart .gr-name{font-size:13.5px}
+/* checkout summary: under the item name (52px photo + 10px gap) */
+.gift-row--checkout{margin:-4px 0 0 62px; padding:6px 10px 6px 6px; gap:8px}
+.gift-row--checkout>.gimg,.gift-row--checkout>.gr-ic{width:34px; height:34px; border-radius:8px}
+.gift-row--checkout>.gr-ic svg{width:17px; height:17px}
+@media (max-width:560px){
+  .gift-row--cart{margin-left:24px}
+  .gift-row--cart>.gimg,.gift-row--cart>.gr-ic{width:40px; height:40px}
+}
+/* narrow phones: qty above FREE in one right-hand column, so the gift name keeps its room */
+@media (max-width:450px){
+  .gift-row{grid-template-columns:auto minmax(0,1fr) auto; column-gap:8px; row-gap:3px}
+  .gift-row>.gimg,.gift-row>.gr-ic,.gift-row>.gr-b{grid-row:1 / span 2}
+  .gift-row .gr-q{grid-column:3; grid-row:1; justify-self:end; align-self:end}
+  .gift-row .gr-free{grid-column:3; grid-row:2; justify-self:end; align-self:start}
+}
+
 /* ---------- breadcrumb ---------- */
 .crumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted); padding-block:16px}
 .crumb a:hover{color:var(--rose-deep)} .crumb .sep{opacity:.5}
@@ -771,6 +825,9 @@ select.input,.select{padding-right:34px}
   .pcard .pc-top{padding:16px 13px 0 16px; gap:6px}
   .pcard .pc-kw{font-size:clamp(12px,9.5cqi,22px); background:none; -webkit-text-fill-color:var(--taupe); color:var(--taupe)}
   .pcard .badge-slot .badge{font-size:8.5px; padding:3px 6px; height:auto; white-space:nowrap; letter-spacing:.03em}
+  .pcard .pc-top .pc-gift{width:22px; height:22px; padding:0; justify-content:center}   /* icon only; the label lives in aria-label */
+  .pcard .pc-gift svg{width:13px; height:13px}
+  .pcard .pc-gift>span{display:none}
   .sec-head{flex-direction:column; align-items:flex-start; gap:12px}
   .socialproof{flex-direction:column; align-items:flex-start; gap:16px}
   .usp .wrap{grid-template-columns:1fr}
@@ -784,6 +841,12 @@ select.input,.select{padding-right:34px}
   .input,textarea.input,select.input,.pillinput,.foot-news .pillinput,.search input,
   .dial-search{font-size:16px}
   .cart-drawer{width:100vw; max-width:100vw}
+}
+/* home rails with 4+ cards across (index.php .prodgrid.tiny, its own 680px breakpoint): the
+   badges are hidden there, the gift chip stays but shrinks to fit a ~75px card */
+@media (max-width:680px){
+  .home-rail .prodgrid.tiny .pcard .pc-top .pc-gift{width:18px; height:18px}
+  .home-rail .prodgrid.tiny .pcard .pc-gift svg{width:11px; height:11px}
 }
 /* mobile inline search shown under header on small screens */
 .mobile-search{display:none; padding:10px 16px; background:#fff; border-bottom:1px solid var(--border-2)}

@@ -2,6 +2,10 @@
 <div id="chrome-foot"></div>
 
 <?php if (empty($NO_POPUP)): ?>
+<!-- one popup per page view: a seasonal campaign claims the slot while the page parses, the newsletter respects it -->
+<script>window.WELL_POP=window.WELL_POP||{taken:null};</script>
+<?php require_once __DIR__ . '/popups.php'; popup_render_page(); ?>
+
 <!-- first-visit newsletter popup -->
 <div class="nl-pop" id="nlPop" aria-hidden="true">
   <div class="nl-back" data-nl-close></div>
@@ -59,8 +63,12 @@
   if(!(function(){try{return localStorage.getItem(KEY)}catch(e){return 1}})()){
     /* never pop over someone who is typing (e.g. using the search suggestions) — wait until they're done */
     (function show(){ setTimeout(function(){
+      var slot=window.WELL_POP;
+      if(slot && slot.taken && slot.taken!=='nl') return;   /* a seasonal campaign has this page view */
+      try{ if(sessionStorage.getItem('well_pop_sess')) return; }catch(e){}   /* ...or this visit saw the browser's first campaign: wait for a later one */
       var a=document.activeElement;
       if(a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA')) return show();
+      if(slot) slot.taken='nl';
       pop.classList.add('open');
     }, 2200); })();
   }

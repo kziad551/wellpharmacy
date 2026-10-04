@@ -7,6 +7,7 @@
    ============================================================ */
 require __DIR__ . '/../inc/functions.php';
 require __DIR__ . '/../inc/customer.php';   // optional: login is NEVER required to order
+require_once __DIR__ . '/../inc/gifts.php';
 header('Content-Type: application/json; charset=utf-8');
 
 function fail(string $msg, int $code = 422): void { http_response_code($code); echo json_encode(['ok' => false, 'err' => $msg]); exit; }
@@ -59,34 +60,84 @@ if ($pay === 'cod' && setting('cod_enabled', '1') !== '1') fail('Cash on Deliver
 $order_no = new_order_no();
 $adjust   = [];   // human-readable notes about items reduced/removed due to stock
 
+/* Gift offers the shop is showing right now, read BEFORE this order takes any stock.
+   An offer whose gift has run out is hidden from the storefront (gifts_live_map()), so
+   only these products earn a gift: nobody gets a "sorry, the gift ran out" note for a
+   gift they were never offered. A gift that runs out during this order still gets one.
+   gifts_seen (optional) lists the products whose gift row the checkout page showed, so a
+   gift that ran out between page load and submit also gets its note instead of vanishing.
+   It is only a hint: gifts_for_order() still decides from the DB, under lock, so a crafted
+   list can earn nothing a live offer would not give anyway (at most a "ran out" note). */
+$liveGifts = gifts_live_map();
+$giftsSeen = [];
+foreach ((array) ($in['gifts_seen'] ?? []) as $gpid) if (is_string($gpid) && $gpid !== '') $giftsSeen[$gpid] = true;
+
 try {
     $pdo = db();
     $pdo->beginTransaction();
 
     $lines = []; $subtotal = 0.0;
+    $paidForGifts = [];   // [pid, units actually taken] per paid line with a live or shown offer, for gifts_for_order()
+    $unpriced = [];       // names removed by the $0 guard below
+    $noOption = [];       // names removed because their colour/size/flavour is missing or no longer offered
     foreach ($items as $it) {
         $pid    = (string) ($it['id'] ?? '');
         $reqQty = max(1, (int) ($it['qty'] ?? 1));
         if ($pid === '') continue;
         $p = row("SELECT * FROM products WHERE id = ? AND status='active' FOR UPDATE", [$pid]);   // lock the row
         if (!$p) continue;
-        /* variants: validate the chosen color/size and take the price from the DB, never the client */
-        $color = trim((string) ($it['color'] ?? ''));
-        $size  = trim((string) ($it['size'] ?? ''));
-        $vr = variant_resolve($p, $color, $size);
-        if (!$vr['ok']) { $adjust[] = "{$p['name']}: please choose an option — removed"; continue; }
+        /* variants: validate the chosen color/size/flavor and take the price from the DB, never the client.
+           A crafted non-string option (an array) counts as none, not as "Array" plus a PHP warning. */
+        $color  = is_scalar($it['color'] ?? null)  ? trim((string) $it['color'])  : '';
+        $size   = is_scalar($it['size'] ?? null)   ? trim((string) $it['size'])   : '';
+        $flavor = is_scalar($it['flavor'] ?? null) ? trim((string) $it['flavor']) : '';
+        $vr = variant_resolve($p, $color, $size, $flavor);
+        if (!$vr['ok']) {
+            /* the option was renamed or removed after the line went in the bag, or the product
+               asks for one now: name what the shopper had picked, if anything */
+            $had = implode(" \u{00B7} ", array_filter([$color, $flavor, $size], 'strlen'));   // the order label's separator
+            $adjust[] = $had !== '' ? "{$p['name']} ({$had}): this option is no longer available, removed"
+                                    : "{$p['name']}: please choose an option on its page, removed";
+            $noOption[$p['name']] = true; continue;
+        }
+        /* two options of one product are two lines sharing its stock: say which one a note is about */
+        $nm = $p['name'] . ($vr['label'] !== '' ? ' (' . $vr['label'] . ')' : '');
+        /* never sell at $0: the browser refuses "price coming soon" products, but a crafted
+           request (or a bag saved before the price was cleared) must not get round that */
+        if ($vr['price'] <= 0) { $adjust[] = "{$p['name']}: not available to order yet, removed"; $unpriced[$p['name']] = true; continue; }
         $avail = (int) $p['stock'];
-        if ($avail <= 0) { $adjust[] = "{$p['name']} sold out — removed"; continue; }
+        if ($avail <= 0) { $adjust[] = "{$nm} sold out — removed"; continue; }
         $take = min($reqQty, $avail);
-        if ($take < $reqQty) $adjust[] = "{$p['name']}: only {$take} left — quantity reduced";
+        if ($take < $reqQty) $adjust[] = "{$nm}: only {$take} left — quantity reduced";
         q("UPDATE products SET stock = stock - ? WHERE id = ?", [$take, $p['id']]);  // safe under the row lock
         $unit = $vr['price'];
         $line = round($unit * $take, 2);
         $subtotal += $line;
         $lines[] = ['p' => $p, 'qty' => $take, 'line' => $line, 'unit' => $unit, 'variant' => $vr['label']];
+        if (isset($liveGifts[(string) $p['id']]) || isset($giftsSeen[(string) $p['id']])) $paidForGifts[] = ['pid' => (string) $p['id'], 'qty' => $take];
+    }
+    /* the bag keeps an unpriced line, so a retry would fail the same way forever: name it */
+    if (!$lines && $unpriced) {
+        $pdo->rollBack();
+        $names = array_keys($unpriced); $last = array_pop($names);
+        fail('Sorry, ' . ($names ? implode(', ', $names) . ' and ' . $last . ' are' : $last . ' is')
+             . ' not available to order yet. Please remove ' . ($names ? 'them' : 'it') . ' from your bag and try again.');
+    }
+    /* same for a line whose option is missing or was renamed/removed since it was added */
+    if (!$lines && $noOption) {
+        $pdo->rollBack();
+        $names = array_keys($noOption); $last = array_pop($names);
+        fail('Please choose an option for ' . ($names ? implode(', ', $names) . ' and ' . $last : $last)
+             . ': remove ' . ($names ? 'them' : 'it') . ' from your bag and add ' . ($names ? 'them' : 'it') . ' again from the product page.');
     }
     if (!$lines) { $pdo->rollBack(); fail('Sorry — the items in your bag just sold out. Please try again.'); }
     $subtotal = round($subtotal, 2);
+
+    /* free gifts, worked out AFTER every paid line has taken its stock so a gift that is also
+       in the bag (or earned by two products) sees what is really left. A gift that ran out
+       only adds a note, it never blocks the order. Gifts never touch the totals below. */
+    [$giftLines, $giftNotes] = gifts_for_order($paidForGifts);
+    foreach ($giftNotes as $n) $adjust[] = rtrim($n, '.');   // the session note adds its own '.'
 
     /* coupon, revalidated against the real subtotal */
     $discount = 0.0; $freeship = false; $couponCode = '';
@@ -103,10 +154,18 @@ try {
         VALUES (?,?,?,?,?,?,?,?,?, 'pending', 'new', ?,?,?,?,?,?)",
         [$order_no, $cid, $name, $email, $phone, $address, $gov, $city, $pay, $subtotal, $discount, $shipping, $total, $couponCode, $notes]);
     $oid = (int) last_id();
+    $giftsFor = [];   // gift lines keyed by the product that earned them
+    foreach ($giftLines as $g) $giftsFor[$g['gift_for']][] = $g;
     foreach ($lines as $l) {
         $p = $l['p'];
-        q("INSERT INTO order_items (order_id,product_id,name,variant,brand,price,qty,line_total) VALUES (?,?,?,?,?,?,?,?)",
+        q("INSERT INTO order_items (order_id,product_id,name,variant,brand,price,qty,line_total,is_gift,gift_for,image) VALUES (?,?,?,?,?,?,?,?,0,'','')",
            [$oid, $p['id'], $p['name'], $l['variant'] ?? '', $p['brand'], $l['unit'] ?? $p['price'], $l['qty'], $l['line']]);
+        /* the gift goes right under the first line of the product that earned it */
+        foreach ($giftsFor[$p['id']] ?? [] as $g) {
+            q("INSERT INTO order_items (order_id,product_id,name,variant,brand,price,qty,line_total,is_gift,gift_for,image) VALUES (?,?,?,'Free gift',?,0,?,0,1,?,?)",
+               [$oid, $g['product_id'], $g['name'], $g['brand'], $g['qty'], $g['gift_for'], $g['image']]);
+        }
+        unset($giftsFor[$p['id']]);
     }
     if ($couponCode !== '') q("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [$couponCode]);
     $pdo->commit();
@@ -120,7 +179,7 @@ try {
    mail server hiccup must never lose it or show the shopper an error. */
 try {
     $order  = row("SELECT * FROM orders WHERE id = ?", [$oid]);
-    $oitems = rows("SELECT * FROM order_items WHERE order_id = ?", [$oid]);
+    $oitems = rows("SELECT * FROM order_items WHERE order_id = ? ORDER BY id", [$oid]);
     send_order_confirmation($order, $oitems);   // email is required at checkout; the mailer still guards for old rows
     send_admin_order_alert($order, $oitems);    // admin hears about guest AND account orders
 } catch (Throwable $e) { /* ignore — the order stands */ }
@@ -130,6 +189,7 @@ if ($cid) { try { q("DELETE FROM customer_cart WHERE customer_id = ?", [$cid]); 
 
 /* remember for the confirmation page (scoped to this visitor's session) */
 $_SESSION['last_order'] = $order_no;
-if ($adjust) $_SESSION['order_note'] = 'Heads up — some items were adjusted for stock: ' . implode('; ', $adjust) . '.';
+/* stock is the usual reason, but an option that went or a free gift that ran out are noted here too */
+if ($adjust) $_SESSION['order_note'] = 'Heads up, some items in your bag were adjusted: ' . implode('; ', $adjust) . '.';
 else unset($_SESSION['order_note']);
 echo json_encode(['ok' => true, 'order_no' => $order_no, 'adjusted' => $adjust]);

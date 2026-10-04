@@ -13,6 +13,8 @@
    but is safe if a product name ever contains a quote or angle bracket.
    ============================================================ */
 
+require_once __DIR__ . '/gifts.php';   // gift_for_product() + GIFT_SVG for the card chip
+
 const PLP_PER_PAGE = 24;
 
 /* Inlined rather than calling well_icon(): the ?partial=1 branch of skincare.php
@@ -62,17 +64,24 @@ function well_product_card(array $p): string {
         $badges .= '<span class="badge ' . $b[0] . '">' . $b[1] . '</span>';
     }
 
+    /* the card shows the default item's price. When no option sells at it (every flavour or
+       colour costs extra), it shows the cheapest one instead, as "from $X" */
+    $from    = $noPrice ? $price : variant_from_price($p);
+    $fromLbl = $from > $price ? '<span class="from">from</span> ' : '';
+    if ($fromLbl !== '') $price = $from;
+
     if ($noPrice) {
         $priceHtml = '<span class="price price-tba">Price coming soon</span>';
     } elseif ($was !== null) {
-        $priceHtml = '<span class="price sale"><span class="now">' . well_money($price)
+        $priceHtml = '<span class="price sale"><span class="now">' . $fromLbl . well_money($price)
                    . '</span><span class="was">' . well_money($was) . '</span></span>';
     } else {
-        $priceHtml = '<span class="price">' . well_money($price) . '</span>';
+        $priceHtml = '<span class="price">' . $fromLbl . well_money($price) . '</span>';
     }
 
     $buyPrice = well_money($price) . ($was !== null ? ' <s>' . well_money($was) . '</s>' : '');
-    $hasOpts  = (bool) (parse_variant_opts($p['opt_colors'] ?? '') || parse_variant_opts($p['opt_sizes'] ?? ''));
+    $hasOpts  = (bool) (parse_variant_opts($p['opt_colors'] ?? '') || parse_variant_opts($p['opt_sizes'] ?? '')
+                        || parse_variant_opts($p['opt_flavors'] ?? ''));
     $href     = 'product?id=' . rawurlencode($id);
     if ($soldOut)      { $addBtn = '<button class="btn" disabled>Sold out</button>';
                          $buyBtn = '<button class="buybtn" disabled>Sold out</button>'; }
@@ -86,6 +95,11 @@ function well_product_card(array $p): string {
                          $buyBtn = '<button class="buybtn" data-add="' . e($id) . '">buy — ' . $buyPrice . '</button>'; }
 
     $stockNote = (!$soldOut && $stock <= $low) ? '<span class="pc-stock">Only ' . $stock . ' left</span>' : '';
+    /* free gift chip: the 2nd child of .pc-top so space-between puts it top-right.
+       GIFT_SVG, not well_icon(): ?partial=1 renders cards without inc/chrome.php.
+       Not shown while the product can't be bought (sold out, price coming soon). */
+    $gift     = ($soldOut || $noPrice) ? null : gift_for_product($id);
+    $giftChip = $gift ? '<span class="pc-gift" role="img" aria-label="Free gift: ' . e($gift['name']) . '">' . GIFT_SVG . '<span>Gift</span></span>' : '';
     $starsHtml = $rev > 0
         ? '<span class="s">' . PLP_STAR . '</span> ' . number_format($rate, 1)
           . ' <span class="muted">(' . number_format($rev) . ')</span>'
@@ -96,7 +110,7 @@ function well_product_card(array $p): string {
     return '<article class="pcard' . ($soldOut ? ' is-sold' : '') . ($hover !== '' ? '' : ' no-hover') . '" data-pid="' . e($id) . '">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="' . e($href) . '" aria-label="' . $alt . '"></a>
-        <div class="pc-top"><div class="badge-slot">' . $badges . '</div></div>
+        <div class="pc-top"><div class="badge-slot">' . $badges . '</div>' . $giftChip . '</div>
         <img class="gimg pc-a" data-grade src="' . e($img) . '" alt="' . $alt . '" loading="lazy">
         ' . ($hover !== '' ? '<img class="gimg pc-b" data-grade src="' . e($hover) . '" alt="" loading="lazy">' : '') . '
         <div class="add">' . $addBtn . '</div>

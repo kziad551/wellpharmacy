@@ -46,10 +46,12 @@ $HEAD_CSS = <<<CSS
   .co-items{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;max-height:280px;overflow:auto}
   .co-it{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;font-size:13px}
   .co-it img{width:52px;height:52px;object-fit:cover;border-radius:9px;background:var(--cream-2)}
-  .co-it .q{color:var(--text-muted)}
+  .co-it .q{color:var(--text-muted);overflow-wrap:anywhere}
   .co-line{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:var(--ink-soft)}
   .co-line.total{border-top:1px solid var(--border-2,#E4DFD3);margin-top:6px;padding-top:12px;font-size:19px;font-weight:700;color:var(--ink)}
   .co-line.disc b{color:var(--coral-deep,#7E5730)}
+  .co-line.gift{color:var(--rose-deep)}
+  .co-line.gift span{display:inline-flex;align-items:center;gap:6px}
   .co-coupon{display:flex;gap:8px;margin:6px 0 14px}
   .co-coupon input{flex:1}
   .co-msg{font-size:12.5px;margin-top:6px}
@@ -146,6 +148,7 @@ include __DIR__ . '/inc/head.php';
       <div class="co-msg" id="coCouponMsg"></div>
 
       <div class="co-line"><span>Subtotal</span><b id="coSub">$0.00</b></div>
+      <div class="co-line gift" id="coGiftRow" style="display:none"><span id="coGiftLbl">Free gift included</span><b>FREE</b></div>
       <div class="co-line disc" id="coDiscRow" style="display:none"><span>Discount <span id="coCodeLbl" class="muted"></span></span><b id="coDisc">-$0.00</b></div>
       <div class="co-line"><span>Shipping</span><b id="coShip">—</b></div>
       <div class="co-line total"><span>Total</span><span id="coTotal">$0.00</span></div>
@@ -193,7 +196,7 @@ ob_start(); ?>
     var y = box.querySelector('[data-ask-yes]'); y && y.focus();
   }
 
-  function items() { return W.cart().map(function (l) { var p = W.BY_ID[l.id]; return p ? { p: p, qty: l.qty, color: l.color||'', size: l.size||'', price: W.unitPrice(l) } : null; }).filter(Boolean); }
+  function items() { return W.cart().map(function (l) { var p = W.BY_ID[l.id]; return p ? { p: p, k: W.lineKey(l), qty: l.qty, color: l.color||'', size: l.size||'', flavor: l.flavor||'', price: W.unitPrice(l) } : null; }).filter(Boolean); }
   function subtotal() { return items().reduce(function (s, x) { return s + x.price * x.qty; }, 0); }
 
   function shipping(sub) {
@@ -209,12 +212,20 @@ ob_start(); ?>
     if (!its.length) { form.style.display = 'none'; empty.style.display = ''; return; }
     form.style.display = ''; empty.style.display = 'none';
 
+    // free gifts: a display-only row under their parent line. Not in the totals and not
+    // in the order payload (only the parent ids go, as gifts_seen); place-order adds the
+    // real gift lines on the server.
+    var gifts = W.giftLines(), nGifts = 0;
     document.getElementById('coItems').innerHTML = its.map(function (x) {
-      var vlabel = [x.color, x.size].filter(Boolean).join(' · ');
+      var vlabel = [x.color, x.flavor, x.size].filter(Boolean).join(' · ');   // same order as the order label
+      var g = gifts[x.k]; if (g) nGifts++;
       return '<div class="co-it"><img class="gimg" data-grade src="' + x.p.img + '" alt="">' +
-        '<div>' + x.p.name + (vlabel ? '<div class="q">' + vlabel + '</div>' : '') + '<div class="q">Qty ' + x.qty + '</div></div>' +
-        '<b>' + money(x.price * x.qty) + '</b></div>';
+        '<div>' + x.p.name + (vlabel ? '<div class="q">' + W.esc(vlabel) + '</div>' : '') + '<div class="q">Qty ' + x.qty + '</div></div>' +
+        '<b>' + money(x.price * x.qty) + '</b></div>' + (g ? W.giftRowHTML(g, 'checkout') : '');
     }).join('');
+    var gr = document.getElementById('coGiftRow');
+    gr.style.display = nGifts ? '' : 'none';
+    if (nGifts) document.getElementById('coGiftLbl').innerHTML = W.icon('gift') + ' Free gift' + (nGifts > 1 ? 's' : '') + ' included';
 
     var sub = subtotal();
     var disc = applied ? Math.min(applied.discount, sub) : 0;
@@ -297,13 +308,16 @@ ob_start(); ?>
       return;   // wait for their answer
     }
 
-    var pm = form.querySelector('input[name="payment_method"]:checked');
+    var pm = form.querySelector('input[name="payment_method"]:checked'), shown = W.giftLines();
     var payload = {
       csrf: CFG.csrf,
-      items: W.cart().map(function (l) { return { id: l.id, qty: l.qty, color: l.color||'', size: l.size||'' }; }),
+      items: W.cart().map(function (l) { return { id: l.id, qty: l.qty, color: l.color||'', size: l.size||'', flavor: l.flavor||'' }; }),
       customer: { name: f.name.value, phone: fullPhone(), email: f.email.value, address: f.address.value, governorate: f.governorate.value, city: f.city.value, notes: f.notes.value },
       payment_method: pm ? pm.value : 'cod',
-      coupon_code: applied ? applied.code : ''
+      coupon_code: applied ? applied.code : '',
+      // display hint only: the products whose free gift row this page showed, so the server
+      // can say so if a gift ran out after the page loaded. It never adds a gift by itself.
+      gifts_seen: W.cart().filter(function (l) { return shown[W.lineKey(l)]; }).map(function (l) { return l.id; })
     };
     btn.disabled = true; btn.textContent = 'Placing your order…';
     fetch('actions/place-order.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -315,6 +329,7 @@ ob_start(); ?>
       .catch(function () { err.textContent = 'Network error — please try again.'; btn.disabled = false; btn.textContent = 'Place order'; });
   });
 
+  window.addEventListener('well:cart', render);   // the bag was read again (back/forward cache, another tab): the summary must match what is sent
   render();
 })();
 </script>

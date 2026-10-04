@@ -10,6 +10,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   W.money = money;
+  W.esc = esc;   // for page scripts (cart, checkout) that build markup from admin text
 
   /* ---------- icons (Lucide-style, 1.6 stroke) ---------- */
   const I = {
@@ -39,6 +40,8 @@
     fb:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9V7c0-1 .5-1.5 1.7-1.5H17V2.2C16.5 2.1 15.4 2 14.3 2 11.6 2 10 3.6 10 6.5V9H7.5v3.5H10V22h4v-9.5h2.7l.4-3.5z"/></svg>',
     yt:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 8s-.2-1.5-.8-2.1c-.8-.8-1.6-.8-2-.9C16.4 4.7 12 4.7 12 4.7s-4.4 0-7.2.3c-.4.1-1.2.1-2 .9C2.2 6.5 2 8 2 8s-.2 1.7-.2 3.5v1c0 1.8.2 3.5.2 3.5s.2 1.5.8 2.1c.8.8 1.8.8 2.3.9 1.7.2 6.9.3 6.9.3s4.4 0 7.2-.3c.4-.1 1.2-.1 2-.9.6-.6.8-2.1.8-2.1s.2-1.7.2-3.5v-1C22.2 9.7 22 8 22 8zM10 14.6V9.4l4.7 2.6z"/></svg>',
     pin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a9 9 0 0 0-3.3 17.4c-.1-.7-.2-1.9 0-2.7l1.1-4.6s-.3-.6-.3-1.4c0-1.3.8-2.3 1.7-2.3.8 0 1.2.6 1.2 1.3 0 .8-.5 2-.8 3.1-.2.9.5 1.7 1.4 1.7 1.7 0 2.9-2.2 2.9-4.7 0-1.9-1.3-3.4-3.7-3.4a4.3 4.3 0 0 0-4.5 4.3c0 .8.3 1.4.7 1.8.2.2.2.3.1.5l-.2.9c0 .3-.2.4-.5.2-1.2-.5-1.8-1.9-1.8-3.5 0-2.6 2.2-5.7 6.5-5.7 3.5 0 5.8 2.5 5.8 5.2 0 3.5-2 6.2-4.9 6.2-1 0-1.9-.5-2.2-1.1l-.6 2.4c-.2.8-.7 1.6-1 2.2A9 9 0 1 0 12 2Z"/></svg>',
+    // free gift: keep identical to GIFT_SVG in inc/gifts.php (PHP cards + product page)
+    gift:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C9.5 3 11 5.5 12 8c1-2.5 2.5-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>',
   };
   W.icon = (n) => { const s = I[n] || ''; return s.replace('<svg ', '<svg width="1em" height="1em" '); };
 
@@ -72,6 +75,30 @@
   let WISH = read(LS.wish, []);
   if (!Array.isArray(WISH)) WISH = [];
 
+  // line helpers come BEFORE the signed-in merge below: it keys lines with lineKey(),
+  // and calling a const before its declaration throws (TDZ) and kills this whole file.
+  const stockOf = (id) => { const p = W.BY_ID[id]; return p ? (p.stock | 0) : 0; };
+  // a cart line is identified by product + chosen variant (color/size/flavor). Non-variant
+  // lines just key on the id. Everything below operates on this line key. A line saved
+  // before flavours existed has no `flavor`: it keys as '' like any line without one.
+  const lineKey = (l) => l.id + '' + (l.color || '') + '' + (l.size || '') + '\x01' + (l.flavor || '');
+  // a line's price NOW, worked out like variant_resolve() on the server: the size sets the price
+  // (else the base price), a colour and a flavour add their surcharges. null = its options no longer
+  // match the product (one was renamed or removed, or the product now asks for one), so the server
+  // would refuse it; also when the product dropped that whole group (the line would still say
+  // "Vanilla" while the order says nothing). The price kept on the line is only what it cost when added.
+  const linePrice = (l) => {
+    const p = W.BY_ID[l.id]; if (!p) return null;
+    const pick = (opts, want) => (opts && opts.length) ? (opts.find((o) => o.label === (want || '')) || false) : (want ? false : null);
+    const z = pick(p.sizes, l.size), c = pick(p.colors, l.color), f = pick(p.flavors, l.flavor);
+    if (z === false || c === false || f === false) return null;
+    const base = (z && z.price != null) ? +z.price : +p.price;
+    return Math.round((base + (c && c.price != null ? +c.price : 0) + (f && f.price != null ? +f.price : 0)) * 100) / 100;
+  };
+  const unitPrice = (l) => { const v = linePrice(l); return v != null ? v : (l.price != null ? +l.price : 0); };
+  const findLine = (k) => CART.find((x) => lineKey(x) === k);
+  W.lineKey = lineKey; W.unitPrice = unitPrice;
+
   /* Signed in? The ACCOUNT is the source of truth — seed from it and mirror every
      change back to the DB, so a shopper's bag/favourites follow them to any device.
      Guests keep everything in localStorage on this device only. */
@@ -89,7 +116,7 @@
     (ME.cart || []).forEach(function (r) {
       var v = {}; try { v = r.variant ? JSON.parse(r.variant) : {}; } catch (e) { v = {}; }
       var l = { id: r.product_id, qty: (r.qty | 0) || 1 };
-      if (v.color) l.color = v.color; if (v.size) l.size = v.size;
+      if (v.color) l.color = v.color; if (v.size) l.size = v.size; if (v.flavor) l.flavor = v.flavor;
       if (r.vprice != null && r.vprice !== '') l.price = +r.vprice;
       byKey[lineKey(l)] = l;
     });
@@ -111,29 +138,34 @@
     post('handoff', { cart: CART, wish: WISH });
   }
 
-  const stockOf = (id) => { const p = W.BY_ID[id]; return p ? (p.stock | 0) : 0; };
-  // a cart line is identified by product + chosen variant (color/size). Non-variant
-  // lines just key on the id. Everything below operates on this line key.
-  const lineKey = (l) => l.id + '' + (l.color || '') + '' + (l.size || '');
-  const unitPrice = (l) => (l.price != null ? +l.price : (W.BY_ID[l.id] ? W.BY_ID[l.id].price : 0));
-  const findLine = (k) => CART.find((x) => lineKey(x) === k);
-  W.lineKey = lineKey; W.unitPrice = unitPrice;
-
-  // keep the saved bag honest against live stock (product removed / out of stock / qty too high)
+  // keep the saved bag honest against live stock (product removed / out of stock / qty too high).
+  // The options of one product (colours, sizes, flavours) are separate lines sharing ONE stock,
+  // so each line only gets what the lines before it left, the way place-order takes it.
+  // A line whose colour/size/flavour the product no longer offers goes too (place-order would refuse
+  // it while the bag still counted it). A signed-in shopper's saved bag is told about any change.
+  // Returns {cut: what stock made it cut ('' = nothing), gone: [keys of lines whose option went]}, for the
+  // one-time toasts further down.
   function reconcileCart() {
     let changed = false;
+    const used = Object.create(null), cut = [], gone = [];
     CART = CART.filter(function (l) {
       const p = W.BY_ID[l.id];
       if (!p) { changed = true; return false; }        // product gone or set to draft
       const stock = p.stock | 0;
-      if (stock <= 0) { changed = true; return false; } // out of stock → drop
-      if (l.qty > stock) { l.qty = stock; changed = true; }
+      if (stock <= 0) { changed = true; cut.push(lineKey(l) + '=0'); return false; } // out of stock → drop
+      if (linePrice(l) == null) { changed = true; gone.push(lineKey(l)); return false; } // option renamed/removed, or one is now required: pick again
+      if (!(p.price > 0) || !(unitPrice(l) > 0)) { changed = true; return false; } // price cleared since it was added: it can't be ordered (place-order refuses $0 lines)
+      const room = stock - (used[l.id] || 0);
+      if (room <= 0) { changed = true; cut.push(lineKey(l) + '=0'); return false; }  // its other options already hold all the stock
+      if (l.qty > room) { l.qty = room; changed = true; cut.push(lineKey(l) + '=' + room); }
       if (l.qty < 1) { l.qty = 1; changed = true; }
+      used[l.id] = (used[l.id] || 0) + (l.qty | 0);
       return true;
     });
-    if (changed) write(LS.cart, CART);
+    if (changed) { write(LS.cart, CART); if (ME) post('cart', { cart: CART }); }
+    return { cut: cut.join('|'), gone: gone };
   }
-  reconcileCart();
+  const BAG_FIX = reconcileCart();
 
   const cartCount = () => CART.reduce((n, l) => n + l.qty, 0);
   const cartSubtotal = () => CART.reduce((s, l) => s + unitPrice(l) * l.qty, 0);
@@ -141,6 +173,49 @@
   W.cart = () => CART; W.wish = () => WISH;
   W.cartCount = cartCount; W.cartSubtotal = cartSubtotal;
   W.stockOf = stockOf; W.cartQtyOf = qtyInCart;
+
+  /* ---------- free gift with purchase ----------
+     A gift is never a CART line. It is display-only, derived from the parent
+     product's `gift` (assets/data.php), and never counted or posted: place-order
+     works the real gift lines out again on the server (gifts_for_order). */
+  W.giftFor = (id) => (W.BY_ID[id] && W.BY_ID[id].gift) || null;
+  // {lineKey: {n, i, q, t}}: one gift per PRODUCT, shown on its first line in the bag
+  // (two shades of one product share a single gift row). Mirrors gifts_for_order():
+  // every paid line first takes its units from stock, as place-order does; then each
+  // product, in bag order, earns gift qty x (per unit ? units taken : 1), capped at the
+  // gifts still left. g.l is that count before the order. A catalog gift (g.p) shares
+  // it with paid units of the same product and with every other parent giving it, so
+  // "buy one, get one" and a shared gift never promise more than the order will get.
+  W.giftLines = function (cart) {
+    const taken = Object.create(null), first = Object.create(null), order = [], left = Object.create(null), out = {};
+    (cart || CART).forEach(function (l) {
+      const n = l.qty | 0;
+      if (n <= 0 || !(unitPrice(l) > 0)) return;   // the server drops unpriced lines, so they earn nothing
+      const t = Math.min(n, stockOf(l.id) - (taken[l.id] || 0));   // place-order: min(qty, stock still left)
+      if (t <= 0) return;
+      taken[l.id] = (taken[l.id] || 0) + t;
+      if (!(l.id in first)) { first[l.id] = lineKey(l); order.push(l.id); }
+    });
+    order.forEach(function (id) {
+      const g = W.giftFor(id); if (!g) return;
+      let q = Math.max(1, g.q | 0) * (g.u ? taken[id] : 1);
+      if (g.l != null) {
+        const k = g.p ? 'p:' + g.p : 'o:' + id;   // one pool per catalog gift product, else per offer
+        if (!(k in left)) left[k] = Math.max(0, (g.l | 0) - (g.p ? (taken[g.p] || 0) : 0));
+        q = Math.min(q, left[k]); left[k] -= q;
+      }
+      if (q <= 0) return;
+      out[first[id]] = { n: g.n, i: g.i || '', q: q, t: g.t || '' };
+    });
+    return out;
+  };
+  // one gift sub-row, ctx = 'drawer' | 'cart' | 'checkout' (well.css .gift-row--*)
+  W.giftRowHTML = function (g, ctx) {
+    if (!g) return '';
+    ctx = (ctx === 'cart' || ctx === 'checkout') ? ctx : 'drawer';
+    const media = g.i ? `<img class="gimg" src="${esc(g.i)}" alt="" loading="lazy">` : `<span class="gr-ic">${I.gift}</span>`;
+    return `<div class="gift-row gift-row--${ctx}">${media}<div class="gr-b"><span class="gr-tag">${I.gift} Free gift</span><span class="gr-name">${esc(g.n)}</span></div><span class="gr-q">&times;${Math.max(1, g.q | 0)}</span><b class="gr-free">FREE</b></div>`;
+  };
 
   function saveCart() { write(LS.cart, CART); syncBadges(); renderDrawer(); if (ME) post('cart', { cart: CART }); }
   function saveWish() { write(LS.wish, WISH); syncBadges(); window.dispatchEvent(new CustomEvent('well:wish')); }
@@ -152,18 +227,19 @@
     const stock = stockOf(id);
     if (stock <= 0) { toast('Sorry — this item is out of stock'); return; }
     variant = variant || {};
-    const line = { id: id, qty: 0, color: variant.color || '', size: variant.size || '' };
+    const line = { id: id, qty: 0, color: variant.color || '', size: variant.size || '', flavor: variant.flavor || '' };
     if (variant.price != null) line.price = +variant.price;
     const key = lineKey(line);
     const l = findLine(key);
     const cur = l ? l.qty : 0;
     const want = cur + (add || 1);
-    const next = Math.min(want, stock);
-    if (next === cur) { openDrawer(); toast(`That's all we have — only ${stock} in stock`); return; }
+    const next = Math.min(want, stock - (qtyInCart(id) - cur));   // the product's other options in the bag share its stock
+    if (next <= cur) { openDrawer(); toast(`That's all we have — only ${stock} in stock`); return; }
     if (l) l.qty = next; else { line.qty = next; CART.push(line); }
     saveCart(); bumpBag();
     const dr = $('#cartDrawer'); if (dr && !dr.classList.contains('open')) openDrawer();
-    toast(next < want ? `Added — only ${stock} left in stock` : 'Added to bag ♡');
+    const gift = W.giftFor(id);
+    toast(next < want ? `Only ${stock} in stock, so we added ${next - cur}` : gift ? `Added to bag, with a free gift: ${esc(gift.n)}` : 'Added to bag ♡');
   };
   // set the exact quantity of an item (adds if missing, removes if 0), capped at stock. Returns the applied qty.
   W.setCartQty = function (id, qty) {
@@ -185,7 +261,7 @@
   // variant-aware line controls (drawer + cart page) — keyed by the full line, not just id
   W.setLineQty = function (key, qty) {
     const l = findLine(key); if (!l) return;
-    l.qty = Math.max(0, Math.min(qty | 0, stockOf(l.id)));
+    l.qty = Math.max(0, Math.min(qty | 0, stockOf(l.id) - (qtyInCart(l.id) - l.qty)));   // other options of it share the stock
     if (l.qty === 0) CART = CART.filter(x => lineKey(x) !== key);
     saveCart();
   };
@@ -228,6 +304,40 @@
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, opts.dur || 2600);
   }
   W.toast = toast;
+  /* reconcileCart() cut the bag to fit stock, or took out lines whose option went: say so,
+     once. A signed-in bag can come back from the account (a sign-in hands the guest bag
+     over again), so the session remembers what was already announced. */
+  function tellBagFix(fix) {
+    const once = (key, val) => {
+      let told = ''; try { told = sessionStorage.getItem(key) || ''; } catch (e) {}
+      if (told === val) return false;
+      try { sessionStorage.setItem(key, val); } catch (e) {}
+      return true;
+    };
+    if (fix.cut && once('well_stockcut_v1', fix.cut)) toast('Some items in your bag were reduced or removed to match our stock', { dur: 4200 });
+    if (!fix.gone.length) { try { sessionStorage.removeItem('well_optgone_v1'); } catch (e) {} }   // a later, new change is told again
+    else if (once('well_optgone_v1', fix.gone.join('|'))) {
+      const ids = fix.gone.map((k) => k.split('\x01')[0]).filter((id, i, a) => a.indexOf(id) === i);
+      const p = ids.length === 1 ? W.BY_ID[ids[0]] : null;
+      if (p) toast(`${esc(p.name)}: its options have changed, so we took it out of your bag. Please choose again.`,
+                   { dur: 7000, action: 'Choose', onAction: () => { location.href = 'product?id=' + encodeURIComponent(p.id); } });
+      else toast('The options of some items have changed, so we took them out of your bag. Please choose again.', { dur: 7000 });
+    }
+  }
+  tellBagFix(BAG_FIX);
+
+  /* A page brought back by the back/forward cache, or open in another tab, holds an old copy
+     of the bag: the next add would write that copy back, and a line removed meanwhile would
+     return. Read the bag again from storage, and let the page redraw (well:cart, well:wish). */
+  function reloadState() {
+    const c = read(LS.cart, []), w = read(LS.wish, []);
+    CART = Array.isArray(c) ? c : []; WISH = Array.isArray(w) ? w : [];
+    tellBagFix(reconcileCart());
+    syncBadges(); renderDrawer();
+    window.dispatchEvent(new CustomEvent('well:cart')); window.dispatchEvent(new CustomEvent('well:wish'));
+  }
+  window.addEventListener('pageshow', (e) => { if (e.persisted) reloadState(); });
+  window.addEventListener('storage', (e) => { if (e.key === null || e.key === LS.cart || e.key === LS.wish) reloadState(); });
 
   /* ---------- product card ---------- */
   function stars(r) {
@@ -238,26 +348,32 @@
     const b = p.badge ? W.BADGE[p.badge] : null;
     const saleBadge = p.sale ? `<span class="badge badge-sale">-${p.sale}%</span>` : '';
     const hover = p.hover || p.img2;   // 2nd image for the rhode hover-swap
-    const buyPrice = `${money(p.price)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
     const noPrice = !(p.price > 0);   // price not set yet (e.g. a new brand awaiting prices) — show "coming soon" & block ordering
-    const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
     // Cards always show the DEFAULT (standard) item price; if the product has options the
-    // shopper picks one on the product page and the price updates there.
+    // shopper picks one on the product page and the price updates there. When no option sells
+    // at that price (every flavour or colour costs extra), the cheapest one shows, as "from $X".
+    const fromLbl = (!noPrice && p.from > p.price) ? '<span class="from">from</span> ' : '';
+    const cardPrice = fromLbl ? p.from : p.price;
+    const buyPrice = `${money(cardPrice)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
+    const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
     const priceHtml = noPrice
       ? `<span class="price price-tba">Price coming soon</span>`
       : p.was   // desktop price row (old box)
-      ? `<span class="price sale"><span class="now">${money(p.price)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
-      : `<span class="price">${money(p.price)}${unitLbl}</span>`;
+      ? `<span class="price sale"><span class="now">${fromLbl}${money(cardPrice)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
+      : `<span class="price">${fromLbl}${money(cardPrice)}${unitLbl}</span>`;
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
     const stockNote = (!soldOut && stock <= low) ? `<span class="pc-stock">Only ${stock} left</span>` : '';
-    const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);   // colors/sizes need a choice → the button opens the product page to pick
+    // free gift chip: the 2nd child of .pc-top, so space-between puts it top-right (same markup as inc/plp.php).
+    // Not shown while the product can't be bought (sold out, price coming soon).
+    const giftChip = (!soldOut && !noPrice && p.gift) ? `<span class="pc-gift" role="img" aria-label="Free gift: ${esc(p.gift.n)}">${I.gift}<span>Gift</span></span>` : '';
+    const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length) || (p.flavors && p.flavors.length);   // colors/sizes/flavors need a choice → the button opens the product page to pick
     const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<span class="btn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">add to bag</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
     const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<span class="buybtn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
       <div class="media graded" data-imgwrap>
         <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>
-        <div class="pc-top"><div class="badge-slot">${soldBadge}${saleBadge}${b ? `<span class="badge ${b.cls}">${b.label}</span>` : ''}</div></div>
+        <div class="pc-top"><div class="badge-slot">${soldBadge}${saleBadge}${b ? `<span class="badge ${b.cls}">${b.label}</span>` : ''}</div>${giftChip}</div>
         <img class="gimg pc-a" data-grade src="${p.img}" alt="${p.brand} ${p.name}" loading="lazy">
         ${hover ? `<img class="gimg pc-b" data-grade src="${hover}" alt="" loading="lazy">` : ''}
         <div class="add">${addBtn}</div>
@@ -545,12 +661,14 @@
     if (!CART.length) {
       body = `<div class="cart-empty"><span class="ic">${I.dropper}</span><div><b style="font-family:var(--fp);font-size:20px">Your bag is feeling light.</b><p class="muted" style="margin:6px 0 0">Discover derm-loved essentials to get glowing.</p></div><a class="btn btn-primary" href="skincare">Start Shopping</a></div>`;
     } else {
+      const gifts = W.giftLines();   // display-only rows, never counted in the bag total
       const items = CART.map(l => { const p = W.BY_ID[l.id]; if (!p) return ''; const b = p.badge ? W.BADGE[p.badge] : null;
-        const stock = p.stock | 0, low = p.low | 0, atMax = l.qty >= stock;
+        const gift = gifts[lineKey(l)];
+        const stock = p.stock | 0, low = p.low | 0, atMax = qtyInCart(l.id) >= stock;   // all its option lines together
         const note = atMax ? `<span class="ci-max">${stock <= low ? 'Only ' + stock + ' left' : 'Max reached'}</span>` : (stock <= low ? `<span class="ci-max">Only ${stock} left</span>` : '');
         const k = encodeURIComponent(lineKey(l));
-        const vlabel = [l.color, l.size].filter(Boolean).join(' · ');
-        return `<div class="citem"><img class="thumb gimg" data-grade src="${p.img}" alt=""><div class="ci-b"><span class="br">${p.brand}</span><div class="ti">${p.name}</div>${vlabel?`<div class="ci-var">${esc(vlabel)}</div>`:''}${b?`<span class="badge ${b.cls}" style="margin-bottom:8px">${b.label}</span>`:''}<div class="ci-foot"><span class="stepper"><button data-dec="${k}">−</button><span class="q">${l.qty}</span><button data-inc="${k}"${atMax?' disabled':''}>+</button></span><span class="pr">${money(unitPrice(l)*l.qty)}</span></div>${note}</div><button class="rm" data-rm="${k}" aria-label="Remove">${I.close}</button></div>`;
+        const vlabel = [l.color, l.flavor, l.size].filter(Boolean).join(' · ');   // same order as the order label (variant_resolve)
+        return `<div class="citem${gift ? ' has-gift' : ''}"><img class="thumb gimg" data-grade src="${p.img}" alt=""><div class="ci-b"><span class="br">${p.brand}</span><div class="ti">${p.name}</div>${vlabel?`<div class="ci-var">${esc(vlabel)}</div>`:''}${b?`<span class="badge ${b.cls}" style="margin-bottom:8px">${b.label}</span>`:''}<div class="ci-foot"><span class="stepper"><button data-dec="${k}">−</button><span class="q">${l.qty}</span><button data-inc="${k}"${atMax?' disabled':''}>+</button></span><span class="pr">${money(unitPrice(l)*l.qty)}</span></div>${note}</div><button class="rm" data-rm="${k}" aria-label="Remove">${I.close}</button></div>${gift ? W.giftRowHTML(gift, 'drawer') : ''}`;
       }).join('');
       body = `<div class="freeship ${met?'met':''}"><p>${met?'Yay! You\'ve unlocked FREE SHIPPING ✦':`You're ${money(remain)} away from FREE SHIPPING! ♡`}</p><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>
         <div class="cart-items">${items}</div>
@@ -733,8 +851,9 @@
     }
 
     const prodRow = (p) => {
+      const bp = W.BY_ID && W.BY_ID[p.id], from = (bp && bp.from > p.price) ? bp.from : 0;   // no option sells at the base price: "from" the cheapest, as on the card
       const price = p.price > 0
-        ? money(p.price) + (p.was ? ' <s>' + money(p.was) + '</s>' : '')
+        ? (from ? 'from ' + money(from) : money(p.price)) + (p.was ? ' <s>' + money(p.was) + '</s>' : '')
         : '<span class="tba">Price soon</span>';
       return '<a class="sugg-prod' + (p.out ? ' is-out' : '') + '" data-sugg-item href="product?id=' + encodeURIComponent(p.id) + '">'
         + '<span class="sp-img">' + (p.image ? '<img class="gimg" src="' + esc(p.image) + '" alt="" loading="lazy">' : '') + '</span>'

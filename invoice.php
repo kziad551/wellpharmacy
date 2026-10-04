@@ -8,7 +8,7 @@ $cid = customer_id();
 $no  = (string) input('order', '');
 $o   = row("SELECT * FROM orders WHERE order_no = ? AND customer_id = ?", [$no, $cid]);   // scoped: never another shopper's order
 if (!$o) { http_response_code(404); $PAGE_TITLE = 'Invoice not found'; include __DIR__ . '/404.php'; exit; }
-$items = rows("SELECT * FROM order_items WHERE order_id = ?", [(int) $o['id']]);
+$items = rows("SELECT * FROM order_items WHERE order_id = ? ORDER BY id", [(int) $o['id']]);
 
 $PAGE_TITLE = 'Invoice ' . $o['order_no'];
 $ACTIVE = ''; $NO_POPUP = true;
@@ -21,6 +21,9 @@ $HEAD_CSS = $AUTH_CSS . <<<CSS
     border-bottom:1px solid var(--border-2);padding:0 0 8px}
   .inv td{padding:10px 0;font-size:14px;border-bottom:1px solid var(--border-2)}
   .inv td.r,.inv th.r{text-align:right}
+  .inv .gtag{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:999px;background:var(--blush-tint);color:var(--rose-deep);
+    font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;vertical-align:1px}
+  @media print{ .inv .gtag{border:1px solid currentColor} }
   .tot{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}
   .tot.grand{font-family:var(--fp);font-size:20px;font-weight:600;border-top:1px solid var(--border);margin-top:8px;padding-top:12px}
   @media print{ .noprint,#chrome-top,#chrome-foot{display:none!important} .panel{border:0;padding:0} body{background:#fff} }
@@ -60,12 +63,12 @@ include __DIR__ . '/inc/head.php';
     <table>
       <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Total</th></tr></thead>
       <tbody>
-        <?php foreach ($items as $i): ?>
+        <?php foreach ($items as $i): $gift = !empty($i['is_gift']); ?>
           <tr>
-            <td><?= e($i['name']) ?><?php if(!empty($i['variant'])): ?> <span class="muted">(<?= e($i['variant']) ?>)</span><?php endif; ?><br><span class="muted" style="font-size:12px"><?= e($i['brand']) ?></span></td>
+            <td><?= e($i['name']) ?><?php if ($gift): ?> <span class="gtag">Free gift</span><?php elseif(!empty($i['variant'])): ?> <span class="muted">(<?= e($i['variant']) ?>)</span><?php endif; ?><?php if ((string) $i['brand'] !== ''): ?><br><span class="muted" style="font-size:12px"><?= e($i['brand']) ?></span><?php endif; ?></td>
             <td class="r"><?= (int) $i['qty'] ?></td>
-            <td class="r"><?= e(money($i['price'])) ?></td>
-            <td class="r"><?= e(money($i['line_total'])) ?></td>
+            <td class="r"><?= $gift ? 'FREE' : e(money($i['price'])) ?></td>
+            <td class="r"><?= $gift ? 'FREE' : e(money($i['line_total'])) ?></td>
           </tr>
         <?php endforeach; ?>
       </tbody>

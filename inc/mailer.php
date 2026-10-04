@@ -136,12 +136,16 @@ function send_otp_email(string $to, string $name, string $code): bool {
     return send_mail($to, $name, 'Your verification code: ' . $code, $html);
 }
 
-/** Build the shared order summary table. */
+/** Build the shared order summary table. Free gift lines (is_gift) get a tag and
+    read FREE instead of $0.00; their 'Free gift' variant is the tag, not repeated. */
 function order_items_table(array $order, array $items): string {
     $rows = '';
+    $giftTag = ' <span style="display:inline-block;padding:1px 7px;border-radius:999px;background:#EFEBE0;color:#7A6244;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase">Free gift</span>';
     foreach ($items as $it) {
-        $rows .= '<tr><td style="padding:8px 0;font-size:13px">' . e($it['name']) . (!empty($it['variant']) ? ' <span style="color:#8A7D6E">(' . e($it['variant']) . ')</span>' : '') . ' <span style="color:#8A7D6E">× ' . (int) $it['qty'] . '</span></td>
-                      <td style="padding:8px 0;font-size:13px;text-align:right">' . e(money($it['line_total'])) . '</td></tr>';
+        $gift = !empty($it['is_gift']);
+        $rows .= '<tr><td style="padding:8px 0;font-size:13px">' . e($it['name'])
+                      . ($gift ? $giftTag : (!empty($it['variant']) ? ' <span style="color:#8A7D6E">(' . e($it['variant']) . ')</span>' : '')) . ' <span style="color:#8A7D6E">&times; ' . (int) $it['qty'] . '</span></td>
+                      <td style="padding:8px 0;font-size:13px;text-align:right' . ($gift ? ';color:#7A6244;font-weight:700' : '') . '">' . ($gift ? 'FREE' : e(money($it['line_total']))) . '</td></tr>';
     }
     $line = fn($l, $v) => '<tr><td style="padding:3px 0;font-size:13px;color:#8A7D6E">' . $l . '</td><td style="padding:3px 0;font-size:13px;text-align:right">' . e($v) . '</td></tr>';
     return '<table style="width:100%;border-collapse:collapse;margin:14px 0">' . $rows .

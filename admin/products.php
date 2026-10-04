@@ -1,10 +1,24 @@
 <?php
 require __DIR__ . '/inc/layout.php';
+require_once dirname(__DIR__) . '/inc/gifts.php';    // the "Gift" pill on rows with a free-gift offer
 
 if (is_post() && input('action') === 'delete') {
     csrf_check();
-    q("DELETE FROM products WHERE id = ?", [(string) input('id')]);
-    flash('Product deleted.');
+    $pid = (string) input('id');
+    q("DELETE FROM products WHERE id = ?", [$pid]);
+    /* its own free-gift offer goes with it. Offers that GAVE this product away are kept:
+       they show as "Gift missing" under Free gifts until someone picks a new gift. */
+    $giftNote = '';
+    if (admin_gifts_ready()) {
+        q("DELETE FROM product_gifts WHERE product_id = ?", [$pid]);
+        $o = row("SELECT COUNT(*) AS n, COALESCE(SUM(active), 0) AS n_on FROM product_gifts WHERE gift_type = 'product' AND gift_product_id = ?", [$pid]);
+        $n = (int) $o['n']; $nOn = (int) $o['n_on'];
+        /* Free gifts lists a switched-off offer under Off, not Problems (it tests active first) */
+        $tab = $nOn === $n ? 'Problems tab' : ($nOn ? 'Problems and Off tabs' : 'Off tab');
+        if ($n) $giftNote = ' It was the free gift on ' . $n . ' other ' . ($n === 1 ? 'product, so that offer needs' : 'products, so those offers need')
+            . ' a new gift (Free gifts, ' . $tab . ').';
+    }
+    flash('Product deleted.' . $giftNote, $giftNote ? 'err' : 'ok');
     redirect('products');
 }
 
@@ -88,8 +102,17 @@ $page  = list_page();
 $total = (int) val("SELECT COUNT(*) FROM products $where", $args);
 $list  = rows("SELECT * FROM products $where ORDER BY {$SORTS[$sort][1]} LIMIT $PER OFFSET " . list_offset(), $args);
 
-/** One product row — reused by the first paint and by each infinite-scroll slice. */
-function product_row(array $p): void { ?>
+/* free-gift state of every row in this slice: ONE query per page, not one per row */
+$giftState = [];
+if ($list && admin_gifts_ready()) {
+    $ids = array_column($list, 'id');
+    foreach (rows(gift_select_sql() . " WHERE g.product_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")", $ids) as $gr)
+        $giftState[$gr['product_id']] = gift_status($gr);
+}
+
+/** One product row — reused by the first paint and by each infinite-scroll slice.
+    $gift = the product's free-gift state (gift_status()), null when it has no offer. */
+function product_row(array $p, ?string $gift = null): void { ?>
   <tr>
     <td class="c-sel"><input type="checkbox" class="rowsel" value="<?= e($p['id']) ?>" aria-label="Select <?= e($p['name']) ?>"></td>
     <td class="c-img"><img class="thumb thumb-fit" src="<?= e(asrc($p['image'])) ?>" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></td>
@@ -107,7 +130,11 @@ function product_row(array $p): void { ?>
       <?php elseif ($p['stock'] <= $p['low_stock']): ?><span class="pill pill-warn">Only <?= (int)$p['stock'] ?></span>
       <?php else: ?><span class="pill pill-good"><?= (int)$p['stock'] ?></span><?php endif; ?>
     </td>
-    <td data-label="Status"><span class="pill <?= $p['status']==='active'?'pill-good':'pill-muted' ?>"><?= e($p['status']) ?></span></td>
+    <td data-label="Status"><span class="pill <?= $p['status']==='active'?'pill-good':'pill-muted' ?>"><?= e($p['status']) ?></span>
+      <?php if ($gift !== null): [$gl, $gc, $gt] = admin_gift_state($gift); ?>
+        <a class="pill pill-<?= e($gc) ?> pr-gift" href="product-edit?id=<?= e($p['id']) ?><?= e(admin_here_qs()) ?>#gift" title="Free gift: <?= e($gl) ?>"><?= aicon('gift') ?><?= e($gt) ?></a>
+      <?php endif; ?>
+    </td>
     <td class="c-act" style="text-align:right;white-space:nowrap">
       <a class="btn btn-ghost btn-sm" href="product-edit?id=<?= e($p['id']) ?><?= e(admin_here_qs()) ?>">Edit</a>
       <form method="post" action="products" style="display:inline" onsubmit="return confirm('Delete &quot;<?= e($p['name']) ?>&quot;?')">
@@ -119,7 +146,7 @@ function product_row(array $p): void { ?>
 <?php }
 
 /* infinite scroll asks for just the rows */
-if (list_partial()) { foreach ($list as $p) product_row($p); exit; }
+if (list_partial()) { foreach ($list as $p) product_row($p, $giftState[$p['id']] ?? null); exit; }
 
 /* low-stock count over the WHOLE result set, not just the slice on screen.
    Mirrors the old per-row test: a blank/zero low_stock threshold means 5. */
@@ -195,7 +222,7 @@ admin_head('Products', 'products', $sub);
         <th></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th>
       </tr></thead>
       <tbody>
-      <?php foreach ($list as $p) product_row($p); ?>
+      <?php foreach ($list as $p) product_row($p, $giftState[$p['id']] ?? null); ?>
       </tbody>
     </table>
     <?php endif; ?>
@@ -206,11 +233,13 @@ admin_head('Products', 'products', $sub);
 <style>
   .c-sel{width:38px;text-align:center}
   .c-sel input{width:17px;height:17px;cursor:pointer;accent-color:var(--a-primary)}
-  .bulkbar{position:sticky;top:64px;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  .bulkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
     margin:0 0 14px;padding:11px 16px;border:1px solid var(--a-border2);border-radius:12px;
     background:var(--a-bg,#fff);box-shadow:var(--a-sh-sm,0 6px 20px rgba(0,0,0,.08))}
   .bulkbar-n{font-size:13.5px;color:var(--a-soft)}
   .bulkbar-n b{color:var(--a-ink)}
+  .pr-gift{margin-left:4px;gap:4px}
+  .pr-gift svg{width:13px;height:13px}
 </style>
 <script>
 (function () {

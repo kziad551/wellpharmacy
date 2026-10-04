@@ -274,12 +274,14 @@ function social_posts(int $limit = 12): array {
     return $rows;
 }
 
-/* Parse a product's option list (colors/sizes). One option per line: "Label" or
+/* Parse a product's option list (colors/sizes/flavors). One option per line: "Label" or
    "Label|price". Returns [['label'=>..,'price'=>float|null], ...]. Reused by the
-   storefront (data.php), the product page and the order server (price validation). */
+   storefront (data.php), the product page and the order server (price validation).
+   Split on real line ends only: a byte-mode \R also takes the 0x85 byte inside UTF-8
+   letters (the Arabic meem, for one) and would cut such a label in two. */
 function parse_variant_opts(?string $s): array {
     $out = [];
-    foreach (preg_split('/\R/', (string) $s) as $line) {
+    foreach (preg_split('/\r\n|\r|\n/', (string) $s) as $line) {
         $line = trim($line);
         if ($line === '') continue;
         $parts = explode('|', $line, 2);
@@ -293,33 +295,47 @@ function parse_variant_opts(?string $s): array {
 
 /* Resolve the effective unit price for a chosen color/size against a product row.
    Size price wins, then color price, else the base price. Also returns a display
-   label ("White · 50 ml"). Server-side source of truth — never trust a client price. */
-function variant_resolve(array $p, string $color, string $size): array {
-    $colors = parse_variant_opts($p['opt_colors'] ?? '');
-    $sizes  = parse_variant_opts($p['opt_sizes'] ?? '');
+   label ("White · 50 ml"). Server-side source of truth — never trust a client price.
+   Flavors work like colors: one must be picked when the product has any, and its
+   surcharge is added on top of the color's. The label reads color, flavor, size. */
+function variant_resolve(array $p, string $color, string $size, string $flavor = ''): array {
+    $colors  = parse_variant_opts($p['opt_colors'] ?? '');
+    $sizes   = parse_variant_opts($p['opt_sizes'] ?? '');
+    $flavors = parse_variant_opts($p['opt_flavors'] ?? '');
     $base      = (float) $p['price'];   // the SIZE sets the price...
-    $surcharge = 0.0;                    // ...and the COLOR adds an optional surcharge on top
-    $clabel = ''; $zlabel = '';
+    $surcharge = 0.0;                    // ...and the COLOR and FLAVOR add optional surcharges on top
+    $clabel = ''; $zlabel = ''; $flabel = '';
     $find = function (array $opts, string $want) {
         foreach ($opts as $o) if ($o['label'] === $want) return $o;
         return null;
     };
-    $okColor = !$colors; $okSize = !$sizes;
-    if ($sizes)  { $z = $find($sizes,  $size);  if ($z) { $okSize  = true; $zlabel = $z['label']; if ($z['price'] !== null) $base = $z['price']; } }
-    if ($colors) { $c = $find($colors, $color); if ($c) { $okColor = true; $clabel = $c['label']; if ($c['price'] !== null) $surcharge = $c['price']; } }
-    return ['ok' => $okColor && $okSize, 'price' => round($base + $surcharge, 2),
-            'label' => implode(' · ', array_filter([$clabel, $zlabel]))];
+    $okColor = !$colors; $okSize = !$sizes; $okFlavor = !$flavors;
+    if ($sizes)   { $z = $find($sizes,   $size);   if ($z) { $okSize   = true; $zlabel = $z['label']; if ($z['price'] !== null) $base = $z['price']; } }
+    if ($colors)  { $c = $find($colors,  $color);  if ($c) { $okColor  = true; $clabel = $c['label']; if ($c['price'] !== null) $surcharge = $c['price']; } }
+    if ($flavors) { $f = $find($flavors, $flavor); if ($f) { $okFlavor = true; $flabel = $f['label']; if ($f['price'] !== null) $surcharge += $f['price']; } }
+    return ['ok' => $okColor && $okSize && $okFlavor, 'price' => round($base + $surcharge, 2),
+            'label' => implode(' · ', array_filter([$clabel, $flabel, $zlabel]))];
+}
+
+/* What the shop calls a product's flavour group: opt_flavor_name, '' = "Flavour"
+   (the owner can call it "Scent", "Type", ...). */
+function flavor_group_name(array $p): string {
+    $n = trim((string) ($p['opt_flavor_name'] ?? ''));
+    return $n !== '' ? $n : 'Flavour';
 }
 
 /* The lowest price a shopper can actually pay = cheapest size (a size with no price
-   is the standard one, so it uses the product's base price) + cheapest colour surcharge.
+   is the standard one, so it uses the product's base price) + cheapest colour surcharge
+   + cheapest flavour surcharge.
    Used ONLY for the "from $X" label on cards / the product page — it never touches the
    stored base price (that stays the STANDARD size's price, which variant_resolve needs). */
 function variant_from_price(array $p): float {
     $base   = (float) $p['price'];
     $sizes  = parse_variant_opts($p['opt_sizes']  ?? '');
     $colors = parse_variant_opts($p['opt_colors'] ?? '');
+    $flavors = parse_variant_opts($p['opt_flavors'] ?? '');
     $baseMin = $sizes  ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $base, $sizes)) : $base;
     $surMin  = $colors ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0,  $colors)) : 0.0;
-    return round($baseMin + $surMin, 2);
+    $flvMin  = $flavors ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $flavors)) : 0.0;
+    return round($baseMin + $surMin + $flvMin, 2);
 }

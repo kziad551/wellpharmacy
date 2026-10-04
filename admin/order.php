@@ -1,9 +1,16 @@
 <?php
 require __DIR__ . '/inc/layout.php';
+require_once __DIR__ . '/../inc/gifts.php';
 
 $STATUSES     = ['new','confirmed','processing','shipped','delivered','cancelled'];
 $PAY_STATUSES = ['pending','paid','failed','refunded'];
 $STATUS_PILL  = ['new'=>'info','confirmed'=>'info','processing'=>'warn','shipped'=>'warn','delivered'=>'good','cancelled'=>'bad'];
+
+/* A custom gift line (product_id from gift_custom_pid()) is never a product, even if a
+   product now has the same id (one named "Gift 11" slugs to gift-11): it must not move
+   that product's stock, link to it or borrow its image. */
+$customGift = fn(array $li): bool => !empty($li['is_gift']) && preg_match('/\d+$/', (string) $li['product_id'], $m)
+                                     && $li['product_id'] === gift_custom_pid((int) $m[0]);
 
 $id = (int) input('id');
 $o  = $id > 0 ? row("SELECT * FROM orders WHERE id = ?", [$id]) : null;
@@ -28,15 +35,24 @@ if (is_post()) {
             q("UPDATE orders SET order_status = ?, payment_status = ?, admin_notes = ? WHERE id = ?",
               [$os, $ps, trim((string) input('admin_notes')), $id]);
 
+            /* Catalog gift lines carry a real product_id and were taken from products.stock
+               at checkout, so the loops below move them too. Custom gifts (gift-N) are skipped
+               there; their own counter in product_gifts moves via gift_restock_custom(). */
             if ($was !== 'cancelled' && $os === 'cancelled') {
-                foreach (rows("SELECT product_id, qty FROM order_items WHERE order_id = ?", [$id]) as $li) {
+                $lis = rows("SELECT product_id, qty, is_gift FROM order_items WHERE order_id = ?", [$id]);
+                foreach ($lis as $li) {
+                    if ($customGift($li)) continue;
                     q("UPDATE products SET stock = stock + ? WHERE id = ?", [(int) $li['qty'], $li['product_id']]);
                 }
+                gift_restock_custom($lis, +1);
                 $note = ' Stock was returned to inventory.';
             } elseif ($was === 'cancelled' && $os !== 'cancelled') {
-                foreach (rows("SELECT product_id, qty FROM order_items WHERE order_id = ?", [$id]) as $li) {
+                $lis = rows("SELECT product_id, qty, is_gift FROM order_items WHERE order_id = ?", [$id]);
+                foreach ($lis as $li) {
+                    if ($customGift($li)) continue;
                     q("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE id = ?", [(int) $li['qty'], $li['product_id']]);
                 }
+                gift_restock_custom($lis, -1);
                 $note = ' Stock was taken back out of inventory.';
             }
             $pdo->commit();
@@ -50,7 +66,9 @@ if (is_post()) {
     redirect("order?id=$id");
 }
 
-$items = rows("SELECT oi.*, p.image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?", [$id]);
+/* p_id is NULL when the line's product no longer exists (deleted, or a custom gift-N) */
+$items = rows("SELECT oi.*, p.image AS p_image, p.id AS p_id FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ? ORDER BY oi.id", [$id]);
+foreach ($items as $k => $it) if ($customGift($it)) $items[$k]['p_id'] = $items[$k]['p_image'] = null;
 
 admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime($o['created_at'])));
 ?>
@@ -64,18 +82,18 @@ admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime
       <table class="a-table">
         <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th style="text-align:right">Total</th></tr></thead>
         <tbody>
-        <?php foreach ($items as $it): ?>
+        <?php foreach ($items as $it): $gift = !empty($it['is_gift']); ?>
           <tr>
             <td>
               <div style="display:flex;align-items:center;gap:11px">
-                <img src="<?= e(asrc($it['image'] ?: 'uploads/photo-pending.png')) ?>" alt=""
+                <img src="<?= e(asrc(order_item_image($it))) ?>" alt=""
                      style="width:44px;height:44px;object-fit:contain;background:#fff;border:1px solid var(--a-border2);border-radius:8px;padding:3px;flex:none">
-                <span><a class="nm" href="product-edit?id=<?= e($it['product_id']) ?>"><?= e($it['name']) ?></a><?php if(!empty($it['variant'])): ?> <span class="pill pill-muted"><?= e($it['variant']) ?></span><?php endif; ?><div class="br"><?= e($it['brand']) ?></div></span>
+                <span><?php if ($it['p_id'] !== null): ?><a class="nm" href="product-edit?id=<?= e($it['product_id']) ?>"><?= e($it['name']) ?></a><?php else: ?><span class="nm"><?= e($it['name']) ?></span><?php endif; ?><?php if ($gift): ?> <span class="pill pill-good">Free gift</span><?php elseif(!empty($it['variant'])): ?> <span class="pill pill-muted"><?= e($it['variant']) ?></span><?php endif; ?><div class="br"><?= e($it['brand']) ?></div></span>
               </div>
             </td>
-            <td><?= money($it['price']) ?></td>
+            <td><?= $gift ? 'FREE' : money($it['price']) ?></td>
             <td><?= (int)$it['qty'] ?></td>
-            <td style="text-align:right"><?= money($it['line_total']) ?></td>
+            <td style="text-align:right"><?= $gift ? 'FREE' : money($it['line_total']) ?></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
