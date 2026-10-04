@@ -29,6 +29,8 @@ function sec_title_html(string $t): string {
 }
 $CAT_GRADS = ['linear-gradient(160deg,#F2EFE6,#E7E2D5)','linear-gradient(160deg,#EFEBE0,#E4DFCF)','linear-gradient(160deg,#F1EEE4,#E6E1D2)','linear-gradient(160deg,#EEEADF,#E2DDCC)','linear-gradient(160deg,#F0ECE2,#E5E0D0)'];
 $SECTIONS = [];
+/* every product query below skips sold-out items (stock 0) — they reappear on their own
+   as soon as they're back in stock */
 foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") as $hs) {
     $n  = (int) $hs['item_count'];                                   // products in desktop view (0 = all)
     $mc = ($hs['m_count'] ?? null) === null ? null : (int) $hs['m_count'];  // on mobile (null = same as desktop, 0 = all)
@@ -49,13 +51,13 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         }
         $default = 'Shop by Category'; $viewAll = 'skincare';
     } elseif ($hs['type'] === 'new_arrivals') {
-        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
+        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' AND stock > 0 ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
         $ids = array_column(rows($sql), 'id');
         /* fewer products ticked "New Arrivals" than the section should show? fill the
            rest with the newest products, so 20 asked for = 20 shown */
         if ($f > 0 && count($ids) < $f) {
             $ph   = $ids ? ' AND id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')' : '';
-            $more = rows("SELECT id FROM products WHERE status='active'$ph ORDER BY created_at DESC, id DESC LIMIT " . ($f - count($ids)), $ids);
+            $more = rows("SELECT id FROM products WHERE status='active' AND stock > 0$ph ORDER BY created_at DESC, id DESC LIMIT " . ($f - count($ids)), $ids);
             $ids  = array_merge($ids, array_column($more, 'id'));
         }
         if (!$ids) continue;
@@ -65,7 +67,7 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
            RAND(seed) is seeded by the day so the mix is stable within a day, fresh daily. */
         $seed = (int) date('Ymd');
         $brandList = array_values(array_filter(array_map('trim', explode(',', (string) ($hs['brands'] ?? '')))));
-        $where = "status='active' AND price > 0";
+        $where = "status='active' AND price > 0 AND stock > 0";
         $args  = [];
         if ($brandList) {
             $where .= ' AND brand IN (' . implode(',', array_fill(0, count($brandList), '?')) . ')';
@@ -80,11 +82,11 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
         $picked = array_values(array_filter(array_map('trim', explode(',', (string) ($hs['product_ids'] ?? '')))));
         if ($picked) {
             $ph  = implode(',', array_fill(0, count($picked), '?'));
-            $have = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND status='active'", $picked), 'id');
+            $have = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND status='active' AND stock > 0", $picked), 'id');
             $ids = array_values(array_filter($picked, fn($x) => in_array($x, $have, true)));   // keep the admin's order
             if ($f > 0) $ids = array_slice($ids, 0, $f);
         } else {
-            $sql = "SELECT id FROM products WHERE brand=? AND status='active' ORDER BY sort, id" . ($f > 0 ? " LIMIT $f" : "");
+            $sql = "SELECT id FROM products WHERE brand=? AND status='active' AND stock > 0 ORDER BY sort, id" . ($f > 0 ? " LIMIT $f" : "");
             $ids = array_column(rows($sql, [$hs['brand']]), 'id');
         }
         if (!$ids) continue;
@@ -111,8 +113,8 @@ $HEAD_CSS = <<<CSS
 <style>
   /* ============ HOMEPAGE (rhode concept) — header/menu stays as-is via chrome.js ============ */
   .hero{background:var(--hero-grad); position:relative; overflow:hidden}
-  /* hero stays contained (like the live site) even though the rest of the page is full-width — bg spans full, content re-centers */
-  .hero .wrap{max-width:var(--maxw-narrow); display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(32px,4.5vw,64px) clamp(28px,4vw,52px)}
+  /* hero content is as wide as the product sections below it (--maxw) */
+  .hero .wrap{max-width:var(--maxw); display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:clamp(24px,4vw,56px); align-items:center; padding-block:clamp(32px,4.5vw,64px) clamp(28px,4vw,52px)}
   .hero-copy .ey{display:inline-flex; align-items:center; gap:9px}
   .hero-copy .h1{margin:20px 0 0}
   .hero-copy .sub{font-size:clamp(15px,1.3vw,18px); color:var(--ink-soft); max-width:34ch; margin:22px 0 0; line-height:1.5}
@@ -120,9 +122,16 @@ $HEAD_CSS = <<<CSS
   .hero-feats{display:flex; gap:26px; margin-top:40px; flex-wrap:wrap}
   .hero-feats .k{font-family:var(--fp); font-weight:600; font-size:26px; color:var(--ink); line-height:1}
   .hero-feats .l{font-size:12.5px; color:var(--text-muted); margin-top:5px}
-  .hero-visual{position:relative; aspect-ratio:1/1.02; border-radius:var(--r-lg); overflow:hidden;
+  .hero-visual{position:relative; aspect-ratio:1/1.02; max-height:min(720px,82vh); width:100%; border-radius:var(--r-lg); overflow:hidden;
     background:radial-gradient(120% 90% at 50% 6%, #FBFAF6 0%, #EFEDE5 58%, #E4DFD2 100%); border:1px solid var(--border); display:flex; align-items:center; justify-content:center}
-  .hero-visual>img{width:78%; height:78%; object-fit:cover; border-radius:18px; position:relative; z-index:1; box-shadow:var(--sh-lg)}
+  .hero-frame{position:relative; z-index:1; width:84%; height:86%; border-radius:18px; overflow:hidden; box-shadow:var(--sh-lg);
+    touch-action:pan-y; cursor:grab; user-select:none; -webkit-user-select:none}
+  .hero-frame.drag{cursor:grabbing}
+  .hero-track{display:flex; height:100%; transition:transform .45s cubic-bezier(.22,.7,.2,1); will-change:transform}
+  .hero-frame.drag .hero-track{transition:none}
+  .hero-slide{position:relative; flex:0 0 100%; height:100%; overflow:hidden; background:#EFEDE5}
+  .hero-slide .bg{position:absolute; inset:-24px; background-size:cover; background-position:center; filter:blur(22px) saturate(1.05); transform:scale(1.08); opacity:.9}
+  .hero-slide img{position:relative; width:100%; height:100%; object-fit:contain; display:block; pointer-events:none; -webkit-user-drag:none}
   .hero-tag{position:absolute; z-index:2; background:rgba(255,255,255,.8); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:14px; padding:11px 15px; box-shadow:var(--sh-md)}
   .hero-tag.t1{top:22px; left:22px} .hero-tag.t2{bottom:24px; right:22px}
   .hero-tag .sm{font-size:11px; color:var(--text-muted)}
@@ -194,13 +203,13 @@ $HEAD_CSS = <<<CSS
   .blogcard h3{font-size:20px; margin:8px 0 8px; line-height:1.1}
   .blogcard .meta{font-size:12px; color:var(--text-muted)}
   .promise{padding:clamp(56px,8vw,120px) 0; text-align:center; background:var(--cream)}
-  .promise .big{font-family:var(--fp); font-weight:600; text-transform:lowercase; font-size:clamp(34px,12vw,180px); line-height:.86; color:var(--ink); letter-spacing:-.025em; overflow-wrap:break-word}
+  .promise .big{font-family:var(--fp); font-weight:600; text-transform:lowercase; font-size:clamp(34px,12vw,180px); line-height:1.14; color:var(--ink); letter-spacing:-.025em; overflow-wrap:break-word}
   .promise .big .script{color:var(--rose-deep)}
   .promise .sub{color:var(--ink-soft); max-width:46ch; margin:22px auto 0; font-size:16px}
   @media(max-width:1300px){.prodgrid,.prodgrid.c6{grid-template-columns:repeat(4,minmax(0,1fr))} .brandgrid{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:1080px){.prodgrid,.prodgrid.c4,.prodgrid.c6{grid-template-columns:repeat(3,minmax(0,1fr))} .cats,.cats.cc3,.cats.cc5{grid-template-columns:repeat(2,1fr)} .brandgrid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:860px){
-    .hero .wrap{grid-template-columns:1fr; padding-block:24px 44px; gap:22px} .hero-visual{order:-1; aspect-ratio:1/1; max-height:50vh} .hero-visual>img{width:90%; height:90%}
+    .hero .wrap{grid-template-columns:1fr; padding-block:24px 44px; gap:22px} .hero-visual{order:-1; aspect-ratio:1/1.05; max-height:68vh} .hero-frame{width:90%; height:92%}
     .editorial{grid-template-columns:1fr}
   }
   @media(max-width:680px){.prodgrid,.prodgrid.c3,.prodgrid.c4,.prodgrid.c6{grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px} .brandgrid{grid-template-columns:repeat(2,1fr)} .cats,.cats.cc3,.cats.cc5{grid-template-columns:1fr} #blogGrid{grid-template-columns:1fr} .sec-actions .cbtn{display:none}}
@@ -328,7 +337,7 @@ include __DIR__ . '/inc/head.php';
       <div class="hero-dots" id="heroDots"></div>
     </div>
     <div class="hero-visual graded" data-imgwrap>
-      <img class="gimg" data-grade id="heroImg" alt="Editorial beauty">
+      <div class="hero-frame" id="heroFrame" aria-roledescription="carousel"><div class="hero-track" id="heroTrack"></div></div>
       <?php $t1sm=setting('hero_tag1_sm','new in'); $t1bg=setting('hero_tag1_bg','glow serum'); ?>
       <?php if ($t1sm!=='' || $t1bg!==''): ?><div class="hero-tag t1"><div class="sm"><?= e($t1sm) ?></div><div class="bg"><?= e($t1bg) ?></div></div><?php endif; ?>
       <?php $t2sm=setting('hero_tag2_sm','loved by 7,000+'); $t2bg=setting('hero_tag2_bg','★★★★★'); ?>
@@ -481,17 +490,47 @@ $PAGE_JS = <<<JS
 <script>
   const W = WELL, \$ = (s)=>document.querySelector(s);
 
-  // hero carousel
+  // hero carousel — swipe / drag the picture, tap the dots, or let it advance every 5s
   const heroImgs = (W.HERO_IMGS && W.HERO_IMGS.length) ? W.HERO_IMGS
                    : [W.IMG.heroModel, W.IMG.heroSerum, W.IMG.pharmacist, W.IMG.quizFace];
-  let hi = 0; \$('#heroImg').src = heroImgs[0]; W.guardImages(\$('.hero-visual'));
+  const heroFrame = \$('#heroFrame'), heroTrack = \$('#heroTrack');
+  heroTrack.innerHTML = heroImgs.map((src,i)=>`<div class="hero-slide"><div class="bg" style="background-image:url('\${String(src).replace(/'/g,"%27")}')"></div><img class="gimg" data-grade src="\${src}" alt="" \${i?'loading="lazy"':''} draggable="false"></div>`).join('');
+  W.guardImages(heroTrack);
+  let hi = 0;
   const dotsWrap = \$('#heroDots');
   if (dotsWrap) dotsWrap.innerHTML = heroImgs.length > 1
       ? heroImgs.map((_,i)=>`<button\${i===0?' class="on"':''} aria-label="Slide \${i+1}"></button>`).join('') : '';
   const dots = [...document.querySelectorAll('#heroDots button')];
-  function setHero(i){ hi=i; const im=\$('#heroImg'); im.dataset.failed=''; im.style.opacity=0; setTimeout(()=>{im.src=heroImgs[i]; im.style.transition='opacity .4s'; im.style.opacity=1; W.guardImages(\$('.hero-visual'));},180); dots.forEach((d,j)=>d.classList.toggle('on',j===i)); }
-  dots.forEach((d,i)=>d.addEventListener('click',()=>setHero(i)));
-  if(heroImgs.length > 1 && !matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(()=>setHero((hi+1)%heroImgs.length), 5000);
+  function setHero(i){ hi=(i+heroImgs.length)%heroImgs.length; heroTrack.style.transform=`translateX(\${-hi*100}%)`; dots.forEach((d,j)=>d.classList.toggle('on',j===hi)); }
+  let heroTimer = null, heroIdle = null;
+  const autoplay = heroImgs.length > 1 && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const startAuto = () => { if (autoplay && !heroTimer) heroTimer = setInterval(()=>setHero(hi+1), 5000); };
+  const pauseAuto = () => { clearInterval(heroTimer); heroTimer = null; clearTimeout(heroIdle); heroIdle = setTimeout(startAuto, 9000); };  // resume after 9s idle
+  dots.forEach((d,i)=>d.addEventListener('click',()=>{ pauseAuto(); setHero(i); }));
+  if (heroImgs.length > 1) {
+    let x0 = null, y0 = 0, dx = 0, horiz = null;
+    heroFrame.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dx = 0; horiz = null; pauseAuto(); });
+    heroFrame.addEventListener('pointermove', e => {
+      if (x0 === null) return;
+      dx = e.clientX - x0;
+      if (horiz === null && (Math.abs(dx) > 6 || Math.abs(e.clientY - y0) > 6)) {
+        horiz = Math.abs(dx) > Math.abs(e.clientY - y0);
+        if (horiz) { heroFrame.setPointerCapture(e.pointerId); heroFrame.classList.add('drag'); }
+      }
+      if (horiz) heroTrack.style.transform = `translateX(calc(\${-hi*100}% + \${dx}px))`;
+    });
+    const endDrag = () => {
+      if (x0 === null) return;
+      heroFrame.classList.remove('drag');
+      if (horiz && Math.abs(dx) > Math.min(60, heroFrame.clientWidth * .15)) setHero(hi + (dx < 0 ? 1 : -1)); else setHero(hi);
+      x0 = null;
+    };
+    heroFrame.addEventListener('pointerup', endDrag);
+    heroFrame.addEventListener('pointercancel', endDrag);
+    heroFrame.addEventListener('keydown', e => { if (e.key === 'ArrowRight') { pauseAuto(); setHero(hi+1); } if (e.key === 'ArrowLeft') { pauseAuto(); setHero(hi-1); } });
+    heroFrame.tabIndex = 0;
+  }
+  startAuto();
 
   // dynamic home sections (from database)
   const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);

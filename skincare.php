@@ -162,8 +162,8 @@ include __DIR__ . '/inc/head.php';
            new cards land above it, so on a phone you'd jump past everything that just loaded -->
       <div class="plp-more" style="text-align:center;margin:28px 0 8px;overflow-anchor:none">
         <a class="btn btn-outline" id="loadMore"
-           data-next="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1])) ?>"
-           href="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1])) ?>">
+           data-next="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1, 'seed' => $F['seed']])) ?>"
+           href="<?= e($SELF . '?' . well_plp_qs($F, ['page' => $page + 1, 'seed' => $F['seed']])) ?>">
           Load more <span class="muted">(<?= $shown ?> of <?= $count ?>)</span>
         </a>
       </div>
@@ -308,15 +308,27 @@ $PAGE_JS = <<<'JS'
         const page = Number(u.searchParams.get('page') || 2);
         const shown = grid.querySelectorAll('.pcard').length;
         const total = Number(($('[data-count]') || {}).textContent || 0);
-        history.replaceState({ plp: 1 }, '', u.pathname + u.search);
         if (shown >= total) { const w = more.closest('.plp-more'); if (w) w.innerHTML = '<p class="muted">All ' + total + ' items shown.</p>'; return; }
         u.searchParams.set('page', page + 1);
         more.dataset.next = u.pathname + u.search;
         more.href = u.pathname + u.search;
         more.innerHTML = 'Load more <span class="muted">(' + shown + ' of ' + total + ')</span>';
-      } catch (err) { more.innerHTML = label; location.href = next; }
-      finally { delete more.dataset.busy; }
+      } catch (err) { more.innerHTML = label; }
+      finally { delete more.dataset.busy; requestAnimationFrame(nearEnd); }
     });
+    /* infinite scroll: fetch the next batch by itself once you get close to the end
+       (the button stays as a fallback and shows progress) */
+    const nearEnd = () => {
+      if (!document.body.contains(more) || more.dataset.busy) return;
+      if (more.getBoundingClientRect().top < innerHeight + 900) more.click();
+    };
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) nearEnd(); }, { rootMargin: '0px 0px 900px 0px' }).observe(more);
+    }
+    /* a fast flick can jump right past the button between two frames, which the observer
+       never sees — so also check (once per frame at most) while scrolling */
+    let tick = false;
+    addEventListener('scroll', () => { if (!tick) { tick = true; requestAnimationFrame(() => { tick = false; nearEnd(); }); } }, { passive: true });
   }
   wireLoadMore();
 

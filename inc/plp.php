@@ -13,7 +13,7 @@
    but is safe if a product name ever contains a quote or angle bracket.
    ============================================================ */
 
-const PLP_PER_PAGE = 24;
+const PLP_PER_PAGE = 100;   // first screen + each infinite-scroll batch
 
 /* Inlined rather than calling well_icon(): the ?partial=1 branch of skincare.php
    returns cards and exits before inc/head.php has loaded inc/chrome.php. */
@@ -145,6 +145,9 @@ function well_plp_page(array $f, int $page, int $per = PLP_PER_PAGE): array {
     [$where, $args] = well_plp_where($f);
     $sorts = well_plp_sorts();
     $order = $sorts[$f['sort'] ?? 'rec'][1] ?? $sorts['rec'][1];
+    /* "Recommended" = a fresh shuffle on every visit (searches keep their natural order).
+       The seed rides along with the next-page requests so later batches never repeat. */
+    if (($f['sort'] ?? 'rec') === 'rec' && ($f['q'] ?? '') === '') $order = 'RAND(' . (int) ($f['seed'] ?? 1) . '), id';
     $off   = max(0, ($page - 1) * $per);
     return rows("SELECT * FROM products $where ORDER BY $order LIMIT " . (int) $per . " OFFSET " . (int) $off, $args);
 }
@@ -187,6 +190,7 @@ function well_plp_input(array $validCats, bool $offers = false): array {
         'sale'   => input('sale') === '1',
         'offers' => $offers,
         'sort'   => array_key_exists((string) input('sort'), well_plp_sorts()) ? (string) input('sort') : 'rec',
+        'seed'   => ($sd = (int) input('seed')) > 0 ? $sd : random_int(1, 2147483646),   // shuffle seed, see well_plp_page()
     ];
 }
 
