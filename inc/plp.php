@@ -13,7 +13,7 @@
    but is safe if a product name ever contains a quote or angle bracket.
    ============================================================ */
 
-const PLP_PER_PAGE = 100;   // first screen + each infinite-scroll batch
+const PLP_PER_PAGE = 50;    // first screen + each infinite-scroll batch
 
 /* Inlined rather than calling well_icon(): the ?partial=1 branch of skincare.php
    returns cards and exits before inc/head.php has loaded inc/chrome.php. */

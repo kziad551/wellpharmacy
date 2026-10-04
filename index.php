@@ -494,14 +494,34 @@ $PAGE_JS = <<<JS
   const heroImgs = (W.HERO_IMGS && W.HERO_IMGS.length) ? W.HERO_IMGS
                    : [W.IMG.heroModel, W.IMG.heroSerum, W.IMG.pharmacist, W.IMG.quizFace];
   const heroFrame = \$('#heroFrame'), heroTrack = \$('#heroTrack');
-  heroTrack.innerHTML = heroImgs.map((src,i)=>`<div class="hero-slide"><div class="bg" style="background-image:url('\${String(src).replace(/'/g,"%27")}')"></div><img class="gimg" data-grade src="\${src}" alt="" \${i?'loading="lazy"':''} draggable="false"></div>`).join('');
+  const heroN = heroImgs.length;
+  const heroSlide = (src,lazy) => `<div class="hero-slide"><div class="bg" style="background-image:url('\${String(src).replace(/'/g,"%27")}')"></div><img class="gimg" data-grade src="\${src}" alt="" \${lazy?'loading="lazy"':''} draggable="false"></div>`;
+  /* endless loop: a copy of the last picture sits before the first and a copy of the first
+     after the last, so D → A (and A → D) slides one step like any other, then quietly
+     jumps back onto the real slide */
+  heroTrack.innerHTML = (heroN > 1 ? heroSlide(heroImgs[heroN-1], true) : '')
+                      + heroImgs.map((src,i)=>heroSlide(src, i > 0)).join('')
+                      + (heroN > 1 ? heroSlide(heroImgs[0], true) : '');
   W.guardImages(heroTrack);
   let hi = 0;
   const dotsWrap = \$('#heroDots');
   if (dotsWrap) dotsWrap.innerHTML = heroImgs.length > 1
       ? heroImgs.map((_,i)=>`<button\${i===0?' class="on"':''} aria-label="Slide \${i+1}"></button>`).join('') : '';
   const dots = [...document.querySelectorAll('#heroDots button')];
-  function setHero(i){ hi=(i+heroImgs.length)%heroImgs.length; heroTrack.style.transform=`translateX(\${-hi*100}%)`; dots.forEach((d,j)=>d.classList.toggle('on',j===hi)); }
+  let hpos = heroN > 1 ? 1 : 0;                       // position on the track (copies included)
+  const place = () => { heroTrack.style.transform = `translateX(\${-hpos*100}%)`; };
+  function setHero(i){                                // i may run one past either end (-1 or N)
+    if (heroN > 1) i = Math.max(-1, Math.min(heroN, i));
+    hi = (i + heroN) % heroN; hpos = heroN > 1 ? i + 1 : 0; place();
+    dots.forEach((d,j)=>d.classList.toggle('on',j===hi));
+  }
+  const unclone = () => {                               // landed on a copy → jump to the real one
+    if (heroN < 2 || (hpos !== 0 && hpos !== heroN + 1)) return;
+    hpos = hpos === 0 ? heroN : 1;
+    heroTrack.style.transition = 'none'; place(); heroTrack.offsetWidth; heroTrack.style.transition = '';
+  };
+  heroTrack.addEventListener('transitionend', unclone);
+  place();
   let heroTimer = null, heroIdle = null;
   const autoplay = heroImgs.length > 1 && !matchMedia('(prefers-reduced-motion: reduce)').matches;
   const startAuto = () => { if (autoplay && !heroTimer) heroTimer = setInterval(()=>setHero(hi+1), 5000); };
@@ -509,7 +529,7 @@ $PAGE_JS = <<<JS
   dots.forEach((d,i)=>d.addEventListener('click',()=>{ pauseAuto(); setHero(i); }));
   if (heroImgs.length > 1) {
     let x0 = null, y0 = 0, dx = 0, horiz = null;
-    heroFrame.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dx = 0; horiz = null; pauseAuto(); });
+    heroFrame.addEventListener('pointerdown', e => { unclone(); x0 = e.clientX; y0 = e.clientY; dx = 0; horiz = null; pauseAuto(); });
     heroFrame.addEventListener('pointermove', e => {
       if (x0 === null) return;
       dx = e.clientX - x0;
@@ -517,7 +537,7 @@ $PAGE_JS = <<<JS
         horiz = Math.abs(dx) > Math.abs(e.clientY - y0);
         if (horiz) { heroFrame.setPointerCapture(e.pointerId); heroFrame.classList.add('drag'); }
       }
-      if (horiz) heroTrack.style.transform = `translateX(calc(\${-hi*100}% + \${dx}px))`;
+      if (horiz) heroTrack.style.transform = `translateX(calc(\${-hpos*100}% + \${dx}px))`;
     });
     const endDrag = () => {
       if (x0 === null) return;
