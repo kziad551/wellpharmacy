@@ -38,8 +38,11 @@ if (in_array($do, ['sync', 'wish', 'cart', 'handoff'], true)) {
         $ok(['wish' => wishlist_ids($cid)]); exit;
     }
     if ($do === 'cart') {
+        /* customer_cart keeps one row per product + option (uq_cart includes variant), so
+           two flavours or sizes of one product are two rows, and $keep below is keyed the same way */
         $keep = [];
-        foreach (($in['cart'] ?? []) as $l) {
+        foreach ((array) ($in['cart'] ?? []) as $l) {
+            if (!is_array($l)) continue;
             $pid = (string) ($l['id'] ?? ''); if ($pid === '') continue;
             [$vjson, $vprice] = cart_variant_json($l);
             cart_put($cid, $pid, (int) ($l['qty'] ?? 0), $vjson, $vprice);

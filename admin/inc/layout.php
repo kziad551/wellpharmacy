@@ -31,8 +31,37 @@ function aicon(string $n): string {
         'play'   => '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/>',
         'bell'   => '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
         'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        'gift'   => '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C9.5 3 11 5.5 12 8c1-2.5 2.5-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+        'spark'  => '<path d="M9.94 15.5a2 2 0 0 0-1.44-1.44l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0l1.58 6.13a2 2 0 0 0 1.44 1.44l6.13 1.58a.5.5 0 0 1 0 .96l-6.13 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
     ];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' . ($i[$n] ?? '') . '</svg>';
+}
+
+/* Free-gift offer state (gift_status() in inc/gifts.php) as [label, pill colour, short
+   text], so Products, Free gifts and the product editor always describe an offer the
+   same way. The short text is the Products-list pill, which has no "Free gift" heading
+   around it and must not rely on colour alone. */
+function admin_gift_state(string $st): array {
+    return [
+        'live'      => ['Live',         'good',  'Gift'],
+        'scheduled' => ['Scheduled',    'info',  'Gift scheduled'],
+        'ended'     => ['Ended',        'muted', 'Gift ended'],
+        'off'       => ['Off',          'muted', 'Gift off'],
+        'out'       => ['Out of gifts', 'warn',  'Gift ran out'],
+        'missing'   => ['Gift missing', 'bad',   'Gift missing'],
+    ][$st] ?? ['Off', 'muted', 'Gift off'];
+}
+
+/* Has db/phase4-gifts-popups.sql been run? If the code reaches a server first, the gift
+   UI steps aside instead of turning Products and every product page into a blank 500
+   (no exception handler). One probe per request. */
+function admin_gifts_ready(): bool {
+    static $ok = null;
+    if ($ok === null) {
+        try { val("SELECT 1 FROM product_gifts LIMIT 1"); $ok = true; }
+        catch (Throwable $e) { $ok = false; }
+    }
+    return $ok;
 }
 
 function admin_head(string $title, string $current = '', string $subtitle = ''): void {
@@ -49,6 +78,7 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
             ['categories','Categories','grid'],
             ['brands',    'Brands',    'store'],
             ['coupons',   'Coupons',   'ticket'],
+            ['gifts',     'Free gifts','gift'],
             ['journal',   'Journal',   'pen'],
         ]],
         ['Inbox', [
@@ -59,6 +89,7 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
         ]],
         ['Site', [
             ['home-sections','Home Sections','layout'],
+            ['popups',    'Popups',    'spark'],
             ['social',    'Social Videos','play'],
             ['appearance','Appearance','brush'],
             ['pages',     'Content',   'doc'],

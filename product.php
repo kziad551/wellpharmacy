@@ -47,6 +47,24 @@ $badge = $p['badge'] && isset($BADGES[$p['badge']]) ? $BADGES[$p['badge']] : nul
 $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
 $noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming soon", block ordering
+/* the price the page opens at, the way its script paints it before anything is picked: the
+   standard size (else the cheapest size), plus the cheapest colour and flavour surcharge.
+   "from" while the choices still change it (a single flavour is already picked). */
+$pdpSpan = (function (array $p): array {
+    $pr = fn(array $list, float $d) => array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $d, $list);
+    $base  = (float) $p['price'];
+    $sizes = parse_variant_opts($p['opt_sizes'] ?? '');
+    $z = (!$sizes || array_filter($sizes, fn($o) => $o['price'] === null)) ? [$base] : $pr($sizes, $base);
+    $c = $pr(parse_variant_opts($p['opt_colors'] ?? ''), 0.0) ?: [0.0];
+    $f = $pr(parse_variant_opts($p['opt_flavors'] ?? ''), 0.0) ?: [0.0];
+    return [round(min($z) + min($c) + min($f), 2), round(max($z) + max($c) + max($f), 2)];
+})($p);
+$pdpFrom = $pdpSpan[0] != $pdpSpan[1];
+
+/* free gift with purchase (inc/gifts.php). Hidden, like the card chip, while the product
+   can't be bought (sold out or price coming soon): nobody could earn the gift. */
+require_once __DIR__ . '/inc/gifts.php';
+$gift = ($stock > 0 && !$noPrice) ? gift_for_product((string) $p['id']) : null;
 
 /* ---- back-in-stock alerts: only offered while the item is actually out of stock.
         Signed-in shoppers get their address filled in; guests can type one. ---- */
@@ -90,15 +108,16 @@ $HEAD_CSS = <<<CSS
   .price-row .was{font-size:18px; color:var(--text-faint); text-decoration:line-through}
   .price-row .unit-lbl{font-size:15px; color:var(--text-muted); font-weight:500}
   .opt-group{margin:2px 0 16px}
-  .opt-group .opt-lbl{display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:7px}
+  .opt-group .opt-lbl{display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:7px; overflow-wrap:anywhere}
   .opt-btns{display:flex; flex-wrap:wrap; gap:8px}
-  .opt-btn{padding:9px 15px; border:1.5px solid var(--border-2); border-radius:9999px; background:#fff; font-family:inherit; font-size:13.5px; cursor:pointer; transition:border-color .15s,background .15s,color .15s}
+  .opt-btn{padding:9px 15px; border:1.5px solid var(--border-2); border-radius:9999px; background:#fff; font-family:inherit; font-size:13.5px; cursor:pointer; transition:border-color .15s,background .15s,color .15s; overflow-wrap:anywhere}
   .opt-btn:hover{border-color:var(--ink)}
   .opt-btn.on{border-color:var(--ink); background:var(--ink); color:#fff}
   #addBtn.is-disabled{opacity:.5}
   .price-row .p .from{font-size:.62em; font-weight:500; color:var(--text-muted); vertical-align:middle}
   .opt-btn .opt-x{opacity:.6; font-size:12px; margin-left:2px}
   .opt-btn.on .opt-x{opacity:.85}
+  .opt-group .opt-lbl .opt-sel{font-weight:500; color:var(--ink)}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
   .instock .dot{width:8px; height:8px; border-radius:50%; background:var(--mint)}
   .promise{font-size:15px; color:var(--ink-soft); line-height:1.6; margin:0 0 18px; max-width:46ch}
@@ -108,6 +127,17 @@ $HEAD_CSS = <<<CSS
   .trust-chips{display:flex; gap:9px; flex-wrap:wrap; margin-bottom:22px}
   .buy-actions{display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap}
   .buy-actions>.btn{min-width:0}
+  /* free gift block, between the trust chips and Add to Bag */
+  .pdp-gift{display:flex; align-items:center; gap:14px; margin:0 0 18px; padding:12px 16px 12px 12px; border:1px dashed var(--rose); border-radius:16px; background:var(--cream)}
+  .pg-media{flex:none; width:64px; height:64px; border-radius:12px; overflow:hidden; background:#fff; color:var(--rose-deep); display:flex; align-items:center; justify-content:center}
+  .pg-media img{width:100%; height:100%; object-fit:cover}
+  .pg-media svg{width:30px; height:30px}
+  .pg-txt{display:flex; flex-direction:column; gap:2px; min-width:0}
+  .pg-ey{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--rose-deep)}
+  .pg-ey svg{width:14px; height:14px; flex:none}
+  .pg-name{font-size:15px; font-weight:600; line-height:1.3; color:var(--ink); overflow-wrap:anywhere}
+  .pg-rule{font-size:13px; color:var(--ink-soft)}
+  .pg-note{font-size:12px; line-height:1.4; color:var(--ink-soft); overflow-wrap:anywhere}   /* not --text-muted: 3.3:1 on cream fails AA */
   .qty-stepper{display:inline-flex; align-items:center; border:1.5px solid var(--border-2); border-radius:9999px; height:52px}
   .qty-stepper button{width:46px; height:50px; border:0; background:none; font-size:20px; color:var(--ink)}
   .qty-stepper .q{min-width:30px; text-align:center; font-weight:700}
@@ -212,6 +242,10 @@ $HEAD_CSS = <<<CSS
     .qty-stepper{flex:none}
     .buy-actions .btn-primary{flex:1 1 140px}
     .buy-actions .btn-outline{flex:0 0 auto; padding:0 14px}
+    .pdp-gift{gap:12px; padding:10px 12px 10px 10px; border-radius:14px}
+    .pg-media{width:52px; height:52px; border-radius:10px}
+    .pg-media svg{width:26px; height:26px}
+    .pg-name{font-size:14px}
     .pdp{gap:20px}
     .main-img{border-radius:18px}
     .tab-panel h3{font-size:19px}
@@ -300,14 +334,19 @@ include __DIR__ . '/inc/head.php';
       <div class="rate-row"><?php if ($revCount > 0): ?><span class="stars"><?= $stars5($revAvg) ?></span> <b><?= number_format($revAvg,1) ?></b> <a href="#reviews"><?= $revCount ?> review<?= $revCount===1?'':'s' ?></a> <span class="muted">·</span> <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);font-weight:600"><?= $myReview ? 'Edit your review' : 'Write a review' ?></a><?php else: ?><span class="muted">No reviews yet — <a href="#reviews" class="js-review-open" style="color:var(--rose-deep);text-decoration:underline;font-weight:600">be the first to review</a></span><?php endif; ?></div>
       <div class="price-row">
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
-        <?php else: ?><span class="p" id="pdpPrice"><?= money($p['price']) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
+        <?php else: ?><span class="p" id="pdpPrice"><?= $pdpFrom ? '<span class="from">from</span> ' : '' ?><?= money($pdpSpan[0]) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
         <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
-      <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = parse_variant_opts($p['opt_sizes'] ?? ''); ?>
+      <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = parse_variant_opts($p['opt_sizes'] ?? ''); $vFlavors = parse_variant_opts($p['opt_flavors'] ?? ''); ?>
       <?php if ($vColors): ?>
       <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color</span><div class="opt-btns">
         <?php foreach ($vColors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
+      </div></div>
+      <?php endif; ?>
+      <?php if ($vFlavors): /* flavours: pick one, like a size; the +$ is a surcharge, like a colour's. The heading shows the pick. */ ?>
+      <div class="opt-group" data-optgroup="flavor"><span class="opt-lbl"><?= e(flavor_group_name($p)) ?><span class="opt-sel"></span></span><div class="opt-btns">
+        <?php foreach ($vFlavors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
       <?php if ($vSizes): ?>
@@ -328,6 +367,17 @@ include __DIR__ . '/inc/head.php';
         <span class="chip chip-mint">Pharmacist-vetted</span>
         <span class="chip chip-mint">COD available</span>
       </div>
+      <?php if ($gift): ?>
+      <div class="pdp-gift">
+        <div class="pg-media"><?php if ($gift['image'] !== ''): ?><img class="gimg" src="<?= e($gift['image']) ?>" alt="" width="64" height="64"><?php else: ?><?= GIFT_SVG ?><?php endif; ?></div>
+        <div class="pg-txt">
+          <span class="pg-ey"><?= GIFT_SVG ?> Free gift</span>
+          <b class="pg-name"><?= e($gift['name']) ?></b>
+          <span class="pg-rule"><?= $gift['per_unit'] ? 'Free with every unit you buy' : 'Free with your order' ?><?= $gift['qty'] > 1 ? ' (&times;' . (int) $gift['qty'] . ')' : '' ?></span>
+          <span class="pg-note"><?= e($gift['note'] !== '' ? $gift['note'] : 'Added to your order automatically, while supplies last.') ?></span>
+        </div>
+      </div>
+      <?php endif; ?>
       <div class="buy-actions">
         <div class="qty-stepper"><button id="qd">−</button><span class="q" id="qty">1</span><button id="qi">+</button></div>
         <button class="btn btn-primary" style="flex:1" id="addBtn" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':($stock===0?'Out of stock':'Add to Bag') ?></button>
@@ -450,7 +500,7 @@ include __DIR__ . '/inc/head.php';
   <div class="wrap">
     <img class="gimg mini-img" data-grade id="miniImg">
     <div class="mini-title"><?= e($p['name']) ?></div>
-    <div class="mini-meta"><span class="pr" id="miniPrice"><?= $noPrice?'Price coming soon':money($p['price']) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
+    <div class="mini-meta"><span class="pr" id="miniPrice"><?= $noPrice?'Price coming soon':($pdpFrom ? 'from ' : '') . money($pdpSpan[0]) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
     <button class="btn btn-primary mini-btn" id="miniAdd" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':'Add to Bag' ?></button>
   </div>
 </div>
@@ -503,7 +553,6 @@ $PAGE_JS = <<<JS
   \$('#trustRow').innerHTML = ['Cash on Delivery available','100% Authentic','Free shipping over \$'+(W.SETTINGS?W.SETTINGS.free_ship:49),'Easy returns','Same-day dispatch in Beirut','Pharmacist support'].map(t=>`<div class="ti">\${W.icon('check')} \${t}</div>`).join('');
 
   const STOCK = p.stock|0, LOW = p.low|0;
-  let qty = Math.max(1, Math.min(W.cartQtyOf(p.id) || 1, STOCK || 1));
   function updateStock(){
     const el = \$('#stockLine'); if(!el) return;
     const inBag = W.cartQtyOf(p.id);
@@ -516,8 +565,13 @@ $PAGE_JS = <<<JS
     el.innerHTML = '<span class="dot" style="background:' + color + '"></span> ' + txt;
   }
   const NOPRICE = !(p.price > 0);
-  const HAS_OPTS = (p.colors && p.colors.length) || (p.sizes && p.sizes.length);
-  const SEL = { color: null, size: null };
+  const FLAVORS = p.flavors || [];   // a third option group; assets/data.php only sends it when the product has some
+  const HAS_OPTS = (p.colors && p.colors.length) || (p.sizes && p.sizes.length) || FLAVORS.length;
+  const SEL = { color: null, size: null, flavor: null };
+  if (FLAVORS.length === 1) SEL.flavor = FLAVORS[0].label;   // a single flavour: nothing to choose
+  // a plain product opens at what's already in the bag (the button then reads "Update bag"). A product with
+  // options opens at 1: each colour/size/flavour is its own bag line, so the bag total is not this line's qty
+  let qty = HAS_OPTS ? 1 : Math.max(1, Math.min(W.cartQtyOf(p.id) || 1, STOCK || 1));
   // pre-select the STANDARD (default) size so the page opens at the default price and can be added right away; picking another size/colour updates it
   if (p.sizes && p.sizes.length){ var _def = p.sizes.filter(function(o){ return o.price == null; })[0]; if (_def) SEL.size = _def.label; }
   function optPrice(){
@@ -525,27 +579,53 @@ $PAGE_JS = <<<JS
     const z = (p.sizes  || []).find(o => o.label === SEL.size);  if (z && z.price != null) base = z.price;   // size sets the price
     let sur = 0;
     const c = (p.colors || []).find(o => o.label === SEL.color); if (c && c.price != null) sur = c.price;    // color adds a surcharge
+    const f = FLAVORS.find(o => o.label === SEL.flavor); if (f && f.price != null) sur += f.price;           // and so does a flavour
     return base + sur;
   }
-  function optReady(){ return (!(p.colors && p.colors.length) || SEL.color) && (!(p.sizes && p.sizes.length) || SEL.size); }
+  // the cheapest and dearest unit price the picks so far can still lead to: a group already
+  // picked counts its pick, one not picked yet counts every option. One price once all are picked.
+  function priceSpan(){
+    const pr = (o, d) => (o.price != null ? +o.price : d);
+    const span = (list, sel, d) => { const o = list.find(x => x.label === sel), v = o ? [pr(o, d)] : list.length ? list.map(x => pr(x, d)) : [d]; return [Math.min(...v), Math.max(...v)]; };
+    const z = span(p.sizes || [], SEL.size, p.price), c = span(p.colors || [], SEL.color, 0), f = span(FLAVORS, SEL.flavor, 0);
+    return [z[0] + c[0] + f[0], z[1] + c[1] + f[1]];
+  }
+  function optReady(){ return (!(p.colors && p.colors.length) || SEL.color) && (!(p.sizes && p.sizes.length) || SEL.size) && (!FLAVORS.length || SEL.flavor); }
+  // the first group still to pick, brought into view: the mini bar's button sits far below it
+  function showMissing(){
+    const g = \$\$('.opt-group').find(x => !SEL[x.getAttribute('data-optgroup')]); if (!g) return;
+    const r = g.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) g.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  // what still needs picking, for the toast: "a colour", "a flavour" (or the shop's own word, e.g. "a scent"), "a size"
+  function optMissing(){
+    if (p.colors && p.colors.length && !SEL.color) return 'a colour';
+    if (FLAVORS.length && !SEL.flavor) { const n = String(p.flavor_name || 'Flavour').toLowerCase(); return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + W.esc(n); }
+    return 'a size';
+  }
+  // the flavour heading reads "Flavour: Vanilla" once one is picked
+  function showSel(g, label){ const s = g.querySelector('.opt-sel'); if (s) s.textContent = label ? ': ' + label : ''; }
   document.querySelectorAll('.opt-group').forEach(function(g){
     const grp = g.getAttribute('data-optgroup');
     g.querySelectorAll('.opt-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
         g.querySelectorAll('.opt-btn').forEach(function(b){ b.classList.remove('on'); });
-        btn.classList.add('on'); SEL[grp] = btn.getAttribute('data-label'); paint();
+        btn.classList.add('on'); SEL[grp] = btn.getAttribute('data-label'); showSel(g, SEL[grp]); paint();
       });
     });
   });
   // reflect the pre-selected standard size in the buttons
   if (SEL.size){ document.querySelectorAll('.opt-group[data-optgroup="size"] .opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.size) b.classList.add('on'); }); }
+  // ...and the only flavour, when there is just one
+  if (SEL.flavor){ const fg = document.querySelector('.opt-group[data-optgroup="flavor"]'); if (fg){ fg.querySelectorAll('.opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.flavor) b.classList.add('on'); }); showSel(fg, SEL.flavor); } }
   function paint(){
     \$('#qty').textContent = qty;
     const ready = optReady();
-    const unit = HAS_OPTS ? optPrice() : p.price;
+    const span = HAS_OPTS ? priceSpan() : [p.price, p.price];
+    const unit = span[0], from = W.money(span[0]) !== W.money(span[1]);   // a "from" price until the picks settle it
     if (!NOPRICE) {
-      \$('#miniPrice').textContent = W.money(unit*qty);
-      const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = W.money(unit);   // shows the default price, updates as options are chosen
+      \$('#miniPrice').textContent = (from ? 'from ' : '') + W.money(unit*qty);
+      const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = (from ? '<span class="from">from</span> ' : '') + W.money(unit);   // shows the default price, updates as options are chosen
     }
     let label;
     if (NOPRICE) label = 'Price coming soon';
@@ -565,14 +645,15 @@ $PAGE_JS = <<<JS
     if(NOPRICE){ W.toast&&W.toast('Price coming soon — not available to order yet'); return; }
     if(STOCK<=0) return;
     if(HAS_OPTS){
-      if(!optReady()){ W.toast&&W.toast('Please choose ' + ((p.colors&&p.colors.length&&!SEL.color)?'a colour':'a size') + ' first'); return; }
-      W.addToCart(p.id, qty, { color: SEL.color||'', size: SEL.size||'', price: optPrice() });
-      W.openCart(); return;
+      if(!optReady()){ showMissing(); W.toast&&W.toast('Please choose ' + optMissing() + ' first'); return; }
+      W.addToCart(p.id, qty, { color: SEL.color||'', size: SEL.size||'', flavor: SEL.flavor||'', price: optPrice() });
+      paint(); W.openCart(); return;   // the stock line and button count what is in the bag now
     }
     qty = W.setCartQty(p.id, qty) || qty; paint(); W.openCart();
   }
   \$('#addBtn').addEventListener('click',add);
   \$('#miniAdd').addEventListener('click',add);
+  window.addEventListener('well:cart', paint);   // the bag was read again (back/forward cache, another tab)
   paint();
 
   // interactive star picker for the "write a review" form

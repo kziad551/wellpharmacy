@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/gifts.php';
 
 $order_no = (string) ($_SESSION['last_order'] ?? '');
 $order = $order_no ? row("SELECT * FROM orders WHERE order_no = ?", [$order_no]) : null;
@@ -22,6 +23,9 @@ $HEAD_CSS = <<<CSS
   .oc-th{width:50px;height:50px;object-fit:contain;background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:9px;flex:none;padding:3px}
   .oc-it{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:center;font-size:14px;padding:10px 0;border-bottom:1px solid var(--cream-2)}
   .oc-it .q{color:var(--text-muted);font-size:12.5px}
+  .oc-gift{display:inline-flex;align-items:center;gap:4px;height:21px;padding:0 9px;margin-left:4px;border-radius:999px;background:var(--blush-tint,#EFEBE0);color:var(--rose-deep,#7A6244);font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;vertical-align:1px;white-space:nowrap}
+  .oc-gift svg{width:12px;height:12px;flex:none}
+  .oc-it .free{color:var(--rose-deep,#7A6244);letter-spacing:.4px}
   .oc-line{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;color:var(--ink-soft)}
   .oc-line.total{border-top:1px solid var(--border-2,#E4DFD3);margin-top:6px;padding-top:12px;font-size:19px;font-weight:700;color:var(--ink)}
   .oc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;color:var(--ink-soft)}
@@ -41,7 +45,9 @@ if (!$order):
   </div>
 </div>
 <?php else:
-  $items = rows("SELECT oi.*, p.image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?", [$order['id']]);
+  /* gift lines keep their own image snapshot and are never joined to products: a custom
+     gift's gift-N id could match an unrelated product added later */
+  $items = rows("SELECT oi.*, p.image AS p_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id AND oi.is_gift = 0 WHERE oi.order_id = ? ORDER BY oi.id", [$order['id']]);
   $note  = $_SESSION['order_note'] ?? ''; unset($_SESSION['order_note']);
 ?>
 <div class="wrap oc">
@@ -54,11 +60,11 @@ if (!$order):
 
   <div class="oc-card">
     <h3>Order summary</h3>
-    <?php foreach ($items as $it): ?>
+    <?php foreach ($items as $it): $gift = !empty($it['is_gift']); ?>
       <div class="oc-it">
-        <img class="oc-th gimg" data-grade src="<?= e($it['image'] ?: 'uploads/photo-pending.png') ?>" alt="">
-        <div><?= e($it['name']) ?><?php if(!empty($it['variant'])): ?> <span class="muted">(<?= e($it['variant']) ?>)</span><?php endif; ?><div class="q"><?= e($it['brand']) ?> · Qty <?= (int)$it['qty'] ?></div></div>
-        <b><?= money($it['line_total']) ?></b>
+        <img class="oc-th gimg" data-grade src="<?= e(order_item_image($it)) ?>" alt="">
+        <div><?= e($it['name']) ?><?php if ($gift): ?> <span class="oc-gift"><?= GIFT_SVG ?>Free gift</span><?php elseif(!empty($it['variant'])): ?> <span class="muted">(<?= e($it['variant']) ?>)</span><?php endif; ?><div class="q"><?php if ((string) $it['brand'] !== ''): ?><?= e($it['brand']) ?> &middot; <?php endif; ?>Qty <?= (int)$it['qty'] ?></div></div>
+        <b<?= $gift ? ' class="free"' : '' ?>><?= $gift ? 'FREE' : money($it['line_total']) ?></b>
       </div>
     <?php endforeach; ?>
     <div style="margin-top:14px">

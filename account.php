@@ -2,6 +2,7 @@
 require __DIR__ . '/inc/functions.php';
 require __DIR__ . '/inc/customer.php';
 require __DIR__ . '/inc/phone.php';
+require_once __DIR__ . '/inc/gifts.php';
 require_customer();
 
 $c   = current_customer();
@@ -14,7 +15,10 @@ $orders = rows("SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at D
 $PAGE_TITLE = 'My account — ' . setting('store_name', 'WELL SHOP');
 $ACTIVE = ''; $NO_POPUP = true;
 require __DIR__ . '/inc/auth-css.php';
-$HEAD_CSS = $AUTH_CSS;
+$HEAD_CSS = $AUTH_CSS . '<style>
+  .oitem .gtag{display:inline-block;margin-left:4px;padding:2px 7px;border-radius:999px;background:#fff;color:var(--rose-deep);
+    font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;vertical-align:1px}
+</style>';
 $f = take_cflash();
 include __DIR__ . '/inc/head.php';
 ?>
@@ -76,7 +80,8 @@ include __DIR__ . '/inc/head.php';
         <div class="empty"><b>No orders yet</b>Once you place an order it'll show up here.
           <div style="margin-top:16px"><a class="btn btn-primary btn-sm" href="skincare">start shopping</a></div></div>
       <?php else: foreach ($orders as $o):
-        $items = rows("SELECT oi.name, oi.variant, oi.qty, p.image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id = ?", [(int) $o['id']]); ?>
+        /* gift lines use their own image snapshot, never a product join (a custom gift's gift-N id could match an unrelated product) */
+        $items = rows("SELECT oi.name, oi.variant, oi.qty, oi.is_gift, oi.image, p.image AS p_image FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id AND oi.is_gift = 0 WHERE oi.order_id = ? ORDER BY oi.id", [(int) $o['id']]); ?>
         <div class="ordrow">
           <div class="top">
             <div>
@@ -92,8 +97,8 @@ include __DIR__ . '/inc/head.php';
           <div class="oitems">
             <?php foreach ($items as $i): ?>
               <div class="oitem">
-                <img class="gimg" data-grade src="<?= e($i['image'] ?: 'uploads/photo-pending.png') ?>" alt="">
-                <span><?= e($i['name']) ?><?php if(!empty($i['variant'])): ?> <span class="muted">(<?= e($i['variant']) ?>)</span><?php endif; ?> <span class="muted">× <?= (int) $i['qty'] ?></span></span>
+                <img class="gimg" data-grade src="<?= e(order_item_image($i)) ?>" alt="">
+                <span><?= e($i['name']) ?><?php if (!empty($i['is_gift'])): ?> <span class="gtag">Free gift</span><?php elseif(!empty($i['variant'])): ?> <span class="muted">(<?= e($i['variant']) ?>)</span><?php endif; ?> <span class="muted">&times; <?= (int) $i['qty'] ?></span></span>
               </div>
             <?php endforeach; ?>
           </div>

@@ -32,6 +32,8 @@ $HEAD_CSS = <<<CSS
   .csum .track{height:6px;border-radius:6px;background:var(--cream-2);overflow:hidden;margin-top:8px}
   .csum .track .fill{height:100%;background:var(--rose);transition:width .3s}
   .cart-empty2{text-align:center;padding:60px 20px;background:#fff;border:1px solid var(--border-2,#E4DFD3);border-radius:18px}
+  .csum .line.gift{color:var(--rose-deep)}
+  .csum .line.gift span{display:inline-flex;align-items:center;gap:6px}
   @media(max-width:820px){.cart-layout{grid-template-columns:minmax(0,1fr)}.csum{position:static}}
   /* narrow phones: a smaller thumbnail and tighter gaps keep the row inside the screen */
   @media(max-width:420px){
@@ -62,23 +64,25 @@ ob_start(); ?>
 
   function render() {
     var cart = W.cart(), rows = [], sub = 0;
+    var gifts = W.giftLines(cart), nGifts = 0;   // free gift rows are display-only: never in the totals
     cart.forEach(function (l) {
       var p = W.BY_ID[l.id]; if (!p) return;
       var lt = W.unitPrice(l) * l.qty; sub += lt;
-      var k = encodeURIComponent(W.lineKey(l));
-      var vlabel = [l.color, l.size].filter(Boolean).join(' · ');
-      var stock = p.stock | 0, low = p.low | 0, atMax = l.qty >= stock;
+      var lk = W.lineKey(l), k = encodeURIComponent(lk);
+      var vlabel = [l.color, l.flavor, l.size].filter(Boolean).join(' · ');   // same order as the order label
+      var stock = p.stock | 0, low = p.low | 0, atMax = W.cartQtyOf(l.id) >= stock;   // its option lines share one stock
       var note = atMax ? '<div class="cnote">' + (stock <= low ? 'Only ' + stock + ' left' : 'Max reached') + '</div>'
                        : (stock <= low ? '<div class="cnote">Only ' + stock + ' left</div>' : '');
       rows.push(
         '<div class="crow">' +
           '<img class="gimg" data-grade src="' + p.img + '" alt="">' +
           '<div><div class="br">' + p.brand + '</div><div class="ti">' + p.name + '</div>' +
-            (vlabel ? '<div class="cvar">' + vlabel + '</div>' : '') +
+            (vlabel ? '<div class="cvar">' + W.esc(vlabel) + '</div>' : '') +
             '<span class="stepper"><button data-cdec="' + k + '">−</button><span class="q">' + l.qty + '</span><button data-cinc="' + k + '"' + (atMax ? ' disabled' : '') + '>+</button></span>' + note + '</div>' +
           '<div class="r"><span class="pr">' + money(lt) + '</span><button class="rm" data-crm="' + k + '">Remove</button></div>' +
         '</div>'
       );
+      if (gifts[lk]) { rows.push(W.giftRowHTML(gifts[lk], 'cart')); nGifts++; }
     });
 
     if (!rows.length) {
@@ -100,6 +104,7 @@ ob_start(); ?>
           '<h3>Order summary</h3>' +
           '<div class="free">' + freeMsg + '</div>' +
           '<div class="line"><span>Subtotal</span><b>' + money(sub) + '</b></div>' +
+          (nGifts ? '<div class="line gift"><span>' + W.icon('gift') + ' Free gift' + (nGifts > 1 ? 's' : '') + '</span><b>FREE</b></div>' : '') +
           '<div class="line"><span>Shipping</span><span>Calculated at checkout</span></div>' +
           '<div class="line total"><span>Total</span><span>' + money(sub) + '</span></div>' +
           '<a class="btn btn-primary btn-block" style="margin-top:14px" href="checkout">Proceed to checkout</a>' +
@@ -116,6 +121,7 @@ ob_start(); ?>
     if (rm) { W.removeLine(decodeURIComponent(rm.dataset.crm)); render(); }
   });
 
+  window.addEventListener('well:cart', render);   // the bag was read again (back/forward cache, another tab)
   render();
   document.getElementById('usp').innerHTML = W.uspHTML();
   W.guardImages(document);

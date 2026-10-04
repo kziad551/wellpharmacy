@@ -8,6 +8,7 @@
 require_once __DIR__ . '/../inc/db.php';
 require_once __DIR__ . '/../inc/functions.php';
 require_once __DIR__ . '/../inc/customer.php';
+require_once __DIR__ . '/../inc/gifts.php';
 header('Content-Type: application/javascript; charset=utf-8');
 header('Cache-Control: private, no-store');   // carries who is signed in — never cache publicly
 
@@ -38,9 +39,9 @@ $products = [];
 /* Only the columns the shape below actually uses. SELECT * also dragged in
    long_desc, ingredients, how_to_use, benefits, arabic, barcode and sku for all
    1742 rows, which nothing here reads. */
-$PCOLS = "id,name,brand,category,price,was,sale_pct,badge,rating,reviews,stock,low_stock,kw,descr,keywords,image,hover_image,unit,opt_colors,opt_sizes";
+$PCOLS = "id,name,brand,category,price,was,sale_pct,badge,rating,reviews,stock,low_stock,kw,descr,keywords,image,hover_image,unit,opt_colors,opt_sizes,opt_flavors,opt_flavor_name";
 foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, id") as $p) {
-    $products[] = [
+    $row = [
         'id'      => $p['id'],
         'brand'   => $p['brand'],
         'name'    => $p['name'],
@@ -63,6 +64,14 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
         'stock'   => (int)$p['stock'],
         'low'     => (int)$p['low_stock'],
     ];
+    /* flavours, a third option group (same {label, price} shape; price is a surcharge like a
+       colour's). Like `gift`, both keys are left out for the many products without flavours. */
+    if ($fl = parse_variant_opts($p['opt_flavors'] ?? '')) { $row['flavors'] = $fl; $row['flavor_name'] = flavor_group_name($p); }
+    /* free gift with purchase (inc/gifts.php): one cached query for the whole loop.
+       The key is left out when there is no live offer, so ~1,800 products don't
+       each carry a "gift":null. */
+    if ($g = gift_for_product((string) $p['id'])) $row['gift'] = gift_public($g);
+    $products[] = $row;
 }
 $navCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
 $NAV = array_merge(['Shop All', 'Brands', 'Offers'], $navCats);

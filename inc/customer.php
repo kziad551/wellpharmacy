@@ -118,16 +118,28 @@ function wishlist_remove(int $cid, string $pid): void {
 function cart_rows(int $cid): array {
     return rows("SELECT product_id, qty, variant, vprice FROM customer_cart WHERE customer_id = ?", [$cid]);
 }
+/* One row per product AND chosen option (uq_cart is customer + product + variant), so two
+   flavours or two sizes of one product stay two lines. The upsert also rewrites `variant`:
+   the key compares it case-insensitively, and actions/account.php matches rows back to the
+   browser's lines byte for byte. A variant too long for the column (160) is not saved at
+   all: MySQL would cut it into JSON nobody can read back (the line stays in the browser). */
 function cart_put(int $cid, string $pid, int $qty, string $variant = '', ?float $vprice = null): void {
     if ($qty <= 0) { q("DELETE FROM customer_cart WHERE customer_id = ? AND product_id = ? AND variant = ?", [$cid, $pid, $variant]); return; }
+    if (mb_strlen($variant) > 160) return;
     q("INSERT INTO customer_cart (customer_id, product_id, variant, qty, vprice) VALUES (?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE qty = VALUES(qty), vprice = VALUES(vprice)", [$cid, $pid, $variant, $qty, $vprice]);
+       ON DUPLICATE KEY UPDATE qty = VALUES(qty), vprice = VALUES(vprice), variant = VALUES(variant)", [$cid, $pid, $variant, $qty, $vprice]);
 }
-/* build the JSON variant blob + price the client sends back on the cart line */
+/* build the JSON variant blob + price the client sends back on the cart line.
+   {"color":..,"size":..} exactly as before when no flavour is chosen (older rows still
+   match), with "flavor" added only when there is one. '' when there is no option at all. */
 function cart_variant_json(array $l): array {
-    $color = trim((string) ($l['color'] ?? ''));
-    $size  = trim((string) ($l['size'] ?? ''));
-    $json  = ($color !== '' || $size !== '') ? json_encode(['color' => $color, 'size' => $size], JSON_UNESCAPED_UNICODE) : '';
+    $opt    = fn($v) => is_scalar($v) ? trim((string) $v) : '';   // a crafted array is no option (not "Array" plus a PHP warning)
+    $color  = $opt($l['color'] ?? '');
+    $size   = $opt($l['size'] ?? '');
+    $flavor = $opt($l['flavor'] ?? '');
+    $v = ['color' => $color, 'size' => $size];
+    if ($flavor !== '') $v['flavor'] = $flavor;
+    $json  = ($color !== '' || $size !== '' || $flavor !== '') ? json_encode($v, JSON_UNESCAPED_UNICODE) : '';
     $vprice = isset($l['price']) && $l['price'] !== '' ? round((float) $l['price'], 2) : null;
     return [$json, $vprice];
 }
@@ -137,7 +149,8 @@ function merge_guest_data_into_account(int $cid): void {
     $pend = $_SESSION['guest_merge'] ?? null;
     if (!$pend) return;
     foreach (($pend['wish'] ?? []) as $pid) if (is_string($pid) && $pid !== '') wishlist_add($cid, $pid);
-    foreach (($pend['cart'] ?? []) as $line) {
+    foreach ((array) ($pend['cart'] ?? []) as $line) {
+        if (!is_array($line)) continue;
         $pid = (string) ($line['id'] ?? ''); $qty = max(1, (int) ($line['qty'] ?? 1));
         if ($pid === '') continue;
         [$vjson, $vprice] = cart_variant_json($line);
