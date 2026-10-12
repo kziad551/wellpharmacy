@@ -34,9 +34,26 @@ $ceil   = well_plp_price_ceiling($F);
 $shown  = ($page - 1) * PLP_PER_PAGE + count($items);
 $hasMore = $shown < $count;
 
+/* ---- single-brand view = the brand's own page: use its name + show its optional hero banner ---- */
+$brandView = (count($F['brands']) === 1 && $F['cat'] === '' && $F['q'] === '' && !$offers) ? $F['brands'][0] : null;
+$BRAND = $brandView ? row("SELECT * FROM brands WHERE name = ?", [$brandView]) : null;
+$heroProds = [];
+$heroOn = false;
+if ($BRAND && (int) $BRAND['hero_enabled'] === 1) {
+    $pids = array_values(array_filter(array_map('trim', explode(',', (string) ($BRAND['hero_products'] ?? '')))));
+    if ($pids) {
+        $ph    = implode(',', array_fill(0, count($pids), '?'));
+        $byId  = [];
+        foreach (rows("SELECT * FROM products WHERE id IN ($ph) AND status='active' AND stock > 0", $pids) as $p) $byId[$p['id']] = $p;
+        foreach ($pids as $pid) if (isset($byId[$pid])) $heroProds[] = $byId[$pid];   // keep the admin's order (any number)
+    }
+    $heroOn = trim((string) $BRAND['hero_title']) !== '' || trim((string) $BRAND['hero_subtitle']) !== ''
+           || trim((string) $BRAND['hero_image']) !== '' || $heroProds;
+}
+
 $title  = $offers ? 'Offers & Sale'
-        : ($F['cat'] !== '' ? $F['cat'] : ($F['q'] !== '' ? 'Search: ' . $F['q'] : 'Shop All'));
-$ACTIVE = $offers ? 'Offers' : ($F['cat'] !== '' ? $F['cat'] : 'Shop All');
+        : ($F['cat'] !== '' ? $F['cat'] : ($F['q'] !== '' ? 'Search: ' . $F['q'] : ($brandView ?: 'Shop All')));
+$ACTIVE = $offers ? 'Offers' : ($F['cat'] !== '' ? $F['cat'] : ($brandView ?: 'Shop All'));
 $PAGE_TITLE = "$title — " . setting('store_name', 'WELL SHOP');
 $USE_PLP = true;
 
@@ -47,8 +64,95 @@ $SELF = strtok($_SERVER['REQUEST_URI'] ?? 'skincare', '?');
 $SELF = basename($SELF) ?: 'skincare';
 
 $pillCats = array_column(rows("SELECT name FROM categories WHERE in_nav=1 ORDER BY sort"), 'name');
+
+/* brand-page hero styles — always loaded so a filter change that swaps the hero in/out keeps them */
+$HEAD_CSS = <<<CSS
+<style>
+  /* background stays on-theme (same warm gradient as the rest of the site); the brand's
+     accent colour only tints small touches (the chip text + the product count) */
+  .brand-hero{position:relative; border-bottom:1px solid var(--border); background:var(--hero-grad,linear-gradient(120deg,#F4F0E7,#EFEBE0))}
+  .brand-hero .wrap{position:relative; padding-block:30px 34px}
+  .brand-hero .crumb{margin-bottom:18px}
+  .bh{display:grid; grid-template-columns:minmax(240px,.72fr) minmax(0,1.28fr); gap:clamp(22px,3vw,44px); align-items:center}
+  .bh-brandchip{display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--border);
+    border-radius:9999px; padding:8px 16px; box-shadow:var(--sh-xs); margin-bottom:18px; max-width:100%}
+  .bh-brandchip img{height:24px; max-width:130px; object-fit:contain; display:block}
+  .bh-brandchip .nm{font-family:var(--fp); font-weight:700; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--bh-accent,var(--rose-deep,#B86B5E))}
+  .bh-title{font-family:var(--fp); font-weight:600; font-size:clamp(32px,4.4vw,52px); line-height:1.03; color:var(--ink); margin:0; letter-spacing:-.015em}
+  .bh-sub{color:var(--ink-soft); font-size:clamp(15px,1.4vw,18px); max-width:42ch; margin:16px 0 0; line-height:1.55}
+  .bh-actions{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:26px}
+  .bh-count{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--ink-soft);
+    background:#fff; border:1px solid var(--border); border-radius:9999px; padding:9px 16px}
+  .bh-count b{color:var(--bh-accent,var(--rose-deep,#B86B5E))}
+  .bh-visual{position:relative; min-width:0}
+  /* each featured product is a clean, elevated white tile (the base card is transparent) */
+  .bh-rail > .pcard{min-width:0; background:#fff; border:1px solid var(--border); border-radius:18px;
+    box-shadow:var(--sh-sm); overflow:hidden; transition:transform .25s ease, box-shadow .25s ease}
+  .bh-rail > .pcard:hover{transform:translateY(-5px); box-shadow:var(--sh-lg); border-color:var(--rose,#E7CFC9)}
+  .bh-rail .pcard .media{border-radius:0}                 /* image flush to the tile top */
+  .bh-rail .pcard .body{padding:12px 15px 15px; gap:6px}
+  .bh-rail .pcard .stars{display:none}                    /* drop the empty "No reviews yet" line */
+  /* MANY products → a horizontal rail that scrolls; a peeking card shows there's more */
+  .bh-rail.bh-scroll{display:flex; gap:16px; overflow-x:auto; padding:6px 2px 16px;
+    scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none}
+  .bh-rail.bh-scroll::-webkit-scrollbar{display:none}
+  .bh-rail.bh-scroll > .pcard{flex:0 0 clamp(172px,20vw,204px); scroll-snap-align:start}
+  /* FEW products → a centred grid with larger cards, so they read as a real feature (not floating) */
+  .bh-rail.bh-fill{display:grid; gap:18px; padding:6px 2px 10px; justify-content:center}
+  .bh-rail.bh-fill.bh-c1{grid-template-columns:minmax(0,360px)}
+  .bh-rail.bh-fill.bh-c2{grid-template-columns:repeat(2,minmax(0,300px))}
+  .bh-rail.bh-fill.bh-c3{grid-template-columns:repeat(3,minmax(0,246px))}
+  .bh-rail.bh-fill.bh-c4{grid-template-columns:repeat(4,minmax(0,208px))}
+  /* hero image (used when no products picked) — always fits, capped height */
+  .bh-img{border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); box-shadow:var(--sh-md);
+    height:clamp(300px,36vw,500px); background:var(--cream-2)}
+  .bh-img img{width:100%; height:100%; object-fit:cover; display:block}
+  @media(max-width:860px){ .bh{grid-template-columns:1fr; gap:20px} }
+  @media(max-width:640px){ .bh-rail.bh-fill{justify-content:stretch} .bh-rail.bh-fill.bh-c1{grid-template-columns:minmax(0,1fr)} .bh-rail.bh-fill.bh-c2,.bh-rail.bh-fill.bh-c3,.bh-rail.bh-fill.bh-c4{grid-template-columns:repeat(2,minmax(0,1fr))} .bh-img{height:clamp(240px,60vw,380px)} }
+  @media(max-width:560px){ .bh-rail.bh-scroll > .pcard{flex-basis:64%} }
+</style>
+CSS;
+
 include __DIR__ . '/inc/head.php';
 ?>
+<!-- #plpHero: the top banner. Swapped by the filter AJAX so it follows the brand filter
+     (brand banner when one brand is selected, the normal header otherwise). -->
+<div id="plpHero">
+<?php if ($heroOn):
+  $hAccent = $BRAND['hero_bg'] !== '' ? $BRAND['hero_bg'] : ($BRAND['color'] !== '' ? $BRAND['color'] : '#9C8158');
+  $hTitle  = $BRAND['hero_title'] !== '' ? $BRAND['hero_title'] : $brandView; ?>
+<section class="brand-hero" style="--bh-accent:<?= e($hAccent) ?>">
+  <div class="wrap">
+    <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><a href="brands">Brands</a><span class="sep">›</span><b><?= e($brandView) ?></b></nav>
+    <div class="bh">
+      <div class="bh-copy">
+        <span class="bh-brandchip">
+          <?php if ($BRAND['logo'] !== '' && ($BRAND['logo_mode'] ?? 'auto') !== 'name'): ?>
+            <img src="<?= e($BRAND['logo']) ?>" alt="<?= e($brandView) ?>">
+          <?php else: ?><span class="nm"><?= e($brandView) ?></span><?php endif; ?>
+        </span>
+        <h1 class="bh-title"><?= e($hTitle) ?></h1>
+        <?php if ($BRAND['hero_subtitle'] !== ''): ?><p class="bh-sub"><?= e($BRAND['hero_subtitle']) ?></p><?php endif; ?>
+        <div class="bh-actions">
+          <?php if ($BRAND['hero_cta_label'] !== '' && $BRAND['hero_cta_link'] !== ''): ?>
+            <a class="btn btn-primary btn-lg" href="<?= e($BRAND['hero_cta_link']) ?>"><?= e($BRAND['hero_cta_label']) ?></a>
+          <?php endif; ?>
+          <span class="bh-count"><b><?= $count ?></b> product<?= $count === 1 ? '' : 's' ?></span>
+        </div>
+      </div>
+      <?php if ($heroProds || $BRAND['hero_image'] !== ''): ?>
+      <div class="bh-visual">
+        <?php if ($heroProds): $hc = count($heroProds); ?>
+          <div class="bh-rail <?= $hc <= 4 ? 'bh-fill bh-c' . $hc : 'bh-scroll' ?>"><?php foreach ($heroProds as $hp) echo well_product_card($hp); ?></div>
+        <?php else: ?>
+          <div class="bh-img graded" data-imgwrap><img class="gimg" data-grade src="<?= e($BRAND['hero_image']) ?>" alt="<?= e($brandView) ?>"></div>
+        <?php endif; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+  </div>
+</section>
+<?php else: ?>
 <section class="cat-hero">
   <div class="wrap">
     <nav class="crumb"><a href="index">Home</a><span class="sep">›</span><b><?= e($title) ?></b></nav>
@@ -63,6 +167,8 @@ include __DIR__ . '/inc/head.php';
     </div>
   </div>
 </section>
+<?php endif; ?>
+</div><!-- /#plpHero -->
 
 <div class="plp-toolbar">
   <div class="wrap">
@@ -218,7 +324,7 @@ $PAGE_JS = <<<'JS'
   /* Swap only the regions the server recomputed. Fetching the whole page keeps
      one source of truth (the same PHP that renders a normal visit), so counts,
      chips and facet numbers can never drift from the grid. */
-  const SWAP = ['#grid', '#chips', '#fBrand', '.plp-more'];
+  const SWAP = ['#plpHero', '#grid', '#chips', '#fBrand', '.plp-more'];
   let seq = 0;
 
   async function load(url, push) {

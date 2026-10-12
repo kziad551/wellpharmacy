@@ -36,10 +36,20 @@ CREATE TABLE brands (
   id          INT AUTO_INCREMENT PRIMARY KEY,
   name        VARCHAR(120) NOT NULL,
   slug        VARCHAR(120) NOT NULL,
+  category    VARCHAR(80)  NOT NULL DEFAULT '',   -- optional: groups the brands page by category
   color       VARCHAR(16)  DEFAULT '',           -- signature colour (interim wordmark)
   logo        VARCHAR(500) DEFAULT '',           -- real logo path (overrides wordmark)
   logo_mode   ENUM('auto','logo','name','both') NOT NULL DEFAULT 'auto', -- strip display: auto|logo|name|both
   featured    TINYINT      NOT NULL DEFAULT 0,    -- homepage "trusted brands" strip
+  -- per-brand hero / offer banner, shown at the top of the brand page (skincare?brand=…)
+  hero_enabled   TINYINT      NOT NULL DEFAULT 0,
+  hero_title     VARCHAR(160) NOT NULL DEFAULT '',
+  hero_subtitle  VARCHAR(300) NOT NULL DEFAULT '',
+  hero_image     VARCHAR(500) NOT NULL DEFAULT '',
+  hero_cta_label VARCHAR(80)  NOT NULL DEFAULT '',
+  hero_cta_link  VARCHAR(300) NOT NULL DEFAULT '',
+  hero_products  TEXT         NULL,               -- 1–2 featured product ids (comma list)
+  hero_bg        VARCHAR(16)  NOT NULL DEFAULT '', -- optional accent/background colour
   sort        INT          NOT NULL DEFAULT 0,
   UNIQUE KEY uq_brand_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -72,6 +82,7 @@ CREATE TABLE products (
   hover_image   VARCHAR(500) DEFAULT '',
   gallery       TEXT         NULL,                -- extra product photos (one path/URL per line)
   feat_latest   TINYINT      NOT NULL DEFAULT 0,  -- homepage "latest arrivals" rail
+  feat_trending TINYINT      NOT NULL DEFAULT 0,  -- homepage "trending now" rail
   feat_wellness TINYINT      NOT NULL DEFAULT 0,  -- homepage "shop wellness" rail
   home_sort     INT          NOT NULL DEFAULT 0,
   sort          INT          NOT NULL DEFAULT 0,
@@ -85,8 +96,10 @@ CREATE TABLE products (
 -- ---- admin-managed homepage sections (New Arrivals + per-brand rails) -------
 CREATE TABLE home_sections (
   id          INT AUTO_INCREMENT PRIMARY KEY,
-  type        ENUM('new_arrivals','brand','category') NOT NULL DEFAULT 'brand',
+  type        ENUM('new_arrivals','trending','brand','category','mixed') NOT NULL DEFAULT 'brand',
   brand       VARCHAR(120) NOT NULL DEFAULT '',      -- brand name (matches products.brand) when type='brand'
+  brands      TEXT         NULL,                     -- comma list of brands when type='mixed' (blank = all)
+  product_ids TEXT         NULL,                     -- hand-picked product ids (brand / new_arrivals / trending)
   eyebrow     VARCHAR(120) NOT NULL DEFAULT '',      -- small label above the title (optional)
   title       VARCHAR(160) NOT NULL DEFAULT '',      -- blank = default ('New Arrivals' / the brand name)
   subtitle    VARCHAR(300) NOT NULL DEFAULT '',      -- optional line under the title

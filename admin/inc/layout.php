@@ -205,9 +205,9 @@ function admin_foot(): void {
   .rt-area ul,.rt-area ol{margin:8px 0 10px 22px}
   .rt-area a{color:#7a6244;text-decoration:underline}
   .imgwrap{position:relative;display:inline-block;margin-bottom:8px;line-height:0}
-  .imgwrap .imgtrash{position:absolute;top:6px;right:6px;width:30px;height:30px;border:0;border-radius:8px;background:rgba(176,74,47,.92);color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.28)}
-  .imgwrap:hover .imgtrash{display:flex}
-  .imgwrap .imgtrash:hover{background:#b04a2f}
+  .imgwrap .imgtrash{position:absolute;top:6px;right:6px;width:30px;height:30px;border:0;border-radius:8px;background:rgba(176,74,47,.92);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.28);opacity:.85;transition:opacity .15s}
+  .imgwrap:hover .imgtrash{opacity:1}
+  .imgwrap .imgtrash:hover{background:#b04a2f;opacity:1}
   .imgwrap .imgtrash svg{width:16px;height:16px}
   .a-toast{position:fixed;right:20px;bottom:20px;z-index:300;display:flex;align-items:center;gap:11px;min-width:260px;max-width:400px;padding:13px 14px;border-radius:12px;background:#fff;box-shadow:0 14px 38px rgba(44,38,31,.24);border:1px solid #e6e1d6;font-size:14px;font-weight:600;color:#2c261f}
   .a-toast:not(.hide){animation:aToastIn .38s cubic-bezier(.2,.85,.25,1)}
@@ -310,7 +310,7 @@ function admin_foot(): void {
       return preview;
     }
     function dropPreview(){ if(preview){ var w=preview.parentNode; if(w&&w.className==='imgwrap') w.remove(); else preview.remove(); preview=null; } }
-    function idle(){ pick.textContent=origSrc?'Replace image':'Choose image'; undoBtn.style.display='none'; status.style.color='#8a7d6e'; status.textContent=origSrc?'Saved image — hover it to remove, or pick a file to replace it.':'No image chosen yet.'; }
+    function idle(){ pick.textContent=origSrc?'Replace image':'Choose image'; undoBtn.style.display='none'; status.style.color='#8a7d6e'; status.textContent=origSrc?'Saved image — click the 🗑 to remove it, or pick a file to replace it.':'No image chosen yet.'; }
 
     function removeImage(){                                  // same effect as clearing the URL + Save
       inp.value=''; if(urlField) urlField.value='';

@@ -3,8 +3,8 @@ require __DIR__ . '/inc/layout.php';
 
 if (is_post() && input('action') === 'delete') {
     csrf_check();
-    // New Arrivals & Category are fixed singletons — never delete them (toggle hidden instead)
-    q("DELETE FROM home_sections WHERE id = ? AND type NOT IN ('new_arrivals','category')", [(int) input('id')]);
+    // New Arrivals, Trending & Category are fixed singletons — never delete them (toggle hidden instead)
+    q("DELETE FROM home_sections WHERE id = ? AND type NOT IN ('new_arrivals','trending','category')", [(int) input('id')]);
     flash('Section deleted.');
     redirect('home-sections');
 }
@@ -22,8 +22,8 @@ $list  = rows("SELECT * FROM home_sections ORDER BY sort, id LIMIT $PER OFFSET "
 /** One home-section row — shared by the first paint and each infinite-scroll slice. */
 function home_section_row(array $s): void {
     $isBrand = $s['type'] === 'brand';
-    $isFixed = in_array($s['type'], ['new_arrivals','category'], true);   // fixed singletons — can't be deleted
-    $name = $s['title'] !== '' ? $s['title'] : ($isBrand ? ($s['brand'] ?: '(no brand)') : ($s['type'] === 'category' ? 'Shop by Category' : 'New Arrivals'));
+    $isFixed = in_array($s['type'], ['new_arrivals','trending','category'], true);   // fixed singletons — can't be deleted
+    $name = $s['title'] !== '' ? $s['title'] : ($isBrand ? ($s['brand'] ?: '(no brand)') : ($s['type'] === 'category' ? 'Shop by Category' : ($s['type'] === 'trending' ? 'Trending Now' : 'New Arrivals')));
 ?>
       <tr>
         <td data-label="Sort"><span class="faint"><?= (int)$s['sort'] ?></span></td>
@@ -32,7 +32,7 @@ function home_section_row(array $s): void {
           <?php if ($s['eyebrow'] || $s['subtitle']): ?><div class="br"><?= e($s['eyebrow']) ?><?= $s['eyebrow'] && $s['subtitle'] ? ' · ' : '' ?><?= e($s['subtitle']) ?></div><?php endif; ?>
           <?php if (!$s['show_title']): ?><div class="br"><span class="faint">title hidden</span></div><?php endif; ?>
         </td>
-        <td data-label="Type"><?php if ($isBrand): ?><span class="pill pill-muted">Brand</span><?php elseif ($s['type']==='mixed'): ?><span class="pill pill-muted">Mixed</span><?php elseif ($s['type']==='category'): ?><span class="pill pill-warn">Category</span><?php else: ?><span class="pill pill-good">New Arrivals</span><?php endif; ?></td>
+        <td data-label="Type"><?php if ($isBrand): ?><span class="pill pill-muted">Brand</span><?php elseif ($s['type']==='mixed'): ?><span class="pill pill-muted">Mixed</span><?php elseif ($s['type']==='category'): ?><span class="pill pill-warn">Category</span><?php elseif ($s['type']==='trending'): ?><span class="pill pill-good">Trending</span><?php else: ?><span class="pill pill-good">New Arrivals</span><?php endif; ?></td>
         <td data-label="Shows"><?= $s['item_count'] > 0 ? (int)$s['item_count'] . ' items' : 'all items' ?></td>
         <td data-label="Row"><?= (int)$s['cols'] ?>-up</td>
         <td data-label="Status">

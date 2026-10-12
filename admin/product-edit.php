@@ -278,7 +278,7 @@ if (is_post()) {
         'opt_flavors'=>$flavors, 'opt_flavor_name'=>product_flavor_name_clean(product_gift_field('opt_flavor_name')),
         'how_to_use'=>(string)input('how_to_use'), 'ingredients'=>(string)input('ingredients'), 'benefits'=>(string)input('benefits'),
         'keywords'=>(string)input('keywords'),
-        'feat_latest'=> input('feat_latest') ? 1 : 0, 'feat_wellness'=> input('feat_wellness') ? 1 : 0,
+        'feat_latest'=> input('feat_latest') ? 1 : 0, 'feat_trending'=> input('feat_trending') ? 1 : 0, 'feat_wellness'=> input('feat_wellness') ? 1 : 0,
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
 
@@ -353,7 +353,7 @@ if (is_post()) {
 $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','price'=>'','was'=>'','sale_pct'=>'',
     'badge'=>'','rating'=>'4.8','reviews'=>'0','stock'=>'0','low_stock'=>'5','kw'=>'','descr'=>'','long_desc'=>'',
     'barcode'=>'','sku'=>'','size'=>'','unit'=>'','opt_colors'=>'','opt_sizes'=>'','opt_flavors'=>'','opt_flavor_name'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
-    'image'=>'','hover_image'=>'','gallery'=>'','feat_latest'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
+    'image'=>'','hover_image'=>'','gallery'=>'','feat_latest'=>0,'feat_trending'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
 
 /* the free-gift card: the saved offer (joined with its gift product), else blank defaults.
    Without the product_gifts table (migration not run yet) the card only says so. */
@@ -563,7 +563,8 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
           <option value="active" <?= $v['status']==='active'?'selected':'' ?>>Active (visible)</option>
           <option value="draft"  <?= $v['status']==='draft'?'selected':'' ?>>Draft (hidden)</option>
         </select></div>
-        <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="feat_latest" value="1" <?= $v['feat_latest']?'checked':'' ?>> Show in homepage “New Arrivals”</label>
+        <label class="switch" style="margin-bottom:10px"><input type="checkbox" name="feat_latest" value="1" <?= $v['feat_latest']?'checked':'' ?>> Show in homepage “New Arrivals”</label><br>
+        <label class="switch" style="margin-bottom:12px"><input type="checkbox" name="feat_trending" value="1" <?= $v['feat_trending']?'checked':'' ?>> Show in homepage “Trending Now”</label>
         <div class="field" style="margin-top:8px"><label>Homepage order</label><input class="input" type="number" name="home_sort" value="<?= e($v['home_sort']) ?>"></div>
       </div></div>
     </div>

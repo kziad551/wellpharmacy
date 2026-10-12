@@ -5,8 +5,9 @@ $id = (int) input('id');
 $editing = $id > 0 && ($s = row("SELECT * FROM home_sections WHERE id = ?", [$id]));
 if ($id > 0 && !$editing) { flash('Section not found.', 'err'); redirect('home-sections'); }
 
-$FIXED_TYPES = ['new_arrivals','category'];   // singletons: fixed, toggle-able, not addable/deletable
+$FIXED_TYPES = ['new_arrivals','trending','category'];   // singletons: fixed, toggle-able, not addable/deletable
 $ADDABLE_TYPES = ['brand','mixed'];           // the only types you can create
+$PICK_TYPES = ['brand','new_arrivals','trending'];       // types that can hand-pick specific products
 
 if (is_post()) {
     csrf_check();
@@ -20,7 +21,7 @@ if (is_post()) {
         'type'       => $type,
         'brand'      => $type === 'brand' ? trim((string) input('brand')) : '',
         'brands'     => $type === 'mixed' ? implode(',', $brandList) : '',   // blank = all brands
-        'product_ids'=> $type === 'brand' ? implode(',', array_values(array_filter(array_map('trim', explode(',', (string) input('product_ids')))))) : '',
+        'product_ids'=> in_array($type, $PICK_TYPES, true) ? implode(',', array_values(array_filter(array_map('trim', explode(',', (string) input('product_ids')))))) : '',
         'eyebrow'    => trim((string) input('eyebrow')),
         'title'      => trim((string) input('title')),
         'subtitle'   => trim((string) input('subtitle')),
@@ -73,7 +74,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       <?php $isFixed = $editing && in_array($v['type'], $FIXED_TYPES, true); ?>
       <div class="field"><label>Type</label>
         <?php if ($isFixed): ?>
-          <input class="input" value="<?= $v['type']==='new_arrivals' ? 'New Arrivals' : 'Category tiles' ?>" disabled>
+          <input class="input" value="<?= $v['type']==='new_arrivals' ? 'New Arrivals' : ($v['type']==='trending' ? 'Trending Now' : 'Category tiles') ?>" disabled>
           <input type="hidden" name="type" value="<?= e($v['type']) ?>">
           <div class="hint">A fixed section — always here, can’t be deleted or changed to another type. Turn it on or off with “Visible on the homepage” below, and customise its title/count as usual.</div>
         <?php else: ?>
@@ -90,12 +91,18 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
         </select>
         <div class="hint">A section only appears if the brand has active products.</div>
       </div>
-      <div class="field" id="pickRow" style="<?= $v['type']==='brand'?'':'display:none' ?>; grid-column:1/-1">
-        <label>Show specific products <span class="faint">(optional — leave all unticked to show the whole brand, newest first)</span></label>
+      <?php $isPick = in_array($v['type'], $PICK_TYPES, true);
+            $pickHint = $v['type']==='brand'
+              ? '(optional — leave all unticked to show the whole brand, newest first)'
+              : ($v['type']==='trending'
+                 ? '(optional — leave all unticked to show products flagged “Trending” in the product editor)'
+                 : '(optional — leave all unticked to auto-show products flagged “New Arrivals”, topped up with the newest)'); ?>
+      <div class="field" id="pickRow" style="<?= $isPick?'':'display:none' ?>; grid-column:1/-1">
+        <label>Show specific products <span class="faint"><?= $pickHint ?></span></label>
         <input type="hidden" name="product_ids" id="productIds" value="<?= e($v['product_ids'] ?? '') ?>">
         <div class="brand-picker">
           <div class="bp-search"><input class="input" id="pickSearch" type="search" placeholder="Filter products…" autocomplete="off"></div>
-          <div class="bp-list bp-list-prod" id="pickList"><span class="faint" style="padding:8px">Pick a brand first…</span></div>
+          <div class="bp-list bp-list-prod" id="pickList"><span class="faint" style="padding:8px"><?= $v['type']==='brand' ? 'Pick a brand first…' : 'Loading products…' ?></span></div>
         </div>
         <div class="hint" id="pickCount"></div>
       </div>
@@ -225,32 +232,35 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
 </script>
 <script>
 
-  // ---- pick specific products for a BRAND section ----
+  // ---- pick specific products for a BRAND section, or for New Arrivals / Trending (all brands) ----
   (function(){
     var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'brand'=>$r['brand'],'img'=>($r['image']!==''?asrc($r['image']):'')], $pickProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    var MODE = <?= json_encode($v['type']==='brand' ? 'brand' : 'all') ?>;              // 'brand' = one brand; 'all' = every brand
+    var EMPTY_MSG = <?= json_encode($v['type']==='brand' ? 'Nothing picked — the whole brand shows (newest first).' : ($v['type']==='trending' ? 'Nothing picked — products flagged “Trending” in the product editor will show.' : 'Nothing picked — products flagged “New Arrivals”, topped up with the newest, will show.')) ?>;
     var brandSel = document.querySelector('select[name="brand"]');
     var list = document.getElementById('pickList');
     var hidden = document.getElementById('productIds');
     var countEl = document.getElementById('pickCount');
     var search = document.getElementById('pickSearch');
-    if (!brandSel || !list || !hidden) return;
+    if (!list || !hidden) return;
+    var BYID = {}; ALL.forEach(function(p){ BYID[p.id] = p; });
     function esc(t){ return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-    /* selection is a persistent set so a live filter never drops a hidden pick */
-    var picked = {};
-    hidden.value.split(',').map(function(x){return x.trim();}).filter(Boolean).forEach(function(id){ picked[id]=true; });
+    /* picked = set; order = the admin's chosen order (so the row keeps that order on save) */
+    var picked = {}, order = [];
+    hidden.value.split(',').map(function(x){return x.trim();}).filter(Boolean).forEach(function(id){ picked[id]=true; order.push(id); });
     function writeHidden(){
-      var brand = brandSel.value;
-      var ids = ALL.filter(function(p){ return p.brand === brand && picked[p.id]; }).map(function(p){ return p.id; });   // natural (list) order
+      var ids = order.filter(function(id){ return picked[id] && BYID[id]; });            // keep the admin's order
       hidden.value = ids.join(',');
-      countEl.textContent = ids.length ? (ids.length + ' product(s) picked — only these will show, in this order.') : 'Nothing picked — the whole brand shows (newest first).';
+      countEl.textContent = ids.length ? (ids.length + ' product(s) picked — only these will show, in this order.') : EMPTY_MSG;
     }
-    /* progressive render: show PAGE rows, reveal more as you scroll (a brand can have 100+) */
+    /* progressive render: show PAGE rows, reveal more as you scroll (can be 1000+ products) */
     var PAGE = 20, filtered = [], shown = 0;
     function rowHtml(p){
       var on = !!picked[p.id];
       var thumb = p.img ? '<img class="bp-thumb" src="'+esc(p.img)+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">'
                         : '<span class="bp-thumb"></span>';
-      return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+'</span></label>';
+      var tag = MODE === 'all' && p.brand ? ' <span class="faint" style="font-size:12px">· '+esc(p.brand)+'</span>' : '';
+      return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+tag+'</span></label>';
     }
     function renderMore(){
       var next = filtered.slice(shown, shown + PAGE);
@@ -258,14 +268,17 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
       list.insertAdjacentHTML('beforeend', next.map(rowHtml).join(''));
       shown += next.length;
     }
-    function fill(){ var g = 0; while (shown < filtered.length && list.scrollHeight <= list.clientHeight + 4 && g++ < 60) renderMore(); }   // keep enough rows to stay scrollable
+    function fill(){ var g = 0; while (shown < filtered.length && list.scrollHeight <= list.clientHeight + 4 && g++ < 60) renderMore(); }
     function build(){
-      var brand = brandSel.value;
+      var brand = brandSel ? brandSel.value : '';
       var q = (search && search.value ? search.value : '').trim().toLowerCase();
       list.innerHTML = ''; shown = 0; filtered = [];
-      if (!brand){ list.innerHTML = '<span class="faint" style="padding:8px">Pick a brand first…</span>'; countEl.textContent=''; return; }
-      if (!ALL.some(function(p){ return p.brand === brand; })){ list.innerHTML = '<span class="faint" style="padding:8px">This brand has no active products.</span>'; countEl.textContent=''; return; }
-      filtered = ALL.filter(function(p){ return p.brand === brand && (!q || p.name.toLowerCase().indexOf(q) >= 0); });
+      if (MODE === 'brand' && !brand){ list.innerHTML = '<span class="faint" style="padding:8px">Pick a brand first…</span>'; countEl.textContent=''; return; }
+      if (MODE === 'brand' && !ALL.some(function(p){ return p.brand === brand; })){ list.innerHTML = '<span class="faint" style="padding:8px">This brand has no active products.</span>'; countEl.textContent=''; return; }
+      filtered = ALL.filter(function(p){
+        if (MODE === 'brand' && p.brand !== brand) return false;
+        return !q || p.name.toLowerCase().indexOf(q) >= 0 || (MODE==='all' && (p.brand||'').toLowerCase().indexOf(q) >= 0);
+      });
       if (!filtered.length){ list.innerHTML = '<span class="faint" style="padding:8px">No products match “'+esc(q)+'”.</span>'; writeHidden(); return; }
       renderMore(); fill();
       writeHidden();
@@ -275,11 +288,13 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
     });
     list.addEventListener('change', function(e){
       if(!e.target.classList.contains('pk')) return;
-      if(e.target.checked) picked[e.target.value]=true; else delete picked[e.target.value];
+      var id = e.target.value;
+      if(e.target.checked){ if(!picked[id]){ picked[id]=true; order.push(id); } } else { delete picked[id]; }
       var lbl=e.target.closest('.bp-item'); if(lbl) lbl.classList.toggle('on', e.target.checked);
       writeHidden();
     });
-    brandSel.addEventListener('change', function(){ picked={}; hidden.value=''; if(search) search.value=''; build(); });
+    // changing brand (brand sections only) starts the picks over for that brand
+    if (brandSel && MODE === 'brand') brandSel.addEventListener('change', function(){ picked={}; order=[]; hidden.value=''; if(search) search.value=''; build(); });
     if (search) search.addEventListener('input', build);
     build();
   })();

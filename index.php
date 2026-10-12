@@ -50,18 +50,31 @@ foreach (rows("SELECT * FROM home_sections WHERE enabled=1 ORDER BY sort, id") a
             ];
         }
         $default = 'Shop by Category'; $viewAll = 'skincare';
-    } elseif ($hs['type'] === 'new_arrivals') {
-        $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' AND stock > 0 ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
-        $ids = array_column(rows($sql), 'id');
-        /* fewer products ticked "New Arrivals" than the section should show? fill the
-           rest with the newest products, so 20 asked for = 20 shown */
-        if ($f > 0 && count($ids) < $f) {
-            $ph   = $ids ? ' AND id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')' : '';
-            $more = rows("SELECT id FROM products WHERE status='active' AND stock > 0$ph ORDER BY created_at DESC, id DESC LIMIT " . ($f - count($ids)), $ids);
-            $ids  = array_merge($ids, array_column($more, 'id'));
+    } elseif ($hs['type'] === 'new_arrivals' || $hs['type'] === 'trending') {
+        /* hand-picked products win (admin → the section's product picker); otherwise fall
+           back to the per-product flag (New Arrivals = feat_latest, Trending = feat_trending) */
+        $picked = array_values(array_filter(array_map('trim', explode(',', (string) ($hs['product_ids'] ?? '')))));
+        if ($picked) {
+            $ph   = implode(',', array_fill(0, count($picked), '?'));
+            $have = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND status='active' AND stock > 0", $picked), 'id');
+            $ids  = array_values(array_filter($picked, fn($x) => in_array($x, $have, true)));   // keep the admin's order
+            if ($f > 0) $ids = array_slice($ids, 0, $f);
+        } elseif ($hs['type'] === 'new_arrivals') {
+            $sql = "SELECT id FROM products WHERE feat_latest=1 AND status='active' AND stock > 0 ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
+            $ids = array_column(rows($sql), 'id');
+            /* fewer products ticked "New Arrivals" than the section should show? fill the
+               rest with the newest products, so 20 asked for = 20 shown */
+            if ($f > 0 && count($ids) < $f) {
+                $ph   = $ids ? ' AND id NOT IN (' . implode(',', array_fill(0, count($ids), '?')) . ')' : '';
+                $more = rows("SELECT id FROM products WHERE status='active' AND stock > 0$ph ORDER BY created_at DESC, id DESC LIMIT " . ($f - count($ids)), $ids);
+                $ids  = array_merge($ids, array_column($more, 'id'));
+            }
+        } else {   // trending — flagged products only (no newest fallback, so it never just mirrors New Arrivals)
+            $sql = "SELECT id FROM products WHERE feat_trending=1 AND status='active' AND stock > 0 ORDER BY home_sort, sort" . ($f > 0 ? " LIMIT $f" : "");
+            $ids = array_column(rows($sql), 'id');
         }
         if (!$ids) continue;
-        $default = 'New Arrivals'; $viewAll = 'skincare';
+        $default = $hs['type'] === 'trending' ? 'Trending Now' : 'New Arrivals'; $viewAll = 'skincare';
     } elseif ($hs['type'] === 'mixed') {
         /* a shuffled mix of products across the chosen brands (blank = all brands).
            RAND(seed) is seeded by the day so the mix is stable within a day, fresh daily. */
@@ -553,7 +566,11 @@ $PAGE_JS = <<<JS
   startAuto();
 
   // dynamic home sections (from database)
-  const pick = ids => ids.map(id=>W.BY_ID[id]).filter(Boolean);
+  // Drop anything that's now sold out. The server already excludes stock-0 items, but if
+  // this homepage was served from a cache the rail could still list one that sold out since;
+  // the live data feed (assets/data.php — never cached) carries the real stock, so filtering
+  // here means a sold-out product never shows on the homepage.
+  const pick = ids => ids.map(id=>W.BY_ID[id]).filter(p => p && (p.stock|0) > 0);
   const SECTIONS = $SECTIONS_JSON;
   /* on a phone, a section with "products per row" set is split into rows that each
      swipe on their own; on bigger screens it stays one grid. Redone if the screen

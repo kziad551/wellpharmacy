@@ -6,6 +6,11 @@ $featured = rows("SELECT b.*, (SELECT COUNT(*) FROM products p WHERE p.brand = b
 $all      = rows("SELECT b.*, (SELECT COUNT(*) FROM products p WHERE p.brand = b.name) AS n
                   FROM brands b ORDER BY b.name");
 
+/* optional: if any brand has a category, the "all brands" list is grouped by it (admin → Brands) */
+$catOrder = array_column(rows("SELECT name FROM categories ORDER BY sort, name"), 'name');
+$hasCats  = false;
+foreach ($all as $b) { if (trim((string) ($b['category'] ?? '')) !== '') { $hasCats = true; break; } }
+
 $PAGE_TITLE = 'Shop by Brand — ' . setting('store_name', 'WELL SHOP');
 $ACTIVE = 'Brands';
 $HEAD_CSS = <<<CSS
@@ -69,11 +74,26 @@ include __DIR__ . '/inc/head.php';
     <div class="brandgrid"><?php foreach ($featured as $b) echo brand_tile($b); ?></div>
   <?php endif; ?>
 
-  <div class="br-sec-h"><span class="eyebrow">all brands (<?= count($all) ?>)</span><span class="ln"></span></div>
   <?php if (!$all): ?>
+    <div class="br-sec-h"><span class="eyebrow">all brands (0)</span><span class="ln"></span></div>
     <div class="section" style="text-align:center"><p class="muted">No brands yet.</p></div>
-  <?php else: ?>
+  <?php elseif (!$hasCats): ?>
+    <div class="br-sec-h"><span class="eyebrow">all brands (<?= count($all) ?>)</span><span class="ln"></span></div>
     <div class="brandgrid" style="padding-bottom:36px"><?php foreach ($all as $b) echo brand_tile($b); ?></div>
+  <?php else: ?>
+    <?php
+      /* group by category: categories in admin order first, then an "other" bucket */
+      $byCat = [];
+      foreach ($all as $b) { $c = trim((string) ($b['category'] ?? '')); $byCat[$c !== '' ? $c : '__none'][] = $b; }
+      $groups = [];
+      foreach ($catOrder as $cn) if (!empty($byCat[$cn])) { $groups[$cn] = $byCat[$cn]; unset($byCat[$cn]); }
+      foreach ($byCat as $cn => $list) if ($cn !== '__none') $groups[$cn] = $list;   // any stragglers
+      if (!empty($byCat['__none'])) $groups['__none'] = $byCat['__none'];
+    ?>
+    <?php foreach ($groups as $cn => $list): ?>
+      <div class="br-sec-h"><span class="eyebrow"><?= e($cn === '__none' ? 'more brands' : $cn) ?> (<?= count($list) ?>)</span><span class="ln"></span></div>
+      <div class="brandgrid" style="padding-bottom:28px"><?php foreach ($list as $b) echo brand_tile($b); ?></div>
+    <?php endforeach; ?>
   <?php endif; ?>
 </div>
 
