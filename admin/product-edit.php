@@ -355,6 +355,21 @@ $v = $editing ? $p : ['id'=>'','name'=>'','brand'=>'','category'=>$cats[0]??'','
     'barcode'=>'','sku'=>'','size'=>'','unit'=>'','opt_colors'=>'','opt_sizes'=>'','opt_flavors'=>'','opt_flavor_name'=>'','how_to_use'=>'','ingredients'=>'','benefits'=>'','keywords'=>'',
     'image'=>'','hover_image'=>'','gallery'=>'','feat_latest'=>0,'feat_trending'=>0,'feat_wellness'=>0,'home_sort'=>0,'status'=>'active'];
 
+/* "+ Add product to <brand>" on a brand's admin screen opens this with ?brand= (?category=
+   also works): start the new product in that brand, on the shelf most of the brand's
+   products sit on. Only names that really exist are taken. */
+if (!$editing) {
+    $preBrand = trim((string) input('brand'));
+    if ($preBrand !== '' && (in_array($preBrand, $brandList, true) || val("SELECT 1 FROM products WHERE brand = ? LIMIT 1", [$preBrand])))
+        $v['brand'] = $preBrand;
+    $preCat = trim((string) input('category'));
+    if ($preCat === '' && $v['brand'] !== '')
+        $preCat = (string) val("SELECT category FROM products WHERE brand = ? GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1", [$v['brand']]);
+    if (in_array($preCat, $cats, true)) $v['category'] = $preCat;
+}
+/* opened from a brand's screen: the way back says so */
+$backTo = strncmp(admin_ret(), 'brand-edit', 10) === 0 ? 'brand' : '';
+
 /* the free-gift card: the saved offer (joined with its gift product), else blank defaults.
    Without the product_gifts table (migration not run yet) the card only says so. */
 $giftsReady = admin_gifts_ready();
@@ -376,7 +391,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
 ?>
 <form id="productForm" method="post" action="<?= $editing ? e('product-edit?id=' . rawurlencode($id)) : "product-edit" ?>" enctype="multipart/form-data">
   <?= csrf_field() ?><?= admin_ret_field() ?>
-  <div class="page-actions"><a class="btn btn-ghost" href="<?= e(admin_back_href('products')) ?>">← Back</a><div class="spacer"></div><button class="btn btn-primary">Save product</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to list</button></div>
+  <div class="page-actions"><a class="btn btn-ghost" href="<?= e(admin_back_href('products')) ?>">← Back<?= $backTo !== '' ? ' to ' . $backTo : '' ?></a><div class="spacer"></div><button class="btn btn-primary">Save product</button><button class="btn btn-ghost" name="after" value="list">Save &amp; back to <?= $backTo !== '' ? $backTo : 'list' ?></button></div>
 
   <div class="a-grid" style="grid-template-columns:1.5fr 1fr">
     <div style="display:flex;flex-direction:column;gap:18px">

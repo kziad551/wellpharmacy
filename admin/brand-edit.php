@@ -162,7 +162,12 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
       </div>
     </div>
     <div class="field">
-      <label>Featured products <span class="faint">(optional — pick as many as you like; they scroll sideways in the banner)</span></label>
+      <?php /* this brand's products open in the product editor and come back here (ret=) */
+        $hereRet = 'ret=' . rawurlencode('brand-edit?id=' . $id); ?>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <label style="margin:0">Featured products <span class="faint">(optional — pick as many as you like; they scroll sideways in the banner)</span></label>
+        <?php if ($editing): ?><a class="btn btn-primary btn-sm" data-leave href="<?= e('product-edit?' . http_build_query(['brand' => $v['name']]) . '&' . $hereRet) ?>">+ Add product to <?= e($v['name']) ?></a><?php endif; ?>
+      </div>
       <?php if (!$editing): ?>
         <div class="hint">Save the brand first, then come back here to pick products.</div>
       <?php elseif (!$heroProducts): ?>
@@ -192,10 +197,14 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
   .brand-picker input[type=checkbox]{width:16px;height:16px;flex:none;cursor:pointer}
   .brand-picker .bp-thumb{width:42px;height:42px;flex:none;border-radius:8px;object-fit:cover;background:#f2efe9;border:1px solid var(--a-border,#e7e2d8)}
   .brand-picker .bp-name{flex:1;min-width:0}
+  .brand-picker .bp-edit{flex:none;display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:999px;
+    border:1px solid var(--a-border,#e7e2d8);background:#fff;color:#3a352d;font-size:12.5px;font-weight:700;text-decoration:none}
+  .brand-picker .bp-edit:hover{background:#3a352d;border-color:#3a352d;color:#fff}
 </style>
 <script>
   (function(){
     var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'img'=>($r['image']!==''?asrc($r['image']):'')], $heroProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    var RET = <?= json_encode($hereRet, JSON_UNESCAPED_SLASHES) ?>;
     var list=document.getElementById('heroList'), hidden=document.getElementById('heroProducts'),
         countEl=document.getElementById('heroCount'), search=document.getElementById('heroSearch');
     if(!list||!hidden) return;
@@ -213,7 +222,8 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
       list.innerHTML = rows.length ? rows.map(function(p){
         var on=!!picked[p.id];
         var thumb=p.img?'<img class="bp-thumb" src="'+esc(p.img)+'" alt="" loading="lazy" onerror="this.style.visibility=\'hidden\'">':'<span class="bp-thumb"></span>';
-        return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+'</span></label>';
+        var edit='<a class="bp-edit" data-leave href="product-edit?id='+encodeURIComponent(p.id)+'&'+RET+'">&#9998; Edit</a>';
+        return '<label class="bp-item'+(on?' on':'')+'"><input type="checkbox" class="pk" value="'+esc(p.id)+'"'+(on?' checked':'')+'>'+thumb+'<span class="bp-name">'+esc(p.name)+'</span>'+edit+'</label>';
       }).join('') : '<span class="faint" style="padding:8px">No products match.</span>';
     }
     list.addEventListener('change',function(e){
@@ -228,4 +238,18 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
   })();
 </script>
 <?php endif; ?>
+<script>
+  /* "Edit" / "+ Add product" leave this page: warn first if the brand form has unsaved changes */
+  (function(){
+    var form=document.querySelector('form[action^="brand-edit"]'), dirty=false;
+    if(!form) return;
+    form.addEventListener('input',function(){ dirty=true; });
+    form.addEventListener('change',function(){ dirty=true; });
+    form.addEventListener('submit',function(){ dirty=false; });
+    document.addEventListener('click',function(e){
+      var a=e.target.closest('a[data-leave]');
+      if(a && dirty && !confirm('You have unsaved changes to this brand. Leave without saving them?')) e.preventDefault();
+    });
+  })();
+</script>
 <?php admin_foot();

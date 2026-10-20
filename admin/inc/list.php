@@ -116,7 +116,8 @@ function admin_search(string $action, string $q, string $placeholder = 'Searchâ€
    ============================================================ */
 const ADMIN_RET_PAGES = ['products','brands','categories','coupons','journal','pages','orders',
                          'customers','messages','home-sections','subscribers','restock','social',
-                         'appearance','dashboard','gifts','popups'];
+                         'appearance','dashboard','gifts','popups',
+                         'brand-edit'];   // a brand's own screen: its product rows open the product editor
 
 /** Reduce a return target to "<known page>[?<safe query>]", or '' if it isn't one. */
 function admin_ret_clean(string $raw): string {
