@@ -14,20 +14,24 @@
     var tbody = document.querySelector('.a-table tbody');
     if (!tbody) return;
 
-    var loading = false, done = false;
+    var loading = false, done = false, pending = null;
 
+    /* Resolves true when a slice was appended, false when there is nothing more.
+       admin-nav.js calls it (window.adminListMore) to re-open the slices the
+       operator had loaded before they went into an editor. */
     function load() {
-      if (loading || done) return;
+      if (done) return Promise.resolve(false);
+      if (loading) return pending;
       var url = box.getAttribute('data-next');
-      if (!url) return;
+      if (!url) return Promise.resolve(false);
       loading = true;
       box.classList.add('is-loading');
 
-      fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+      return pending = fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
         .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
         .then(function (html) {
           var t = html.trim();
-          if (!t) { finish(); return; }
+          if (!t) { finish(); return false; }
           /* rows have to be parsed inside a real <table> or the browser drops them */
           var doc = document.createElement('tbody');
           var tmp = document.createElement('table');
@@ -35,7 +39,7 @@
           doc.innerHTML = t;
           var added = doc.children.length;
           while (doc.firstChild) tbody.appendChild(doc.firstChild);
-          if (!added) { finish(); return; }
+          if (!added) { finish(); return false; }
 
           /* advance to the following page */
           box.setAttribute('data-next', url.replace(/([?&]page=)(\d+)/, function (_, p, n) {
@@ -45,10 +49,12 @@
           box.classList.remove('is-loading');
           syncBars();
           /* the viewport may still not be full — keep going if the anchor is visible */
-          if (io && isVisible(box)) load();
+          if (io && isVisible(box) && !window.adminListBusy) setTimeout(load, 0);
+          return true;
         })
-        .catch(function () { loading = false; box.classList.remove('is-loading'); });
+        .catch(function () { loading = false; box.classList.remove('is-loading'); return false; });
     }
+    window.adminListMore = load;
 
     function finish() {
       done = true; loading = false;

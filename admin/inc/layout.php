@@ -104,7 +104,7 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
 <title><?= e($title) ?> — WELL Admin</title>
 <link rel="stylesheet" href="<?= asset('assets/admin.css') ?>">
 </head>
-<body>
+<body data-page="<?= e(basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '.php')) ?>">
 <div class="a-shell">
   <aside class="a-side" id="aSide">
     <div class="a-brand">
@@ -219,6 +219,30 @@ function admin_foot(): void {
   .a-toast-msg{flex:1;line-height:1.4}
   .a-toast-x{flex:none;border:0;background:transparent;color:#a99f90;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;opacity:0;transition:opacity .15s}
   .a-toast:hover .a-toast-x{opacity:1}
+  /* ---- admin-nav.js: back pill, breadcrumb, previous/next, "you were here" highlight ---- */
+  .a-nav-pill{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:250;display:inline-flex;align-items:center;gap:7px;max-width:calc(100vw - 32px);
+    height:44px;padding:0 20px;border-radius:999px;background:#2c261f;color:#f4f0e7;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:0 10px 28px rgba(44,38,31,.32);transition:background .15s,transform .15s}
+  .a-nav-pill .t{overflow:hidden;text-overflow:ellipsis}
+  .a-nav-pill b{font-weight:800}
+  .a-nav-pill:hover{background:#7a6244;transform:translateX(-50%) translateY(-2px)}
+  body.has-nav-pill .a-body{padding-bottom:84px}
+  .a-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;margin-bottom:4px;font-size:12.5px;line-height:1.4;color:#a99f90}
+  .a-crumbs a{color:#7a6244;font-weight:600;text-decoration:none}
+  .a-crumbs a:hover{text-decoration:underline}
+  .a-crumbs span[aria-current]{color:#8a7d6e;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .a-crumbs .sep{color:#cbc4b6}
+  .a-pn{display:inline-flex;align-items:center;gap:4px;padding:3px;border:1px solid #e6e1d6;border-radius:999px;background:#fff}
+  .a-pn-b{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;font-size:13px;font-weight:700;color:#3a352d;text-decoration:none;white-space:nowrap}
+  .a-pn-b:hover{background:#f1ece3}
+  .a-pn-b.off{color:#cbc4b6;pointer-events:none}
+  .a-pn-n{font-size:12.5px;color:#8a7d6e;padding:0 4px;white-space:nowrap}
+  @keyframes aNavHl{0%,55%{background-color:#f3e3c3}100%{background-color:transparent}}
+  tr.a-nav-hl>td,.a-nav-hl:not(tr){animation:aNavHl 3.6s ease}
+  .a-nav-saved{display:inline-flex;align-items:center;margin-left:8px;padding:2px 9px;border-radius:999px;background:#4a7a3a;color:#fff;font-size:11.5px;font-weight:700;vertical-align:middle;transition:opacity .4s}
+  .a-nav-saved.out{opacity:0}
+  body.has-nav-pill .a-toast{bottom:76px}
+  @media(max-width:640px){ .a-nav-pill{bottom:12px;height:42px;font-size:13.5px} .a-pn-b{padding:0 10px} }
   @keyframes aToastIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:none}}
   @keyframes aToastOut{to{opacity:0;transform:translateY(12px)}}
 </style>
@@ -359,6 +383,7 @@ function admin_foot(): void {
 })();
 </script>
 <script src="<?= asset('assets/admin.js') ?>" defer></script>
+<script src="<?= asset('assets/admin-nav.js') ?>" defer></script>
 </body>
 </html>
 <?php

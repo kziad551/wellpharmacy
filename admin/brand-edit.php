@@ -238,18 +238,5 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
   })();
 </script>
 <?php endif; ?>
-<script>
-  /* "Edit" / "+ Add product" leave this page: warn first if the brand form has unsaved changes */
-  (function(){
-    var form=document.querySelector('form[action^="brand-edit"]'), dirty=false;
-    if(!form) return;
-    form.addEventListener('input',function(){ dirty=true; });
-    form.addEventListener('change',function(){ dirty=true; });
-    form.addEventListener('submit',function(){ dirty=false; });
-    document.addEventListener('click',function(e){
-      var a=e.target.closest('a[data-leave]');
-      if(a && dirty && !confirm('You have unsaved changes to this brand. Leave without saving them?')) e.preventDefault();
-    });
-  })();
-</script>
+<?php /* "Edit" / "+ Add product" carry data-leave: admin-nav.js warns before leaving unsaved changes */ ?>
 <?php admin_foot();
