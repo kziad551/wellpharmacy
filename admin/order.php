@@ -20,6 +20,13 @@ if (is_post()) {
     csrf_check();
     $act = (string) input('action');
     if ($act === 'update') {
+        /* the form carries the status it was opened with: if another tab changed it since
+           (cancelled it, say), saving this stale one would quietly undo that — and move the
+           stock a second time */
+        if (input('status_was') !== '' && input('status_was') !== $o['order_status']) {
+            flash('This order was changed in another window (it is now "' . $o['order_status'] . '"). Nothing was saved — review it and try again.', 'err');
+            redirect("order?id=$id");
+        }
         $os = in_array(input('order_status'), $STATUSES, true) ? (string) input('order_status') : $o['order_status'];
         $ps = in_array(input('payment_status'), $PAY_STATUSES, true) ? (string) input('payment_status') : $o['payment_status'];
         $was = $o['order_status'];
@@ -46,6 +53,7 @@ if (is_post()) {
                 }
                 gift_restock_custom($lis, +1);
                 $note = ' Stock was returned to inventory.';
+                $restocked = array_values(array_unique(array_column(array_filter($lis, fn($li) => !$customGift($li)), 'product_id')));
             } elseif ($was === 'cancelled' && $os !== 'cancelled') {
                 $lis = rows("SELECT product_id, qty, is_gift FROM order_items WHERE order_id = ?", [$id]);
                 foreach ($lis as $li) {
@@ -62,6 +70,11 @@ if (is_post()) {
             redirect("order?id=$id");
         }
         flash('Order updated.' . $note);
+        /* stock that came back with a cancellation may be what shoppers are waiting for */
+        if (!empty($restocked)) {
+            require_once dirname(__DIR__) . '/inc/mailer.php';
+            foreach ($restocked as $rp) { try { notify_restock((string) $rp); } catch (Throwable $e) {} }
+        }
     }
     redirect("order?id=$id");
 }
@@ -113,6 +126,7 @@ admin_head('Order #' . $o['order_no'], 'orders', date('M j, Y · H:i', strtotime
     <form method="post" action="order?id=<?= (int)$id ?>">
       <?= csrf_field() ?><input type="hidden" name="action" value="update">
       <div class="a-card"><div class="hd"><h2>Manage</h2></div><div class="bd">
+        <input type="hidden" name="status_was" value="<?= e($o['order_status']) ?>">
         <div class="field"><label>Order status</label><select class="input" name="order_status">
           <?php foreach ($STATUSES as $st): ?><option value="<?= e($st) ?>" <?= $st===$o['order_status']?'selected':'' ?>><?= ucfirst($st) ?></option><?php endforeach; ?>
         </select></div>

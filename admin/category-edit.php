@@ -9,6 +9,9 @@ if (is_post()) {
     csrf_check();
     $name = trim((string) input('name'));
     $slug = slugify((string) (input('slug') ?: $name));
+    if ($slug === '' && $name !== '') $slug = 'category-' . ($editing ? $id : substr(md5($name), 0, 8));
+    /* the slug is UNIQUE: a clash on an edit used to be a blank 500 (only Add checked it) */
+    if ($name !== '' && row("SELECT id FROM categories WHERE slug = ? AND id <> ?", [$slug, $editing ? $id : 0])) { flash('A category with that URL slug already exists — choose another slug.', 'err'); redirect($editing ? 'category-edit?id=' . $id . admin_ret_qs() : 'category-edit' . admin_ret_qs('?')); }
     $image = trim((string) input('image'));
     $upErr = null;
     if ($u = save_upload('image_file', $upErr)) $image = $u;
@@ -27,7 +30,10 @@ if (is_post()) {
 
     if ($editing) {
         // categories are referenced on products by name — keep them connected on rename
-        if ($name !== $c['name']) q("UPDATE products SET category = ? WHERE category = ?", [$name, $c['name']]);
+        if ($name !== $c['name']) {
+            q("UPDATE products SET category = ? WHERE category = ?", [$name, $c['name']]);
+            q("UPDATE brands SET category = ? WHERE category = ?", [$name, $c['name']]);   // the brands grouped under it on /brands
+        }
         $data['id'] = $id;
         q("UPDATE categories SET name=:name, slug=:slug, image=:image, in_nav=:in_nav, is_cross=:is_cross, is_sale=:is_sale, sort=:sort WHERE id=:id", $data);
         flash($upErr ? 'Category updated — but the image was not changed: ' . $upErr : 'Category updated.', $upErr ? 'err' : 'ok');

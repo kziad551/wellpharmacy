@@ -18,6 +18,10 @@ $do = (string) input('do', '');
 /* ---- JSON endpoints (called by chrome.js) ---- */
 if (in_array($do, ['sync', 'wish', 'cart', 'handoff'], true)) {
     header('Content-Type: application/json; charset=utf-8');
+    /* chrome.js always POSTs these. A plain link to ?do=cart (a top-level GET, which the
+       SameSite=Lax cookie does ride along with) used to read an empty bag and wipe the
+       account's saved one. */
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { http_response_code(405); echo json_encode(['ok' => false, 'err' => 'POST only']); exit; }
     $in = json_decode(file_get_contents('php://input'), true) ?: $_POST;
     $ok = fn($d = []) => print(json_encode(['ok' => true] + $d));
 

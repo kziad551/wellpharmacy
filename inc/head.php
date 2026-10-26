@@ -52,7 +52,6 @@ $desc    = trim(setting('meta_description', '')) ?: trim(setting('store_tagline'
          warms the cache; execution order in foot.php is untouched. */ ?>
 <link rel="preload" as="script" href="<?= e(asset('assets/data.php')) ?>">
 <link rel="preload" as="script" href="<?= e(asset('assets/chrome.js')) ?>">
-<?php if (!empty($USE_PLP)): ?><link rel="preload" as="script" href="<?= e(asset('assets/plp.js')) ?>"><?php endif; ?>
 <?php render_theme(); ?>
 <?= $HEAD_CSS ?? '' ?>
 </head>

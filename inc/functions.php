@@ -127,7 +127,15 @@ function csrf_token(): string {
 function csrf_field(): string { return '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">'; }
 function csrf_check(): void {
     $t = $_POST['csrf'] ?? '';
-    if (!is_string($t) || !hash_equals($_SESSION['csrf'] ?? '', $t)) {
+    /* A POST that arrives with nothing in it although bytes were sent is a form PHP threw
+       away for being over post_max_size (big photo uploads): say so, instead of a
+       misleading "session expired". */
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$_POST && !$_FILES && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        http_response_code(413);
+        exit('The upload was too large for the server to accept in one go (the limit is ' . ini_get('post_max_size') . ' per save). Go back and add fewer / smaller photos at a time — nothing was saved.');
+    }
+    /* a visitor with no session yet has no token; an empty one must never pass */
+    if (!is_string($t) || $t === '' || !hash_equals($_SESSION['csrf'] ?? '', $t)) {
         http_response_code(419);
         exit('Session expired or invalid request token. Please go back and try again.');
     }
@@ -144,6 +152,10 @@ function optimize_image(string $path, int $maxEdge = 2000, int $jpegQ = 88, int 
     if (!$info) return;
     [$w, $h] = $info; $type = $info[2];
     if (max($w, $h) <= $maxEdge) return;                           // already web-sized — keep original quality
+    /* decoding costs ~4 bytes a pixel: a 10 MB photo of 8000×6000 wants ~190 MB and would
+       exhaust the memory limit mid-save. Such a picture is kept as uploaded instead. */
+    $limit = (int) ini_get('memory_limit');
+    if ($limit > 0 && $w * $h * 4 > ($limit * 1048576) * 0.6) return;
 
     switch ($type) {
         case IMAGETYPE_JPEG: if (!function_exists('imagecreatefromjpeg')) return; $src = @imagecreatefromjpeg($path); break;
@@ -293,6 +305,30 @@ function parse_variant_opts(?string $s): array {
     return $out;
 }
 
+/* The price a product sells at before any option is picked. Normally products.price.
+   When that is 0 but the SIZES carry prices (the owner priced "30 ml|9.90 / 50 ml|14.50"
+   and left the base price blank), the cheapest priced size stands in for it, so the
+   product is for sale at its options' prices instead of reading "Price coming soon"
+   everywhere. 0 = genuinely unpriced. Every price reader (cards, product page, the
+   feed, checkout) goes through here so they can never disagree. */
+function product_base_price(array $p): float {
+    $base = (float) ($p['price'] ?? 0);
+    if ($base > 0) return $base;
+    $priced = [];
+    foreach (parse_variant_opts($p['opt_sizes'] ?? '') as $o) if ($o['price'] !== null && $o['price'] > 0) $priced[] = (float) $o['price'];
+    return $priced ? round(min($priced), 2) : 0.0;
+}
+
+/* The sizes a product can be SOLD in. A size with no price of its own sells at the base
+   price — so while the base price is blank, such a size has no price at all and is left
+   out (never sold at some other size's price); the priced ones stay for sale. Every seller
+   of sizes (cards, product page, feed, checkout) reads this, not the raw column. */
+function product_sizes(array $p): array {
+    $sizes = parse_variant_opts($p['opt_sizes'] ?? '');
+    if ((float) ($p['price'] ?? 0) > 0) return $sizes;
+    return array_values(array_filter($sizes, fn($o) => $o['price'] !== null && $o['price'] > 0));
+}
+
 /* Resolve the effective unit price for a chosen color/size against a product row.
    Size price wins, then color price, else the base price. Also returns a display
    label ("White · 50 ml"). Server-side source of truth — never trust a client price.
@@ -300,9 +336,9 @@ function parse_variant_opts(?string $s): array {
    surcharge is added on top of the color's. The label reads color, flavor, size. */
 function variant_resolve(array $p, string $color, string $size, string $flavor = ''): array {
     $colors  = parse_variant_opts($p['opt_colors'] ?? '');
-    $sizes   = parse_variant_opts($p['opt_sizes'] ?? '');
+    $sizes   = product_sizes($p);
     $flavors = parse_variant_opts($p['opt_flavors'] ?? '');
-    $base      = (float) $p['price'];   // the SIZE sets the price...
+    $base      = product_base_price($p);   // the SIZE sets the price...
     $surcharge = 0.0;                    // ...and the COLOR and FLAVOR add optional surcharges on top
     $clabel = ''; $zlabel = ''; $flabel = '';
     $find = function (array $opts, string $want) {
@@ -330,8 +366,8 @@ function flavor_group_name(array $p): string {
    Used ONLY for the "from $X" label on cards / the product page — it never touches the
    stored base price (that stays the STANDARD size's price, which variant_resolve needs). */
 function variant_from_price(array $p): float {
-    $base   = (float) $p['price'];
-    $sizes  = parse_variant_opts($p['opt_sizes']  ?? '');
+    $base   = product_base_price($p);
+    $sizes  = product_sizes($p);
     $colors = parse_variant_opts($p['opt_colors'] ?? '');
     $flavors = parse_variant_opts($p['opt_flavors'] ?? '');
     $baseMin = $sizes  ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $base, $sizes)) : $base;

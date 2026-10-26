@@ -28,7 +28,7 @@ $list  = rows("SELECT * FROM customers $where ORDER BY created_at DESC LIMIT $PE
 
 /* order count + lifetime spend per customer, in one pass */
 $stats = [];
-foreach (rows("SELECT customer_id, COUNT(*) n, SUM(total) spent FROM orders WHERE customer_id IS NOT NULL GROUP BY customer_id") as $r) {
+foreach (rows("SELECT customer_id, COUNT(*) n, SUM(IF(order_status = 'cancelled', 0, total)) spent FROM orders WHERE customer_id IS NOT NULL GROUP BY customer_id") as $r) {
     $stats[(int) $r['customer_id']] = $r;
 }
 

@@ -9,6 +9,9 @@ if (is_post()) {
     csrf_check();
     $title = trim((string) input('title'));
     $slug  = slugify((string) (input('slug') ?: $title));
+    if ($slug === '' && $title !== '') $slug = 'page-' . ($editing ? $id : substr(md5($title), 0, 8));
+    /* the slug is UNIQUE: a clash on an edit used to be a blank 500 (only Add checked it) */
+    if ($title !== '' && row("SELECT id FROM pages WHERE slug = ? AND id <> ?", [$slug, $editing ? $id : 0])) { flash('A page with that URL already exists — choose another slug.', 'err'); redirect($editing ? "page-edit?id=$id" : 'page-edit'); }
     $data = [
         'title'  => $title,
         'slug'   => $slug,

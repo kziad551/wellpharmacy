@@ -1,10 +1,17 @@
 <?php
 require __DIR__ . '/inc/functions.php';
 
-$featured = rows("SELECT b.*, (SELECT COUNT(*) FROM products p WHERE p.brand = b.name) AS n
-                  FROM brands b WHERE b.featured = 1 ORDER BY b.sort, b.name");
-$all      = rows("SELECT b.*, (SELECT COUNT(*) FROM products p WHERE p.brand = b.name) AS n
-                  FROM brands b ORDER BY b.name");
+/* one grouped count of the products ON SALE per brand (drafts don't count, and the count
+   matches the brand's listing); a brand with nothing to show gets no tile */
+$counts = [];
+foreach (rows("SELECT brand, COUNT(*) n FROM products WHERE status = 'active' AND brand <> '' GROUP BY brand") as $r) $counts[$r['brand']] = (int) $r['n'];
+$withCount = function (array $list) use ($counts): array {
+    $out = [];
+    foreach ($list as $b) { $b['n'] = $counts[$b['name']] ?? 0; if ($b['n'] > 0) $out[] = $b; }
+    return $out;
+};
+$featured = $withCount(rows("SELECT b.* FROM brands b WHERE b.featured = 1 ORDER BY b.sort, b.name"));
+$all      = $withCount(rows("SELECT b.* FROM brands b ORDER BY b.name"));
 
 /* optional: if any brand has a category, the "all brands" list is grouped by it (admin → Brands) */
 $catOrder = array_column(rows("SELECT name FROM categories ORDER BY sort, name"), 'name');

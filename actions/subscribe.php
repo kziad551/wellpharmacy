@@ -5,7 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 if (!is_post()) { echo json_encode(['ok' => false]); exit; }
 $token = $_POST['csrf'] ?? '';
-if (!is_string($token) || !hash_equals($_SESSION['csrf'] ?? '', $token)) {
+if (!is_string($token) || $token === '' || !hash_equals($_SESSION['csrf'] ?? '', $token)) {   // an empty token never passes (a fresh session has none)
     http_response_code(419); echo json_encode(['ok' => false, 'err' => 'token']); exit;
 }
 $email = trim((string) input('email'));

@@ -91,7 +91,6 @@
 
 <script src="<?= asset('assets/data.php') ?>"></script>
 <script src="<?= asset('assets/chrome.js') ?>"></script>
-<?php if (!empty($USE_PLP)): ?><script src="<?= asset('assets/plp.js') ?>"></script><?php endif; ?>
 <script>WELL.mountChrome({ active: <?= json_encode($ACTIVE ?? 'Shop All') ?> });</script>
 <?= $PAGE_JS ?? '' ?>
 </body>

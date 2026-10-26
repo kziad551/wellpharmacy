@@ -110,8 +110,13 @@
     }).catch(function () { /* offline — localStorage still holds it */ });
   }
   if (ME) {
-    // merge anything built as a guest, then adopt the account's saved state
-    const guestCart = CART.slice(), guestWish = WISH.slice();
+    /* Merge what this browser built as a GUEST into the account — once, the first time it
+       sees this account. On every later page view the account is adopted as it is: the local
+       copy is only a mirror by then, and merging it back used to resurrect lines removed (or
+       ordered) on another device, and undo quantity cuts. */
+    const MERGED = 'well.merged', fresh = read(MERGED) !== ME.id;
+    const guestCart = fresh ? CART.slice() : [], guestWish = fresh ? WISH.slice() : [];
+    write(MERGED, ME.id);
     const byKey = {};
     (ME.cart || []).forEach(function (r) {
       var v = {}; try { v = r.variant ? JSON.parse(r.variant) : {}; } catch (e) { v = {}; }
@@ -229,6 +234,10 @@
     variant = variant || {};
     const line = { id: id, qty: 0, color: variant.color || '', size: variant.size || '', flavor: variant.flavor || '' };
     if (variant.price != null) line.price = +variant.price;
+    /* the line's own price (its size / colour / flavour) must be a real one — place-order refuses a $0 line */
+    const lp = linePrice(line);
+    if (lp == null) { toast('Please choose an option for this item on its page'); return; }
+    if (!(lp > 0)) { toast('Price coming soon — this option isn’t available to order yet'); return; }
     const key = lineKey(line);
     const l = findLine(key);
     const cur = l ? l.qty : 0;
@@ -367,25 +376,62 @@
     // free gift chip: the 2nd child of .pc-top, so space-between puts it top-right (same markup as inc/plp.php).
     // Not shown while the product can't be bought (sold out, price coming soon).
     const giftChip = (!soldOut && !noPrice && p.gift) ? `<span class="pc-gift" role="img" aria-label="Free gift: ${esc(p.gift.n)}">${I.gift}<span>Gift</span></span>` : '';
-    const hasOpts = (p.colors && p.colors.length) || (p.sizes && p.sizes.length) || (p.flavors && p.flavors.length);   // colors/sizes/flavors need a choice → the button opens the product page to pick
-    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<span class="btn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : hasOpts ? `<a class="btn" href="product?id=${p.id}">add to bag</a>` : `<button class="btn" data-add="${p.id}">add to bag</button>`;
-    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<span class="buybtn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : hasOpts ? `<a class="buybtn" href="product?id=${p.id}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${p.id}">buy — ${buyPrice}</button>`;
-    return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${p.id}">
+    // a colour or flavour is chosen on the product page; sizes are chosen right on the card (the
+    // chips under the name), so a sizes-only product adds to the bag from here
+    const needsPage = (p.colors && p.colors.length) || (p.flavors && p.flavors.length);
+    const pHref = 'product?id=' + encodeURIComponent(p.id);
+    const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<span class="btn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : needsPage ? `<a class="btn" href="${pHref}">add to bag</a>` : `<button class="btn" data-add="${esc(p.id)}">add to bag</button>`;
+    const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<span class="buybtn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : needsPage ? `<a class="buybtn" href="${pHref}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${esc(p.id)}">buy — ${buyPrice}</button>`;
+    const chips = (!soldOut && !noPrice) ? sizeChips(p, cardPrice) : '';
+    const pid = esc(p.id), href = 'product?id=' + encodeURIComponent(p.id), alt = esc(p.brand + ' ' + p.name);   // admin text: escaped like inc/plp.php does
+    return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${pid}">
       <div class="media graded" data-imgwrap>
-        <a class="media-link" href="product?id=${p.id}" aria-label="${p.brand} ${p.name}"></a>
+        <a class="media-link" href="${href}" aria-label="${alt}"></a>
         <div class="pc-top"><div class="badge-slot">${soldBadge}${saleBadge}${b ? `<span class="badge ${b.cls}">${b.label}</span>` : ''}</div>${giftChip}</div>
-        <img class="gimg pc-a" data-grade src="${p.img}" alt="${p.brand} ${p.name}" loading="lazy">
-        ${hover ? `<img class="gimg pc-b" data-grade src="${hover}" alt="" loading="lazy">` : ''}
+        <img class="gimg pc-a" data-grade src="${esc(p.img)}" alt="${alt}" loading="lazy">
+        ${hover ? `<img class="gimg pc-b" data-grade src="${esc(hover)}" alt="" loading="lazy">` : ''}
         <div class="add">${addBtn}</div>
       </div>
       <div class="body">
         <span class="stars">${p.reviews > 0 ? `<span class="s">${I.star}</span> ${p.rating.toFixed(1)} <span class="muted">(${p.reviews.toLocaleString()})</span>` : `<span class="muted" style="font-size:12px">No reviews yet</span>`}${stockNote}</span>
-        <a class="name" href="product?id=${p.id}">${p.name}</a>
+        <a class="name" href="${href}">${esc(p.name)}</a>${chips}
         <div class="pprice">${priceHtml}</div>
         ${buyBtn}
       </div>
     </article>`;
   };
+  /* Size chips under a card's name — same markup as well_card_size_chips() in inc/plp.php:
+     every size with its price ("Box $30 / 1 sheet $3"), the one selling at the shown
+     price selected, up to 3 (the rest wait on the product page as "+N"). */
+  function sizeChips(p, shown) {
+    const sizes = p.sizes || []; if (!sizes.length) return '';
+    const priceOf = (o) => (o.price != null ? +o.price : +p.price);
+    let sel = sizes.findIndex((o) => Math.abs(priceOf(o) - shown) < 0.005);
+    let show = sizes.slice(0, 3).map((o, i) => [i, o]);
+    if (sel >= 0 && sel >= show.length) { show.pop(); show.push([sel, sizes[sel]]); }
+    if (sel < 0) sel = show[0][0];
+    let html = show.map(([i, o]) => `<button type="button" class="pc-opt${i === sel ? ' on" data-def="1' : ''}" data-size="${esc(o.label)}" data-price="${priceOf(o).toFixed(2)}">${esc(o.label)}<b>${money(priceOf(o))}</b></button>`).join('');
+    if (sizes.length > show.length) html += `<a class="pc-opt more" href="product?id=${encodeURIComponent(p.id)}" title="All sizes">+${sizes.length - show.length}</a>`;
+    return `<div class="pc-opts" data-opts>${html}</div>`;
+  }
+  /* picking a size chip: the card's price (and the "buy — $X" pill) becomes that size's price;
+     the default chip puts the original price back (sale strike-through and all) */
+  document.addEventListener('click', function (e) {
+    const chip = e.target.closest('.pc-opt[data-size]'); if (!chip) return;
+    const card = chip.closest('.pcard'), opts = chip.closest('.pc-opts'); if (!card || !opts) return;
+    opts.querySelectorAll('.pc-opt').forEach((c) => c.classList.toggle('on', c === chip));
+    const pp = card.querySelector('.pprice'), buy = card.querySelector('.buybtn');
+    if (pp && pp.dataset.orig == null) pp.dataset.orig = pp.innerHTML;
+    if (buy && buy.dataset.orig == null) buy.dataset.orig = buy.innerHTML;
+    if (chip.hasAttribute('data-def')) {
+      if (pp) pp.innerHTML = pp.dataset.orig;
+      if (buy) buy.innerHTML = buy.dataset.orig;
+      return;
+    }
+    const unit = pp && pp.querySelector('.unit-lbl') ? pp.querySelector('.unit-lbl').outerHTML : '';
+    if (pp) pp.innerHTML = `<span class="price">${money(+chip.dataset.price)}${unit}</span>`;
+    if (buy && buy.hasAttribute('data-add')) buy.innerHTML = `buy — ${money(+chip.dataset.price)}`;
+  });
   W.renderProducts = function (container, list) {
     container.innerHTML = list.map(p => W.productCard(p)).join('');
     W.guardImages(container);
@@ -395,7 +441,13 @@
   /* delegate card interactions globally */
   document.addEventListener('click', function (e) {
     const add = e.target.closest('[data-add]');
-    if (add) { e.preventDefault(); W.addToCart(add.dataset.add); return; }
+    if (add) {
+      e.preventDefault();
+      /* a size picked on the card goes with it (the selected chip); other products add plainly */
+      const card = add.closest('.pcard'), chip = card && card.querySelector('.pc-opt.on[data-size]');
+      W.addToCart(add.dataset.add, 1, chip ? { size: chip.dataset.size } : undefined);
+      return;
+    }
     const wb = e.target.closest('[data-wish]');
     if (wb) {
       e.preventDefault();
@@ -655,7 +707,8 @@
   function renderDrawer() {
     const dr = $('#cartDrawer'); if (!dr) return;
     const _ci = dr.querySelector('.cart-items'); const _scroll = _ci ? _ci.scrollTop : 0;   // keep scroll position on re-render
-    const sub = cartSubtotal(), FREE = (W.SETTINGS && W.SETTINGS.free_ship) || 49, remain = Math.max(0, FREE - sub), pct = Math.min(100, sub / FREE * 100);
+    /* the threshold as the server applies it (shipping_fee): 0 / blank = no free shipping at all */
+    const sub = cartSubtotal(), FREE = (W.SETTINGS && W.SETTINGS.free_ship != null && W.SETTINGS.free_ship !== '') ? +W.SETTINGS.free_ship : 49, remain = Math.max(0, FREE - sub), pct = FREE > 0 ? Math.min(100, sub / FREE * 100) : 0;
     const met = sub >= FREE;
     let body;
     if (!CART.length) {

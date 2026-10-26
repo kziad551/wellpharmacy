@@ -6,7 +6,7 @@ $ACTIVE = 'Shop All';
 
 /* dynamic homepage data */
 $fbrands  = rows("SELECT name, color, logo, logo_mode FROM brands WHERE featured=1 ORDER BY sort");
-$jposts   = rows("SELECT title, slug, category, image, author, read_min FROM journal_posts WHERE status='published' ORDER BY sort, id LIMIT 4");
+$jposts   = rows("SELECT title, slug, category, image, author, read_min FROM journal_posts WHERE status='published' ORDER BY sort, published_at DESC, id DESC LIMIT 4");   // newest first, like the journal page
 
 /* "as seen on social" — Instagram / TikTok videos, managed in admin → Social Videos */
 $SOCIAL_ON    = setting('social_sec_enabled', '1') === '1';
@@ -495,10 +495,13 @@ include __DIR__ . '/inc/head.php';
 
 <div id="usp"></div>
 <?php
-$SECTIONS_JSON = json_encode(array_map(fn($s) => $s['ids'], $SECTIONS), JSON_UNESCAPED_SLASHES);
-$BRANDS_JSON   = json_encode($fbrands, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-$BLOGS_JSON    = json_encode($jposts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-$SOCIAL_JSON   = json_encode($SOCIAL_POSTS, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+/* HEX_TAG: this JSON sits inside <script> — a "</script>" in a synced Instagram caption or
+   a title would otherwise end the script and take the whole homepage's JS with it */
+$JF = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE;
+$SECTIONS_JSON = json_encode(array_map(fn($s) => $s['ids'], $SECTIONS), $JF);
+$BRANDS_JSON   = json_encode($fbrands, $JF);
+$BLOGS_JSON    = json_encode($jposts, $JF);
+$SOCIAL_JSON   = json_encode($SOCIAL_POSTS, $JF);
 $PAGE_JS = <<<JS
 <script>
   const W = WELL, \$ = (s)=>document.querySelector(s);
@@ -640,7 +643,7 @@ $PAGE_JS = <<<JS
     else if(mode==='logo') inner = hasLogo ? img : txt;
     else if(mode==='both'){ inner = (hasLogo?img:'') + txt; if(hasLogo) cls += ' both'; }
     else inner = hasLogo ? img : txt;
-    return `<a class="\${cls}" href="brands" aria-label="\${b.name}">\${inner}</a>`;
+    return `<a class="\${cls}" href="skincare?brand=\${encodeURIComponent(b.name)}" aria-label="\${W.esc(b.name)}">\${inner}</a>`;   // a brand's tile opens its products
   }).join('');
   // size each logo by its shape so they look equally weighted: a wide wordmark
   // (SKIN1004) gets width, a square badge (Some By Mi) gets height, instead of

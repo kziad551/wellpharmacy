@@ -9,6 +9,9 @@ if (is_post()) {
     csrf_check();
     $name = trim((string) input('name'));
     $slug = slugify((string) (input('slug') ?: $name));
+    if ($slug === '' && $name !== '') $slug = 'brand-' . ($editing ? $id : substr(md5($name), 0, 8));   // a name with no Latin letters (Arabic) slugifies to nothing
+    /* the slug is UNIQUE: a clash on an edit used to be a blank 500 (only Add checked it) */
+    if ($name !== '' && row("SELECT id FROM brands WHERE slug = ? AND id <> ?", [$slug, $editing ? $id : 0])) { flash('A brand with that URL slug already exists — choose another slug.', 'err'); redirect($editing ? 'brand-edit?id=' . $id . admin_ret_qs() : 'brand-edit' . admin_ret_qs('?')); }
     $color = trim((string) input('color'));
     if ($color !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = '';
     $logo = trim((string) input('logo'));
@@ -33,7 +36,8 @@ if (is_post()) {
     $heroProducts = '';
     if ($heroPickRaw) {
         $ph  = implode(',', array_fill(0, count($heroPickRaw), '?'));
-        $okIds = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND brand = ?", array_merge($heroPickRaw, [$name])), 'id');
+        /* checked against the brand's CURRENT name: on a rename the products still carry the old one here */
+        $okIds = array_column(rows("SELECT id FROM products WHERE id IN ($ph) AND brand = ?", array_merge($heroPickRaw, [$editing ? $b['name'] : $name])), 'id');
         $heroProducts = implode(',', array_values(array_filter($heroPickRaw, fn($x) => in_array($x, $okIds, true))));
     }
 
@@ -59,7 +63,17 @@ if (is_post()) {
 
     if ($editing) {
         // brands are referenced on products by name — keep them connected on rename
-        if ($name !== $b['name']) q("UPDATE products SET brand = ? WHERE brand = ?", [$name, $b['name']]);
+        if ($name !== $b['name']) {
+            q("UPDATE products SET brand = ? WHERE brand = ?", [$name, $b['name']]);
+            /* …and on the homepage: its brand rail, and the Mixed sections that list it */
+            q("UPDATE home_sections SET brand = ? WHERE brand = ?", [$name, $b['name']]);
+            foreach (rows("SELECT id, brands FROM home_sections WHERE COALESCE(brands,'') <> ''") as $hs) {
+                $list = array_map('trim', explode(',', (string) $hs['brands']));
+                if (!in_array($b['name'], $list, true)) continue;
+                $list = array_map(fn($x) => $x === $b['name'] ? $name : $x, $list);
+                q("UPDATE home_sections SET brands = ? WHERE id = ?", [implode(',', $list), (int) $hs['id']]);
+            }
+        }
         $data['id'] = $id;
         q("UPDATE brands SET name=:name, slug=:slug, category=:category, color=:color, logo=:logo, logo_mode=:logo_mode, featured=:featured,
               hero_enabled=:hero_enabled, hero_title=:hero_title, hero_subtitle=:hero_subtitle, hero_image=:hero_image,
@@ -203,7 +217,7 @@ admin_head($editing ? 'Edit brand' : 'Add brand', 'brands', $editing ? $v['name'
 </style>
 <script>
   (function(){
-    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'img'=>($r['image']!==''?asrc($r['image']):'')], $heroProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'img'=>($r['image']!==''?asrc($r['image']):'')], $heroProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP) ?>;
     var RET = <?= json_encode($hereRet, JSON_UNESCAPED_SLASHES) ?>;
     var list=document.getElementById('heroList'), hidden=document.getElementById('heroProducts'),
         countEl=document.getElementById('heroCount'), search=document.getElementById('heroSearch');

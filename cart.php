@@ -93,16 +93,17 @@ ob_start(); ?>
     }
 
     var remain = Math.max(0, FREE - sub), pct = FREE > 0 ? Math.min(100, sub / FREE * 100) : 100;
-    var freeMsg = (FREE > 0 && remain > 0)
+    /* threshold 0 / blank = the shop offers no free shipping (shipping_fee() charges it): no banner at all */
+    var freeMsg = FREE <= 0 ? '' : (remain > 0
       ? "You're " + money(remain) + " away from FREE SHIPPING ♡<div class='track'><div class='fill' style='width:" + pct + "%'></div></div>"
-      : "You've unlocked FREE SHIPPING ✦";
+      : "You've unlocked FREE SHIPPING ✦");
 
     box.innerHTML =
       '<div class="cart-layout">' +
         '<div class="cart-list">' + rows.join('') + '</div>' +
         '<aside class="csum">' +
           '<h3>Order summary</h3>' +
-          '<div class="free">' + freeMsg + '</div>' +
+          (freeMsg ? '<div class="free">' + freeMsg + '</div>' : '') +
           '<div class="line"><span>Subtotal</span><b>' + money(sub) + '</b></div>' +
           (nGifts ? '<div class="line gift"><span>' + W.icon('gift') + ' Free gift' + (nGifts > 1 ? 's' : '') + '</span><b>FREE</b></div>' : '') +
           '<div class="line"><span>Shipping</span><span>Calculated at checkout</span></div>' +

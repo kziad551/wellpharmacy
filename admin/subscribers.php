@@ -12,7 +12,7 @@ $PER   = list_per();
 $page  = list_page();
 $found = (int) val("SELECT COUNT(*) FROM subscribers");
 $list  = rows("SELECT * FROM subscribers ORDER BY created_at DESC LIMIT $PER OFFSET " . list_offset());
-$emails = implode(', ', array_column($list, 'email'));
+$emails = implode(', ', array_column(rows("SELECT email FROM subscribers ORDER BY created_at DESC"), 'email'));   // ALL of them, not this page's 20
 
 /** One subscriber row — shared by the first paint and each infinite-scroll slice. */
 function subscriber_row(array $s): void { ?>

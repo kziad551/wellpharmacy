@@ -196,7 +196,10 @@ $BADGES = ['' => '— none —','derm'=>'Derm Pick','best'=>'Bestseller','trend'
 $cats   = array_column(rows("SELECT name FROM categories ORDER BY sort"), 'name');
 $brandList = array_column(rows("SELECT name FROM brands ORDER BY name"), 'name');
 
-$id = (string) input('id');
+/* The record being edited comes from the URL only (the Edit links / the editing form's
+   action carry ?id=). The ADD form posts a typed "id" field: reading that here made a new
+   product whose typed ID already existed silently overwrite the existing one. */
+$id = (string) ($_GET['id'] ?? '');
 $editing = $id !== '' && ($p = row("SELECT * FROM products WHERE id = ?", [$id]));
 /* from here on, the id exactly as stored: SQL matches ids case- and trailing-space-
    insensitively, so ?id=SOME-ID opens the product too, but the gift lookups in PHP
@@ -229,6 +232,19 @@ if (is_post()) {
     $price = (float) input('price');
     $was   = input('was') !== '' ? (float) input('was') : null;
     $sale  = input('sale_pct') !== '' ? (int) input('sale_pct') : null;
+    /* Price left blank while the sizes carry prices (the owner priced the options, not the
+       product): the cheapest priced size becomes the price, so the product is for sale
+       instead of reading "Price coming soon" everywhere. The Default size then sells at
+       that price — the flash says so, in case that is not what was meant. */
+    $priceNote = '';
+    if ($price <= 0) {
+        $pricedSizes = [];
+        foreach (parse_variant_opts((string) input('opt_sizes')) as $o) if ($o['price'] !== null && $o['price'] > 0) $pricedSizes[] = (float) $o['price'];
+        if ($pricedSizes) {
+            $price = round(min($pricedSizes), 2);
+            $priceNote = ' The price was blank, so it was set to $' . number_format($price, 2) . ' (the cheapest size). The Default size sells at it — change the price if that is wrong.';
+        }
+    }
 
     $image = trim((string) input('image'));
     $hover = trim((string) input('hover_image'));
@@ -238,13 +254,17 @@ if (is_post()) {
     if (!$upErr && $upErr2) $upErr = $upErr2;
 
     $galPaths = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) input('gallery')))));
+    $galErrs  = [];
     if (!empty($_FILES['gallery_files']['name']) && is_array($_FILES['gallery_files']['name'])) {
         foreach ($_FILES['gallery_files']['name'] as $gi => $gnm) {
-            if (($_FILES['gallery_files']['error'][$gi] ?? 4) !== UPLOAD_ERR_OK) continue;
-            $_FILES['_gf'] = ['name'=>$gnm,'type'=>$_FILES['gallery_files']['type'][$gi],'tmp_name'=>$_FILES['gallery_files']['tmp_name'][$gi],'error'=>0,'size'=>$_FILES['gallery_files']['size'][$gi]];
+            if (($_FILES['gallery_files']['error'][$gi] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
+            /* a photo PHP refused (over its size limit) is named in the flash, not dropped in silence */
+            $_FILES['_gf'] = ['name'=>$gnm,'type'=>$_FILES['gallery_files']['type'][$gi],'tmp_name'=>$_FILES['gallery_files']['tmp_name'][$gi],'error'=>$_FILES['gallery_files']['error'][$gi],'size'=>$_FILES['gallery_files']['size'][$gi]];
             $ge=null; if ($gu = save_upload('_gf', $ge)) $galPaths[] = $gu;
+            elseif ($ge) $galErrs[] = $gnm . ': ' . $ge;
         }
     }
+    if ($galErrs) { $upErr = ($upErr ? $upErr . ' ' : '') . 'Gallery photo(s) not added — ' . implode(' · ', $galErrs); }
     // de-duplicate: drop repeated paths/URLs and pixel-identical local uploads (safety net for the client-side guard)
     $seenStr = []; $seenHash = []; $uniqueGal = [];
     foreach ($galPaths as $gpath) {
@@ -267,13 +287,16 @@ if (is_post()) {
     [$flavors, $flvSame] = product_flavors_distinct($flavors);
     $flvBad = array_merge($flvBad, $flvSame);
 
+    /* short columns are cut to their width here: the live MySQL runs strict, where a value
+       one character too long is a blank 500 instead of a saved product */
+    $cut = fn(string $k, int $n) => mb_substr(trim((string) input($k)), 0, $n);
     $data = [
-        'name'=>$name, 'brand'=>trim((string)input('brand')), 'category'=>(string)input('category'),
+        'name'=>mb_substr($name, 0, 200), 'brand'=>trim((string)input('brand')), 'category'=>(string)input('category'),
         'price'=>$price, 'was'=>$was, 'sale_pct'=>$sale, 'badge'=>(string)input('badge'),
         'stock'=>(int)input('stock'), 'low_stock'=>(int)input('low_stock'),
-        'kw'=>trim((string)input('kw')), 'descr'=>trim((string)input('descr')),
+        'kw'=>$cut('kw', 60), 'descr'=>$cut('descr', 180),
         'long_desc'=>(string)input('long_desc'), 'image'=>$image, 'hover_image'=>$hover, 'gallery'=>implode("\n",$galPaths),
-        'barcode'=>trim((string)input('barcode')), 'sku'=>trim((string)input('sku')), 'size'=>trim((string)input('size')), 'unit'=>trim((string)input('unit')),
+        'barcode'=>$cut('barcode', 32), 'sku'=>$cut('sku', 64), 'size'=>$cut('size', 48), 'unit'=>$cut('unit', 24),
         'opt_colors'=>trim((string)input('opt_colors')), 'opt_sizes'=>trim((string)input('opt_sizes')),
         'opt_flavors'=>$flavors, 'opt_flavor_name'=>product_flavor_name_clean(product_gift_field('opt_flavor_name')),
         'how_to_use'=>(string)input('how_to_use'), 'ingredients'=>(string)input('ingredients'), 'benefits'=>(string)input('benefits'),
@@ -304,7 +327,7 @@ if (is_post()) {
             $sent = notify_restock($id);
             if ($sent > 0) $note = " Back-in-stock alert emailed to $sent " . ($sent === 1 ? 'person' : 'people') . '.';
         }
-        flash(($upErr ? 'Product updated — but the image was not changed: ' . $upErr : 'Product updated.') . $note, $upErr ? 'err' : 'ok');
+        flash(($upErr ? 'Product updated — but the image was not changed: ' . $upErr : 'Product updated.') . $note . $priceNote, $upErr ? 'err' : 'ok');
     } else {
         $taken = 'A product with the ID "' . $newId . '" already exists. Find it under Products, or type a different Product ID.';
         if (row("SELECT id FROM products WHERE id = ?", [$newId])) { flash($taken, 'err'); redirect('product-edit' . admin_ret_qs('?')); }
@@ -318,7 +341,7 @@ if (is_post()) {
             if ((int) ($ex->errorInfo[1] ?? 0) !== 1062) throw $ex;
             flash($taken, 'err'); redirect('product-edit' . admin_ret_qs('?'));
         }
-        flash($upErr ? 'Product created — but no image was added: ' . $upErr : 'Product created.', $upErr ? 'err' : 'ok');
+        flash(($upErr ? 'Product created — but no image was added: ' . $upErr : 'Product created.') . $priceNote, $upErr ? 'err' : 'ok');
     }
     if ($flvBad) {
         $f = $_SESSION['flash'] ?? ['m' => '', 't' => 'ok'];
@@ -459,7 +482,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     <div style="display:flex;flex-direction:column;gap:18px">
       <div class="a-card"><div class="hd"><h2>Pricing &amp; stock</h2></div><div class="bd">
         <div class="f-row">
-          <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">If you add <b>sizes</b> below, this is set automatically to the cheapest option on save — it only applies to products without sizes.</div></div>
+          <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">What the product sells at — its <b>Default</b> size. Extra sizes carry their own price under <b>Options</b>. Left blank while the sizes have prices, it becomes the cheapest size's price on save.</div></div>
           <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" value="<?= e($v['was']) ?>" placeholder="if on sale"></div>
         </div>
         <div class="f-row">
@@ -569,7 +592,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
             <input type="hidden" name="opt_sizes" id="optSizes" value="<?= e($v['opt_sizes'] ?? '') ?>">
             <div id="sizeRows" class="var-rows"></div>
             <button type="button" class="btn btn-ghost btn-sm" id="addSize"><?= aicon('plus') ?> Add size</button>
-            <div class="hint">The <b>Default</b> row uses the base price and can't be removed. Extra sizes get their own price. Sizes only apply once you add at least one extra size.</div></div>
+            <div class="hint">The <b>Default</b> row is the product at its base price (its name is the <b>Size</b> field). Extra sizes get their own price. Sizes only apply once you add at least one extra size. Remove the Default row (×) when every size has its own price.</div></div>
         </div>
       </div></div>
 
@@ -763,22 +786,35 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   var DEF_EMPTY='Standard size — set it in the “Size” field above';
   var defLabel='', extras=[];
   parseOpts(sizeHidden.value).forEach(function(o){ if(o.price===null && defLabel==='') defLabel=o.label; else extras.push({label:o.label, price:o.price==null?base():o.price}); });
+  /* a product whose every size carries its own price (an import like "30 ml|9.90 / 50 ml|14.50")
+     has NO default size. Opening it used to invent one from the "Size" field — a new $0 option
+     the shop then sold. Such a product keeps its list as it is; the owner can add a default. */
+  var noDefault = extras.length>0 && defLabel==='';
   /* the standard size name IS the "Size" field — mirror them so there's one place to type it */
-  if(sizeInput){ if(sizeInput.value.trim()) defLabel=sizeInput.value.trim(); else if(defLabel) sizeInput.value=defLabel; }
+  if(sizeInput && !noDefault){ if(sizeInput.value.trim()) defLabel=sizeInput.value.trim(); else if(defLabel) sizeInput.value=defLabel; }
   function curDef(){ return (sizeInput && sizeInput.value.trim()) || defLabel.trim() || ''; }
   function saveSizes(){
-    if(!extras.filter(function(x){return x.label.trim();}).length){ sizeHidden.value=''; return; }
-    var d = curDef() || 'Standard';
-    sizeHidden.value = [d].concat(extras.filter(function(x){return x.label.trim();}).map(function(x){return x.label.trim()+'|'+fmt(x.price||0);})).join('\n');
+    var kept=extras.filter(function(x){return x.label.trim();}).map(function(x){return x.label.trim()+'|'+fmt(x.price||0);});
+    if(!kept.length){ sizeHidden.value=''; return; }
+    sizeHidden.value = (noDefault ? kept : [curDef() || 'Standard'].concat(kept)).join('\n');
   }
   function renderSizes(){
     sizeWrap.innerHTML='';
     var d=document.createElement('div'); d.className='var-row is-default';
     var nm=curDef();
-    d.innerHTML='<span class="vr-dot vr-star">*</span>'+
-      (nm ? '<span class="vr-name">'+esc(nm)+'</span>'
-          : '<span class="vr-name vr-name-empty">'+DEF_EMPTY+'</span>')+
-      '<span class="vr-tag">Default</span><span class="vr-basep">$'+fmt(base())+'</span>';
+    if(noDefault){
+      d.innerHTML='<span class="vr-dot vr-star">*</span><span class="vr-name vr-name-empty">No default size — every size below has its own price</span>'+
+        '<button type="button" class="btn btn-ghost btn-sm" id="addDefault">Add a default size</button>';
+      d.querySelector('#addDefault').addEventListener('click',function(){ noDefault=false; if(sizeInput&&sizeInput.value.trim()) defLabel=sizeInput.value.trim(); renderSizes(); if(sizeInput&&!sizeInput.value.trim()) sizeInput.focus(); });
+    } else {
+      d.innerHTML='<span class="vr-dot vr-star">*</span>'+
+        (nm ? '<span class="vr-name">'+esc(nm)+'</span>'
+            : '<span class="vr-name vr-name-empty">'+DEF_EMPTY+'</span>')+
+        '<span class="vr-tag">Default</span><span class="vr-basep">$'+fmt(base())+'</span>'+
+        (base()<=0 && extras.length ? '<span class="vr-warn">Price is blank — set it above, the Default size sells at it (else the cheapest size\'s price is used)</span>' : '')+
+        (extras.length ? '<button type="button" class="vr-x" id="dropDefault" title="No default size — sell only the sizes below">&times;</button>' : '');
+      var dd=d.querySelector('#dropDefault'); if(dd) dd.addEventListener('click',function(){ noDefault=true; renderSizes(); });
+    }
     sizeWrap.appendChild(d);
     extras.forEach(function(x,idx){
       var row=document.createElement('div'); row.className='var-row';
@@ -794,7 +830,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     saveSizes();
   }
   document.getElementById('addSize').addEventListener('click',function(){ extras.push({label:'',price:base()}); renderSizes(); var l=sizeWrap.querySelector('.var-row:last-child .vr-label'); if(l) l.focus(); });
-  if(priceInput) priceInput.addEventListener('input',function(){ var b=sizeWrap.querySelector('.vr-basep'); if(b) b.textContent='$'+fmt(base()); });
+  if(priceInput) priceInput.addEventListener('input',renderSizes);   // the Default row shows the price (and warns while it is blank)
   if(sizeInput) sizeInput.addEventListener('input',function(){ defLabel=sizeInput.value.trim(); var n=sizeWrap.querySelector('.is-default .vr-name'); if(n){ var v=sizeInput.value.trim(); n.textContent=v||DEF_EMPTY; n.classList.toggle('vr-name-empty',!v); } saveSizes(); });
   renderSizes();
 

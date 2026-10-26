@@ -338,14 +338,21 @@ $PAGE_JS = <<<'JS'
 
       SWAP.forEach(sel => {
         const next = doc.querySelector(sel), cur = document.querySelector(sel);
+        /* the grid keeps its node (Load more, the loading state and the list/grid toggle all
+           hold on to it); only its cards are swapped */
+        if (sel === '#grid' && next && cur) { cur.innerHTML = next.innerHTML; return; }
         if (next && cur) cur.replaceWith(next);
         else if (!next && cur) cur.remove();         // e.g. Load more disappears on the last page
         else if (next && !cur) $('main').appendChild(next);
       });
       const n = doc.querySelector('[data-count]');
       if (n) document.querySelectorAll('[data-count]').forEach(e => e.textContent = n.textContent);
+      /* the "All N items shown" line under the grid belongs to the old result */
+      document.querySelectorAll('main > p.muted').forEach(e => e.remove());
+      const t = doc.querySelector('title'); if (t) document.title = t.textContent;
 
       if (push) history.pushState({ plp: 1 }, '', url);
+      syncForm(url);
       applyBrandSearch();
       wireLoadMore();
       W.guardImages(document);
@@ -354,6 +361,20 @@ $PAGE_JS = <<<'JS'
     } finally {
       if (mine === seq) grid.classList.remove('is-loading');
     }
+  }
+
+  /* The sidebar form follows the url it just loaded: removing a chip, Back, or a fetched
+     page only swapped the grid, so the sale box, the rating, the slider and the search
+     field kept their old state and the next filter change put the removed one back. */
+  function syncForm(url) {
+    if (!form) return;
+    const sp = new URL(url, location.href).searchParams;
+    const q = form.querySelector('input[name="q"]'); if (q && q.value !== (sp.get('q') || '')) q.value = sp.get('q') || '';
+    const sale = form.querySelector('input[name="sale"]'); if (sale) sale.checked = sp.get('sale') === '1';
+    form.querySelectorAll('input[name="rating"]').forEach(r => { r.checked = sp.get('rating') === r.value; });
+    const sl = form.querySelector('[data-price]');
+    if (sl) { sl.value = sp.get('max') != null ? sp.get('max') : sl.max; const out = $('[data-price-val]'); if (out) out.textContent = '$' + sl.value; }
+    const ss = $('#sortSel'); if (ss) ss.value = sp.get('sort') || 'rec';
   }
 
   /* Filters no longer reload the page. The Apply button and a no-JS visitor still
@@ -367,6 +388,9 @@ $PAGE_JS = <<<'JS'
     let t;
     const q = form.querySelector('input[name="q"]');
     if (q) q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => load(urlFromForm(), true), 400); });
+    /* the sort select sits in the toolbar, outside the form (it belongs to it through form=),
+       so its change never reached the listener above: the sort did nothing until Apply */
+    const ss = $('#sortSel'); if (ss) ss.addEventListener('change', () => load(urlFromForm(), true));
   }
 
   const slider = form && form.querySelector('[data-price]');
@@ -424,18 +448,24 @@ $PAGE_JS = <<<'JS'
     });
     /* infinite scroll: fetch the next batch by itself once you get close to the end
        (the button stays as a fallback and shows progress) */
-    const nearEnd = () => {
-      if (!document.body.contains(more) || more.dataset.busy) return;
-      if (more.getBoundingClientRect().top < innerHeight + 900) more.click();
-    };
+    if (moreIO) moreIO.disconnect();   // the previous result's button is gone with it
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) nearEnd(); }, { rootMargin: '0px 0px 900px 0px' }).observe(more);
+      moreIO = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) nearEnd(); }, { rootMargin: '0px 0px 900px 0px' });
+      moreIO.observe(more);
     }
-    /* a fast flick can jump right past the button between two frames, which the observer
-       never sees — so also check (once per frame at most) while scrolling */
-    let tick = false;
-    addEventListener('scroll', () => { if (!tick) { tick = true; requestAnimationFrame(() => { tick = false; nearEnd(); }); } }, { passive: true });
   }
+  /* the CURRENT Load more button (each filter change brings a new one) */
+  const nearEnd = () => {
+    const more = $('#loadMore');
+    if (!more || more.dataset.busy) return;
+    if (more.getBoundingClientRect().top < innerHeight + 900) more.click();
+  };
+  let moreIO = null;
+  /* a fast flick can jump right past the button between two frames, which the observer
+     never sees — so also check (once per frame at most) while scrolling. Registered once:
+     every filter change used to add another of these. */
+  let tick = false;
+  addEventListener('scroll', () => { if (!tick) { tick = true; requestAnimationFrame(() => { tick = false; nearEnd(); }); } }, { passive: true });
   wireLoadMore();
 
   window.addEventListener('popstate', () => load(location.pathname + location.search, false));

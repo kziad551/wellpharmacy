@@ -31,8 +31,14 @@ $USER = $me ? [
     'cart'  => cart_rows((int) $me['id']),
 ] : null;
 
-$JE = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
-$HERO_IMGS = array_values(array_filter(array_map(fn($k)=>trim(setting($k,'')), ['hero_img_1','hero_img_2','hero_img_3','hero_img_4'])));
+/* HEX_TAG/AMP: this ends up inside <script> on every page — a "</script>" in a product name
+   must not end it; INVALID_UTF8_SUBSTITUTE: one bad byte in one row must not turn the whole
+   feed into "W.PRODUCTS = ;" and kill the site's JS */
+$JE = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_INVALID_UTF8_SUBSTITUTE;
+/* hero slides: the admin's list (any number, one per line, Home Sections > Hero); a shop
+   that never saved the new editor still has the four old hero_img_N slots */
+$HERO_IMGS = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) setting('hero_imgs', '')))));
+if (!$HERO_IMGS) $HERO_IMGS = array_values(array_filter(array_map(fn($k)=>trim(setting($k,'')), ['hero_img_1','hero_img_2','hero_img_3','hero_img_4'])));
 
 
 $products = [];
@@ -45,7 +51,7 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
         'id'      => $p['id'],
         'brand'   => $p['brand'],
         'name'    => $p['name'],
-        'price'   => (float)$p['price'],
+        'price'   => product_base_price($p),   // the default size's price; the cheapest priced size when the base is blank
         'badge'   => $p['badge'] ?: '',
         'rating'  => (float)$p['rating'],
         'reviews' => (int)$p['reviews'],
@@ -57,7 +63,7 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
         'keywords'=> $p['keywords'] ?? '',
         'unit'    => $p['unit'] ?? '',
         'colors'  => parse_variant_opts($p['opt_colors'] ?? ''),
-        'sizes'   => parse_variant_opts($p['opt_sizes'] ?? ''),
+        'sizes'   => product_sizes($p),   // the sizes for sale (an unpriced size needs a base price)
         'from'    => variant_from_price($p),   // cheapest buyable price — the "from $X" label (base price is untouched)
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,

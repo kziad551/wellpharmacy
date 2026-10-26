@@ -21,10 +21,21 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.php -f
 RewriteRule ^([^.]+?)/?$ $1.php [L]
 
+# a missing IMAGE / asset gets a plain 404, not the full styled page (session + DB + chrome
+# for every broken <img> was a whole page render per missing picture)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule \.(jpe?g|png|gif|webp|avif|svg|ico|css|js|woff2?|ttf|map)$ - [R=404,L,NC]
+
 # anything else that isn't a real file/dir -> styled 404 (relative target keeps it subfolder-portable)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ 404.php [L]
+
+# working files that may sit next to the site (price lists, notes, archives, dumps) are never served
+<FilesMatch "\.(md|csv|xlsx?|sql|zip|tar|gz|bak|log|json|ini|env)$">
+  Require all denied
+</FilesMatch>
 
 # don't execute PHP inside uploads
 <FilesMatch "\.(php|phtml|phar)$">

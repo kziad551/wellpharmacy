@@ -1,9 +1,18 @@
 <?php
 require __DIR__ . '/inc/functions.php';
+require __DIR__ . '/inc/plp.php';   // the product cards + the shuffled "You may also love" batches
 
 $id = (string) input('id');
 $p  = row("SELECT * FROM products WHERE id = ? AND status='active'", [$id]);
 if (!$p) { http_response_code(404); $PAGE_TITLE='Not found'; include __DIR__.'/inc/head.php'; echo '<div class="wrap section" style="text-align:center"><h1 class="h2">Product not found</h1><p class="muted">This product doesn\'t exist or is no longer available.</p><a class="btn btn-primary" href="skincare">Back to shop</a></div>'; include __DIR__.'/inc/foot.php'; exit; }
+
+/* ---- "You may also love" asks for its next batch of cards: same shuffle (seed), next page ---- */
+if (input('more') === '1') {
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: private, no-store');
+    foreach (well_related_page((string) $p['id'], (int) input('seed'), max(1, (int) input('page', 2))) as $r) echo well_product_card($r);
+    exit;
+}
 
 /* ---- per-browser reviewer identity (guest site, no accounts): a persistent token cookie
         lets us tie a review to this browser so it can be edited, not duplicated ---- */
@@ -21,6 +30,10 @@ if (is_post() && input('action') === 'review') {
     $rRating = max(1, min(5, (int) input('rating')));
     $rTitle  = trim((string) input('title'));
     $rBody   = trim((string) input('body'));
+    /* a name or review of only spaces passes the browser's "required": nothing is saved, and
+       the page used to say "Thanks" anyway (and read an unset $mine) */
+    if ($rAuthor === '' || $rBody === '') redirect("product?id=" . urlencode($p['id']) . "&reviewed=empty#reviews");
+    $mine = null;
     if ($rAuthor !== '' && $rBody !== '') {
         $mine = row("SELECT id FROM reviews WHERE product_id=? AND reviewer_token=? LIMIT 1", [$p['id'], $reviewerTok]);
         if ($mine) {
@@ -46,19 +59,19 @@ $BADGES = ['derm'=>['badge-derm','DERM PICK'],'best'=>['badge-best','BESTSELLER'
 $badge = $p['badge'] && isset($BADGES[$p['badge']]) ? $BADGES[$p['badge']] : null;
 $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
-$noPrice = ((float)$p['price'] <= 0);   // price not set yet — show "coming soon", block ordering
+$basePrice = product_base_price($p);     // the default size's price (the cheapest priced size when the base is blank)
+$noPrice = ($basePrice <= 0);            // price not set yet — show "coming soon", block ordering
 /* the price the page opens at, the way its script paints it before anything is picked: the
    standard size (else the cheapest size), plus the cheapest colour and flavour surcharge.
    "from" while the choices still change it (a single flavour is already picked). */
-$pdpSpan = (function (array $p): array {
+$pdpSpan = (function (array $p, float $base): array {
     $pr = fn(array $list, float $d) => array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $d, $list);
-    $base  = (float) $p['price'];
-    $sizes = parse_variant_opts($p['opt_sizes'] ?? '');
+    $sizes = product_sizes($p);
     $z = (!$sizes || array_filter($sizes, fn($o) => $o['price'] === null)) ? [$base] : $pr($sizes, $base);
     $c = $pr(parse_variant_opts($p['opt_colors'] ?? ''), 0.0) ?: [0.0];
     $f = $pr(parse_variant_opts($p['opt_flavors'] ?? ''), 0.0) ?: [0.0];
     return [round(min($z) + min($c) + min($f), 2), round(max($z) + max($c) + max($f), 2)];
-})($p);
+})($p, $basePrice);
 $pdpFrom = $pdpSpan[0] != $pdpSpan[1];
 
 /* free gift with purchase (inc/gifts.php). Hidden, like the card chip, while the product
@@ -77,8 +90,11 @@ if ($stock <= 0 && $MY_EMAIL !== '') {
                               [$p['id'], $MY_EMAIL]);
 }
 
-$related = rows("SELECT id FROM products WHERE status='active' AND category=? AND id<>? ORDER BY reviews DESC LIMIT 5", [$p['category'], $p['id']]);
-if (count($related) < 5) $related = rows("SELECT id FROM products WHERE status='active' AND id<>? ORDER BY reviews DESC LIMIT 5", [$p['id']]);
+/* "You may also love": a fresh shuffle of the whole shop on every visit, loaded in batches
+   as the shopper scrolls (well_related_page). The first batch renders here, server-side. */
+$relSeed  = random_int(1, 2147483646);
+$related  = well_related_page((string) $p['id'], $relSeed, 1);
+$relTotal = well_related_count((string) $p['id']);
 
 $PAGE_TITLE = $p['name'] . ' — ' . setting('store_name','WELL SHOP');
 $ACTIVE = $p['category'];
@@ -335,10 +351,11 @@ include __DIR__ . '/inc/head.php';
       <div class="price-row">
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
         <?php else: ?><span class="p" id="pdpPrice"><?= $pdpFrom ? '<span class="from">from</span> ' : '' ?><?= money($pdpSpan[0]) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
-        <?php if ($p['was']): ?><span class="was"><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
+        <?php /* the old price belongs to the base price only: hidden while a "from" or a picked option shows another */ ?>
+        <?php if ($p['was']): ?><span class="was" id="pdpWas" <?= $pdpFrom ? 'hidden' : '' ?>><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
-      <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = parse_variant_opts($p['opt_sizes'] ?? ''); $vFlavors = parse_variant_opts($p['opt_flavors'] ?? ''); ?>
+      <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = product_sizes($p); $vFlavors = parse_variant_opts($p['opt_flavors'] ?? ''); ?>
       <?php if ($vColors): ?>
       <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color</span><div class="opt-btns">
         <?php foreach ($vColors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
@@ -351,10 +368,12 @@ include __DIR__ . '/inc/head.php';
       <?php endif; ?>
       <?php if ($vSizes): ?>
       <div class="opt-group" data-optgroup="size"><span class="opt-lbl">Size</span><div class="opt-btns">
-        <?php foreach ($vSizes as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null): ?> <span class="opt-x"><?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
+        <?php /* every size shows its price — the default one sells at the base price */ ?>
+        <?php foreach ($vSizes as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if(!$noPrice): ?> <span class="opt-x"><?= money($o['price'] !== null ? $o['price'] : $basePrice) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
-      <?php if (!empty($p['size'])): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px">Size: <b><?= e($p['size']) ?></b></div><?php endif; ?>
+      <?php /* the standard size is already the first size chip when the product has sizes */ ?>
+      <?php if (!empty($p['size']) && !$vSizes): ?><div class="muted" style="font-size:13px;margin:-2px 0 14px">Size: <b><?= e($p['size']) ?></b></div><?php endif; ?>
       <?php if (!empty($p['benefits'])): ?>
       <ul class="pdp-benefits">
         <?php foreach (preg_split('/\r\n|\r|\n/', $p['benefits']) as $b): $b=trim(preg_replace('/^[\s•·\-]+/u','',$b)); if($b==='') continue; ?><li><?= e($b) ?></li><?php endforeach; ?>
@@ -380,7 +399,7 @@ include __DIR__ . '/inc/head.php';
       <?php endif; ?>
       <div class="buy-actions">
         <div class="qty-stepper"><button id="qd">−</button><span class="q" id="qty">1</span><button id="qi">+</button></div>
-        <button class="btn btn-primary" style="flex:1" id="addBtn" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':($stock===0?'Out of stock':'Add to Bag') ?></button>
+        <button class="btn btn-primary" style="flex:1" id="addBtn" <?= ($stock<=0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':($stock<=0?'Out of stock':'Add to Bag') ?></button>
         <button class="btn btn-outline" data-wish="<?= e($p['id']) ?>">♡</button>
       </div>
 
@@ -488,9 +507,14 @@ include __DIR__ . '/inc/head.php';
 </div>
 </div>
 
-<section class="wrap section-tight">
+<section class="wrap section-tight" id="relatedSec">
   <div class="sec-head"><h2 class="h2">You may also <span class="script">love</span></h2><a class="view-all" href="skincare">view all</a></div>
-  <div class="grid g5" id="related"></div>
+  <div class="grid g5" id="related"><?php foreach ($related as $r) echo well_product_card($r); ?></div>
+  <?php if ($relTotal > count($related)): /* more batches load by themselves as you scroll; the button is the no-JS / fallback way */ ?>
+  <div class="plp-more" style="text-align:center;margin:28px 0 8px;overflow-anchor:none">
+    <a class="btn btn-outline" id="relMore" href="skincare" data-seed="<?= $relSeed ?>" data-page="2" data-total="<?= $relTotal ?>">Show more <span class="muted">(<?= count($related) ?> of <?= $relTotal ?>)</span></a>
+  </div>
+  <?php endif; ?>
 </section>
 
 <section class="wrap section-tight"><div id="sp"></div></section>
@@ -501,7 +525,7 @@ include __DIR__ . '/inc/head.php';
     <img class="gimg mini-img" data-grade id="miniImg">
     <div class="mini-title"><?= e($p['name']) ?></div>
     <div class="mini-meta"><span class="pr" id="miniPrice"><?= $noPrice?'Price coming soon':($pdpFrom ? 'from ' : '') . money($pdpSpan[0]) ?></span><span class="mini-brand"><?= e($p['brand']) ?></span></div>
-    <button class="btn btn-primary mini-btn" id="miniAdd" <?= ($stock===0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':'Add to Bag' ?></button>
+    <button class="btn btn-primary mini-btn" id="miniAdd" <?= ($stock<=0||$noPrice)?'aria-disabled="true"':'' ?>><?= $noPrice?'Price coming soon':($stock<=0?'Out of stock':'Add to Bag') ?></button>
   </div>
 </div>
 <div class="lightbox" id="lightbox"><button class="x" id="lbX">✕</button><img id="lbImg"></div>
@@ -530,7 +554,6 @@ include __DIR__ . '/inc/head.php';
 </div>
 <?php
 $pid      = json_encode($p['id']);
-$jrelated = json_encode(array_column($related,'id'), JSON_UNESCAPED_SLASHES);
 
 $PAGE_JS = <<<JS
 <script>
@@ -547,10 +570,12 @@ $PAGE_JS = <<<JS
   \$('#mainImg').addEventListener('click',e=>{ if(e.target.closest('.wish'))return; \$('#lbImg').src=\$('#mainPhoto').src; \$('#lightbox').classList.add('open'); });
   \$('#lbX').addEventListener('click',()=>\$('#lightbox').classList.remove('open'));
   \$('#lightbox').addEventListener('click',e=>{ if(e.target.id==='lightbox')\$('#lightbox').classList.remove('open'); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') \$('#lightbox').classList.remove('open'); });
   \$('#miniImg').src = p.img;
   \$('#pharmAv').src = W.IMG.teamWoman;
 
-  \$('#trustRow').innerHTML = ['Cash on Delivery available','100% Authentic','Free shipping over \$'+(W.SETTINGS?W.SETTINGS.free_ship:49),'Easy returns','Same-day dispatch in Beirut','Pharmacist support'].map(t=>`<div class="ti">\${W.icon('check')} \${t}</div>`).join('');
+  const FREE_SHIP = (W.SETTINGS && W.SETTINGS.free_ship != null && W.SETTINGS.free_ship !== '') ? +W.SETTINGS.free_ship : 49;   // 0 = no free shipping (as the server charges it)
+  \$('#trustRow').innerHTML = ['Cash on Delivery available','100% Authentic', FREE_SHIP > 0 ? 'Free shipping over \$'+FREE_SHIP : 'Delivery across Lebanon','Easy returns','Same-day dispatch in Beirut','Pharmacist support'].map(t=>`<div class="ti">\${W.icon('check')} \${t}</div>`).join('');
 
   const STOCK = p.stock|0, LOW = p.low|0;
   function updateStock(){
@@ -573,7 +598,8 @@ $PAGE_JS = <<<JS
   // options opens at 1: each colour/size/flavour is its own bag line, so the bag total is not this line's qty
   let qty = HAS_OPTS ? 1 : Math.max(1, Math.min(W.cartQtyOf(p.id) || 1, STOCK || 1));
   // pre-select the STANDARD (default) size so the page opens at the default price and can be added right away; picking another size/colour updates it
-  if (p.sizes && p.sizes.length){ var _def = p.sizes.filter(function(o){ return o.price == null; })[0]; if (_def) SEL.size = _def.label; }
+  // (a product whose sizes all carry prices has no standard one: it opens at the size selling at the base price, the cheapest)
+  if (p.sizes && p.sizes.length){ var _def = p.sizes.filter(function(o){ return o.price == null; })[0] || p.sizes.filter(function(o){ return Math.abs(+o.price - p.price) < 0.005; })[0]; if (_def) SEL.size = _def.label; }
   function optPrice(){
     let base = p.price;
     const z = (p.sizes  || []).find(o => o.label === SEL.size);  if (z && z.price != null) base = z.price;   // size sets the price
@@ -626,6 +652,7 @@ $PAGE_JS = <<<JS
     if (!NOPRICE) {
       \$('#miniPrice').textContent = (from ? 'from ' : '') + W.money(unit*qty);
       const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = (from ? '<span class="from">from</span> ' : '') + W.money(unit);   // shows the default price, updates as options are chosen
+      const pw = \$('#pdpWas'); if (pw) pw.hidden = from || Math.abs(unit - p.price) > 0.005;   // the old price was the base price's
     }
     let label;
     if (NOPRICE) label = 'Price coming soon';
@@ -689,7 +716,32 @@ $PAGE_JS = <<<JS
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !revModal.hidden) closeRev(); });
   }
 
-  W.renderProducts(\$('#related'), {$jrelated}.map(id=>W.BY_ID[id]).filter(Boolean));
+  // "You may also love": endless — the next shuffled batch loads by itself as you near the end
+  (function(){
+    const more = \$('#relMore'), grid = \$('#related'); if (!more || !grid) return;
+    let busy = false, done = false;
+    async function loadMore(){
+      if (busy || done) return;
+      busy = true; const label = more.innerHTML; more.innerHTML = 'Loading…';
+      try {
+        const page = +more.dataset.page, total = +more.dataset.total;
+        const res = await fetch('product?id=' + encodeURIComponent({$pid}) + '&more=1&seed=' + more.dataset.seed + '&page=' + page, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(res.status);
+        const html = await res.text();
+        grid.insertAdjacentHTML('beforeend', html);
+        W.guardImages(grid);
+        const shown = grid.querySelectorAll('.pcard').length;
+        if (!html.trim() || shown >= total) { done = true; more.closest('.plp-more').innerHTML = '<p class="muted">That\\'s everything — all ' + shown + ' items shown.</p>'; return; }
+        more.dataset.page = page + 1;
+        more.innerHTML = 'Show more <span class="muted">(' + shown + ' of ' + total + ')</span>';
+      } catch (err) { more.innerHTML = label; }
+      finally { busy = false; requestAnimationFrame(nearEnd); }
+    }
+    more.addEventListener('click', ev => { ev.preventDefault(); loadMore(); });
+    const nearEnd = () => { if (!done && !busy && document.body.contains(more) && more.getBoundingClientRect().top < innerHeight + 900) loadMore(); };
+    if ('IntersectionObserver' in window) new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) nearEnd(); }, { rootMargin: '0px 0px 900px 0px' }).observe(more);
+    else addEventListener('scroll', nearEnd, { passive: true });
+  })();
 
   const io = new IntersectionObserver(es=>{ \$('#miniBar').classList.toggle('show', !es[0].isIntersecting); }, {threshold:0});
   io.observe(\$('#addBtn'));

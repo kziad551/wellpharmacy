@@ -9,7 +9,7 @@ $search = trim((string) input('q'));
 
 $where = []; $args = [];
 if (in_array($filter, $STATUSES, true)) { $where[] = "order_status = ?"; $args[] = $filter; }
-if ($search !== '') { $where[] = "(order_no LIKE ? OR customer_name LIKE ? OR phone LIKE ?)"; $s = "%$search%"; array_push($args, $s, $s, $s); }
+if ($search !== '') { $where[] = "(order_no LIKE ? OR customer_name LIKE ? OR phone LIKE ? OR email LIKE ?)"; $s = "%$search%"; array_push($args, $s, $s, $s, $s); }   // email too: Customers links here by it
 $wsql  = $where ? " WHERE " . implode(' AND ', $where) : '';
 $PER   = list_per();
 $page  = list_page();

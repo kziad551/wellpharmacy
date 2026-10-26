@@ -27,5 +27,5 @@ echo json_encode([
     'customers'  => (int) val("SELECT COUNT(*) FROM customers"),
     'products'   => (int) val("SELECT COUNT(*) FROM products WHERE status = 'active'"),
     /* must match dashboard.php's definition exactly, or the number would jump on first poll */
-    'revenue'    => (float) val("SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='paid' OR payment_method='cod'"),
+    'revenue'    => (float) val("SELECT COALESCE(SUM(total),0) FROM orders WHERE (payment_status='paid' OR payment_method='cod') AND order_status <> 'cancelled'"),
 ]);

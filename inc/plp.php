@@ -46,7 +46,7 @@ function well_product_card(array $p): string {
     $brand = (string) $p['brand'];
     $img   = (string) $p['image'];
     $hover = (string) ($p['hover_image'] ?? '');
-    $price = (float) $p['price'];
+    $price = product_base_price($p);   // the default size's price (or the cheapest priced size when the base is blank)
     $was   = $p['was'] !== null && $p['was'] !== '' ? (float) $p['was'] : null;
     $sale  = $p['sale_pct'] !== null && $p['sale_pct'] !== '' ? (int) $p['sale_pct'] : 0;
     $stock = (int) $p['stock'];
@@ -80,19 +80,21 @@ function well_product_card(array $p): string {
     }
 
     $buyPrice = well_money($price) . ($was !== null ? ' <s>' . well_money($was) . '</s>' : '');
-    $hasOpts  = (bool) (parse_variant_opts($p['opt_colors'] ?? '') || parse_variant_opts($p['opt_sizes'] ?? '')
-                        || parse_variant_opts($p['opt_flavors'] ?? ''));
+    /* a colour or flavour has to be chosen on the product page; sizes are chosen right on the
+       card (the chips below), so a sizes-only product adds to the bag from here */
+    $needsPage = (bool) (parse_variant_opts($p['opt_colors'] ?? '') || parse_variant_opts($p['opt_flavors'] ?? ''));
     $href     = 'product?id=' . rawurlencode($id);
     if ($soldOut)      { $addBtn = '<button class="btn" disabled>Sold out</button>';
                          $buyBtn = '<button class="buybtn" disabled>Sold out</button>'; }
     elseif ($noPrice)  { $soon   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon';
                          $addBtn = '<span class="btn soon" title="Price coming soon">' . $soon . '</span>';
                          $buyBtn = '<span class="buybtn soon" title="Price coming soon">' . $soon . '</span>'; }
-    elseif ($hasOpts)  { /* colours/sizes need a choice — the button opens the product page; the price shows the default */
+    elseif ($needsPage){ /* colours/flavours need a choice — the button opens the product page; the price shows the default */
                          $addBtn = '<a class="btn" href="' . e($href) . '">add to bag</a>';
                          $buyBtn = '<a class="buybtn" href="' . e($href) . '">buy — ' . $buyPrice . '</a>'; }
     else               { $addBtn = '<button class="btn" data-add="' . e($id) . '">add to bag</button>';
                          $buyBtn = '<button class="buybtn" data-add="' . e($id) . '">buy — ' . $buyPrice . '</button>'; }
+    $chips = well_card_size_chips($p, $price, $soldOut || $noPrice, $href);
 
     $stockNote = (!$soldOut && $stock <= $low) ? '<span class="pc-stock">Only ' . $stock . ' left</span>' : '';
     /* free gift chip: the 2nd child of .pc-top so space-between puts it top-right.
@@ -117,24 +119,100 @@ function well_product_card(array $p): string {
       </div>
       <div class="body">
         <span class="stars">' . $starsHtml . $stockNote . '</span>
-        <a class="name" href="' . e($href) . '">' . e($name) . '</a>
+        <a class="name" href="' . e($href) . '">' . e($name) . '</a>' . $chips . '
         <div class="pprice">' . $priceHtml . '</div>
         ' . $buyBtn . '
       </div>
     </article>';
 }
 
+/**
+ * Size chips for a card: a product whose sizes set the price ("Box $30 / 1 sheet $3")
+ * shows them under its name, so the shopper sees every price at a glance and can pick
+ * one right there — chrome.js swaps the card's price and adds that size to the bag.
+ * The chip selling at the price the card shows starts selected. Up to 3 chips; the
+ * rest wait on the product page ("+N"). Nothing while the product can't be bought.
+ * W.productCard() in chrome.js builds the same markup — keep them in step.
+ */
+function well_card_size_chips(array $p, float $shown, bool $unbuyable, string $href): string {
+    $sizes = product_sizes($p);
+    if (!$sizes || $unbuyable) return '';
+    $base = product_base_price($p);
+    $priceOf = fn(array $o): float => $o['price'] !== null ? (float) $o['price'] : $base;
+    /* the chip for the shown price must be among the ones drawn: pull it forward if needed */
+    $sel = null;
+    foreach ($sizes as $i => $o) if (abs($priceOf($o) - $shown) < 0.005) { $sel = $i; break; }
+    $show = array_slice($sizes, 0, 3, true);
+    if ($sel !== null && !isset($show[$sel])) { array_pop($show); $show[$sel] = $sizes[$sel]; }
+    if ($sel === null) $sel = array_key_first($show);
+    $html = '';
+    foreach ($show as $i => $o) {
+        $op = $priceOf($o);
+        $html .= '<button type="button" class="pc-opt' . ($i === $sel ? ' on" data-def="1' : '') . '" data-size="' . e($o['label']) . '" data-price="' . number_format($op, 2, '.', '') . '">'
+               . e($o['label']) . '<b>' . well_money($op) . '</b></button>';
+    }
+    if (count($sizes) > count($show)) $html .= '<a class="pc-opt more" href="' . e($href) . '" title="All sizes">+' . (count($sizes) - count($show)) . '</a>';
+    return '<div class="pc-opts" data-opts>' . $html . '</div>';
+}
+
+/* ---- "You may also love" ---------------------------------------------------
+   A fresh shuffle of the whole shop — every brand, every shelf — in batches, so the
+   product page keeps loading more as the shopper scrolls. The product itself and
+   sold-out items (nothing to buy) stay out. The seed fixes the order for one visit,
+   so later batches never repeat or skip a product. */
+const PLP_RELATED_PER = 15;
+
+function well_related_page(string $excludeId, int $seed, int $page, int $per = PLP_RELATED_PER): array {
+    $off = max(0, ($page - 1) * $per);
+    return rows("SELECT * FROM products WHERE status = 'active' AND stock > 0 AND id <> ?
+                 ORDER BY " . well_plp_shuffle($seed) . " LIMIT " . (int) $per . " OFFSET " . (int) $off, [$excludeId]);
+}
+
+/* A seeded shuffle that belongs to each ROW, not to its position in the scan: MySQL's
+   RAND(seed) hands out values by scan position, so a product added or taken off sale
+   between two batches used to reshuffle everything after it (duplicates and gaps while
+   paging). Hashing the id with the seed gives every product its own fixed place. */
+function well_plp_shuffle(int $seed): string {
+    return 'CRC32(CONCAT(id, "-", ' . (int) $seed . ')), id';
+}
+
+function well_related_count(string $excludeId): int {
+    return (int) val("SELECT COUNT(*) FROM products WHERE status = 'active' AND stock > 0 AND id <> ?", [$excludeId]);
+}
+
 /* ---- filters -> SQL ------------------------------------------------------- */
 
+/* Every order ends in `id`: with LIMIT/OFFSET paging, rows that tie on everything else
+   could otherwise come back in a different order per batch (a product shown twice,
+   another skipped). "Price coming soon" ($0) items go last in a price sort. */
 function well_plp_sorts(): array {
     return [
-        'rec'        => ['Sort: Recommended',    'sort, name'],
-        'reviews'    => ['Bestselling',          'reviews DESC, name'],
-        'price-asc'  => ['Price: Low to High',   'price ASC, name'],
-        'price-desc' => ['Price: High to Low',   'price DESC, name'],
-        'rating'     => ['Top Rated',            'rating DESC, name'],
-        'discount'   => ['Biggest Discount',     'COALESCE(sale_pct,0) DESC, name'],
+        'rec'        => ['Sort: Recommended',    'sort, name, id'],
+        'reviews'    => ['Bestselling',          'reviews DESC, name, id'],
+        'price-asc'  => ['Price: Low to High',   '(price <= 0), price ASC, name, id'],
+        'price-desc' => ['Price: High to Low',   'price DESC, name, id'],
+        'rating'     => ['Top Rated',            'rating DESC, name, id'],
+        'discount'   => ['Biggest Discount',     'COALESCE(sale_pct,0) DESC, name, id'],
     ];
+}
+
+/* The search clause, the same way the header's suggestions match (actions/suggest.php):
+   every word must appear, each in the name, the brand or the keywords — so what the
+   dropdown promises ("see all 12 results") is what the results page shows. Short words
+   match at a word start only, so "sa" doesn't light up every "Rosa". */
+function well_plp_search_clause(string $q): array {
+    $words = array_values(array_filter(explode(' ', mb_strtolower(trim(preg_replace('/\s+/u', ' ', $q)))), 'strlen'));
+    $w = []; $a = [];
+    foreach ($words as $word) {
+        $x = addcslashes($word, '%_\\');
+        $conds = [];
+        foreach (['name', 'brand', 'COALESCE(keywords,"")'] as $col) {
+            if (mb_strlen($word) >= 3) { $conds[] = "$col LIKE ?"; $a[] = "%$x%"; }
+            else { array_push($conds, "$col LIKE ?", "$col LIKE ?", "$col LIKE ?"); array_push($a, "$x%", "% $x%", "%-$x%"); }
+        }
+        $w[] = '(' . implode(' OR ', $conds) . ')';
+    }
+    return [$w ? implode(' AND ', $w) : '1', $a];
 }
 
 /* Returns [sqlWhere, args]. Every value is bound; nothing is concatenated. */
@@ -142,11 +220,10 @@ function well_plp_where(array $f): array {
     $w = ["status = 'active'"];
     $a = [];
     if (($f['cat'] ?? '') !== '')  { $w[] = 'category = ?';            $a[] = $f['cat']; }
-    if (($f['q'] ?? '') !== '')    { $w[] = '(name LIKE ? OR brand LIKE ? OR COALESCE(keywords,"") LIKE ?)';
-                                     $like = '%' . $f['q'] . '%'; array_push($a, $like, $like, $like); }
+    if (($f['q'] ?? '') !== '')    { [$sw, $sa] = well_plp_search_clause((string) $f['q']); $w[] = "($sw)"; foreach ($sa as $v) $a[] = $v; }
     if (!empty($f['brands']))      { $w[] = 'brand IN (' . implode(',', array_fill(0, count($f['brands']), '?')) . ')';
                                      foreach ($f['brands'] as $b) $a[] = $b; }
-    if (($f['max'] ?? null) !== null) { $w[] = 'price <= ?';           $a[] = $f['max']; }
+    if (($f['max'] ?? null) !== null) { $w[] = 'price <= ? AND price > 0';   $a[] = $f['max']; }   // "under $X" never means "unpriced"
     if (($f['rating'] ?? 0) > 0)   { $w[] = 'rating >= ?';             $a[] = $f['rating']; }
     if (!empty($f['sale']))        { $w[] = '(was IS NOT NULL OR sale_pct IS NOT NULL)'; }
     if (!empty($f['offers']))      { $w[] = '(was IS NOT NULL OR sale_pct IS NOT NULL)'; }
@@ -161,7 +238,7 @@ function well_plp_page(array $f, int $page, int $per = PLP_PER_PAGE): array {
     $order = $sorts[$f['sort'] ?? 'rec'][1] ?? $sorts['rec'][1];
     /* "Recommended" = a fresh shuffle on every visit (searches keep their natural order).
        The seed rides along with the next-page requests so later batches never repeat. */
-    if (($f['sort'] ?? 'rec') === 'rec' && ($f['q'] ?? '') === '') $order = 'RAND(' . (int) ($f['seed'] ?? 1) . '), id';
+    if (($f['sort'] ?? 'rec') === 'rec' && ($f['q'] ?? '') === '') $order = well_plp_shuffle((int) ($f['seed'] ?? 1));
     $off   = max(0, ($page - 1) * $per);
     return rows("SELECT * FROM products $where ORDER BY $order LIMIT " . (int) $per . " OFFSET " . (int) $off, $args);
 }

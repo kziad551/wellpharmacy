@@ -28,7 +28,12 @@
       box.classList.add('is-loading');
 
       return pending = fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
-        .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+        .then(function (r) {
+          /* the session ran out: the slice came back as the login page — go there instead of
+             pasting it into the table */
+          if (r.redirected && /\/login(\?|$)/.test(r.url)) { location.reload(); return Promise.reject('login'); }
+          return r.ok ? r.text() : Promise.reject(r.status);
+        })
         .then(function (html) {
           var t = html.trim();
           if (!t) { finish(); return false; }

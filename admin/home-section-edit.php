@@ -234,7 +234,7 @@ admin_head($editing ? 'Edit section' : 'Add section', 'home-sections', $editing 
 
   // ---- pick specific products for a BRAND section, or for New Arrivals / Trending (all brands) ----
   (function(){
-    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'brand'=>$r['brand'],'img'=>($r['image']!==''?asrc($r['image']):'')], $pickProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+    var ALL = <?= json_encode(array_map(fn($r)=>['id'=>$r['id'],'name'=>$r['name'],'brand'=>$r['brand'],'img'=>($r['image']!==''?asrc($r['image']):'')], $pickProducts), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP) ?>;
     var MODE = <?= json_encode($v['type']==='brand' ? 'brand' : 'all') ?>;              // 'brand' = one brand; 'all' = every brand
     var EMPTY_MSG = <?= json_encode($v['type']==='brand' ? 'Nothing picked — the whole brand shows (newest first).' : ($v['type']==='trending' ? 'Nothing picked — products flagged “Trending” in the product editor will show.' : 'Nothing picked — products flagged “New Arrivals”, topped up with the newest, will show.')) ?>;
     var brandSel = document.querySelector('select[name="brand"]');

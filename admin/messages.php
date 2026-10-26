@@ -11,14 +11,23 @@ if (is_post()) {
     redirect('messages');
 }
 
-$PER   = list_per();
-$page  = list_page();
-$found = (int) val("SELECT COUNT(*) FROM messages");
-$list  = rows("SELECT * FROM messages ORDER BY is_read ASC, created_at DESC LIMIT $PER OFFSET " . list_offset());
-$unread = 0; foreach ($list as $m) if (!$m['is_read']) $unread++;
+/* 50 a page with Older / Newer links (these are cards, not a table, so the shared
+   infinite scroll doesn't apply). Only the first 20 could ever be seen before. */
+$PER    = 50;
+$page   = list_page();
+$found  = (int) val("SELECT COUNT(*) FROM messages");
+$pages  = max(1, (int) ceil($found / $PER));
+$page   = min($page, $pages);
+$list   = rows("SELECT * FROM messages ORDER BY is_read ASC, created_at DESC, id DESC LIMIT $PER OFFSET " . (($page - 1) * $PER));
+$unread = (int) val("SELECT COUNT(*) FROM messages WHERE is_read = 0");
 
 admin_head('Messages', 'messages', list_count_label($found, 'message') . ($unread ? " · $unread unread" : ''));
 ?>
+<?php $pager = $pages > 1 ? '<div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;margin:0 0 14px">'
+    . ($page > 1 ? '<a class="btn btn-ghost btn-sm" href="messages?page=' . ($page - 1) . '">← Newer</a>' : '')
+    . '<span class="muted" style="font-size:12.5px">Page ' . $page . ' of ' . $pages . '</span>'
+    . ($page < $pages ? '<a class="btn btn-ghost btn-sm" href="messages?page=' . ($page + 1) . '">Older →</a>' : '') . '</div>' : '';
+echo $pager; ?>
 <?php if (!$list): ?>
   <div class="a-card"><div class="empty">No messages yet. Contact-form submissions land here.</div></div>
 <?php else: ?>
@@ -57,5 +66,6 @@ admin_head('Messages', 'messages', list_count_label($found, 'message') . ($unrea
     </div>
   <?php endforeach; ?>
 </div>
+<?php echo $pager ? '<div style="margin-top:14px">' . $pager . '</div>' : ''; ?>
 <?php endif; ?>
 <?php admin_foot();

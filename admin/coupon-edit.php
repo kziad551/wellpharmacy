@@ -19,8 +19,9 @@ if (is_post()) {
     $data = [
         'code'        => $code,
         'type'        => $type,
-        'value'       => $type === 'freeship' ? 0 : (float) input('value'),
-        'min_spend'   => (float) input('min_spend'),
+        /* never below 0 (a negative "discount" would raise the total), a percentage never above 100 */
+        'value'       => $type === 'freeship' ? 0 : ($type === 'percent' ? min(100, max(0, (float) input('value'))) : max(0, (float) input('value'))),
+        'min_spend'   => max(0, (float) input('min_spend')),
         'expires_at'  => $expires !== '' ? $expires : null,
         'usage_limit' => $limit,
         'active'      => input('active') ? 1 : 0,

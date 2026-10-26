@@ -6,6 +6,11 @@ if (is_post() && input('action') === 'delete') {
     csrf_check();
     $pid = (string) input('id');
     q("DELETE FROM products WHERE id = ?", [$pid]);
+    /* what pointed at it goes too, or a product created later under the same ID would
+       inherit its reviews and restock list (each table only if this DB has it) */
+    foreach (['reviews', 'restock_alerts', 'customer_wishlist', 'customer_cart'] as $t) {
+        try { q("DELETE FROM $t WHERE product_id = ?", [$pid]); } catch (Throwable $e) {}
+    }
     /* its own free-gift offer goes with it. Offers that GAVE this product away are kept:
        they show as "Gift missing" under Free gifts until someone picks a new gift. */
     $giftNote = '';
@@ -52,6 +57,7 @@ if (is_post() && input('action') === 'bulk') {
         $cnt = (int) val("SELECT COUNT(*) FROM products $w", $a);
         q("UPDATE products SET $set $w", $a);
         flash("$cnt product(s) $word.");
+        $touched = $w ? array_column(rows("SELECT id FROM products $w AND stock > 0", $a), 'id') : null;   // null = every product
     } else {
         $ids = array_values(array_filter(array_map('strval', (array) ($_POST['ids'] ?? []))));
         if ($ids) {
@@ -61,6 +67,16 @@ if (is_post() && input('action') === 'bulk') {
         } else {
             flash('Nothing selected.', 'err');
         }
+        $touched = $ids;
+    }
+    /* Restock: shoppers waiting on a "back in stock" alert for any of these hear about it,
+       as they do when the editor restocks one product (only the products with alerts pending) */
+    if ($op === 'restock') {
+        try {
+            $pending = array_column(rows("SELECT DISTINCT product_id FROM restock_alerts WHERE notified_at IS NULL"), 'product_id');
+            if ($touched !== null) $pending = array_values(array_intersect($pending, $touched));
+            if ($pending) { require_once dirname(__DIR__) . '/inc/mailer.php'; foreach ($pending as $rp) notify_restock((string) $rp); }
+        } catch (Throwable $e) { /* no alerts table / mail trouble: the restock itself is done */ }
     }
     redirect('products' . ($_GET ? '?' . http_build_query($_GET) : ''));
 }

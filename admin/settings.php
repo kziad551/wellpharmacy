@@ -29,12 +29,12 @@ $FIELDS = [
     'smtp_port'            => ['email','text','SMTP port','587 for TLS, 465 for SSL'],
     'smtp_secure'          => ['email','text','Encryption','tls (port 587) or ssl (port 465)'],
     'smtp_user'            => ['email','text','SMTP username','Usually your full email address or provider login'],
-    'smtp_pass'            => ['email','text','SMTP password / API key','Kept server-side only — never shown on the storefront'],
+    'smtp_pass'            => ['email','password','SMTP password / API key','Kept server-side only — never shown on the storefront'],
     'mail_from'            => ['email','text','Send from address','Must be a domain the SMTP provider lets you send as, e.g. orders@wellpharmacy.com'],
     'mail_from_name'       => ['email','text','Send from name','e.g. Well Pharmacy'],
     'admin_notify_email'   => ['email','text','New-order alerts go to','Where YOU get told about every order (guest or account)'],
     'areeba_merchant_id'   => ['payment','text','Areeba Merchant ID','From your Areeba / MPGS account'],
-    'areeba_api_password'  => ['payment','text','Areeba API password','Kept server-side only'],
+    'areeba_api_password'  => ['payment','password','Areeba API password','Kept server-side only'],
     'areeba_gateway_url'   => ['payment','text','Areeba gateway URL',''],
 ];
 $TOGGLES = [
@@ -81,7 +81,7 @@ admin_head('Settings', 'settings', 'Store information, delivery and payment opti
             <?php if ($type === 'textarea'): ?>
               <textarea class="input" name="<?= e($key) ?>" rows="3"><?= e(setting($key)) ?></textarea>
             <?php else: ?>
-              <input class="input" name="<?= e($key) ?>" value="<?= e(setting($key)) ?>">
+              <input class="input" type="<?= $type === 'password' ? 'password' : 'text' ?>" name="<?= e($key) ?>" value="<?= e(setting($key)) ?>" <?= $type === 'password' ? 'autocomplete="new-password"' : '' ?>>
             <?php endif; ?>
             <?php if ($hint): ?><div class="hint"><?= $hint ?></div><?php endif; ?>
           </div>

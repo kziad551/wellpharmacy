@@ -18,7 +18,8 @@ $in = json_decode(file_get_contents('php://input'), true);
 if (!is_array($in)) fail('Bad request.');
 
 $token = (string) ($in['csrf'] ?? '');
-if (!hash_equals($_SESSION['csrf'] ?? '', $token)) fail('Your session expired — please refresh and try again.', 419);
+/* a brand-new session has no token yet; an empty one must never pass (it used to: '' == '') */
+if ($token === '' || !hash_equals($_SESSION['csrf'] ?? '', $token)) fail('Your session expired — please refresh and try again.', 419);
 
 $items = $in['items'] ?? [];
 if (!is_array($items) || !$items) fail('Your bag is empty.');
@@ -85,7 +86,7 @@ try {
         $reqQty = max(1, (int) ($it['qty'] ?? 1));
         if ($pid === '') continue;
         $p = row("SELECT * FROM products WHERE id = ? AND status='active' FOR UPDATE", [$pid]);   // lock the row
-        if (!$p) continue;
+        if (!$p) { $adjust[] = 'An item is no longer sold, removed'; continue; }   // deleted / taken off sale since it went in the bag
         /* variants: validate the chosen color/size/flavor and take the price from the DB, never the client.
            A crafted non-string option (an array) counts as none, not as "Array" plus a PHP warning. */
         $color  = is_scalar($it['color'] ?? null)  ? trim((string) $it['color'])  : '';
@@ -145,6 +146,10 @@ try {
     if ($code !== '') {
         $cv = coupon_validate($code, $subtotal);
         if ($cv['ok']) { $discount = $cv['discount']; $freeship = $cv['freeship']; $couponCode = $cv['code']; }
+        /* the code checked out at checkout but not now (expired at midnight, its last use was
+           taken, the stock cuts above pulled the subtotal under its minimum): never silently
+           charge full price — the confirmation page says why */
+        else $adjust[] = 'Coupon ' . strtoupper($code) . ' could not be applied: ' . rtrim((string) ($cv['err'] ?? 'no longer valid'), '.');
     }
     $shipping = shipping_fee($gov, $subtotal, $freeship);
     $total    = round(max(0, $subtotal - $discount) + $shipping, 2);
@@ -167,12 +172,45 @@ try {
         }
         unset($giftsFor[$p['id']]);
     }
-    if ($couponCode !== '') q("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?", [$couponCode]);
+    /* the use is taken atomically: two orders racing for a code's last use cannot both get it */
+    if ($couponCode !== '') {
+        $st = db()->prepare("UPDATE coupons SET used_count = used_count + 1 WHERE code = ? AND (usage_limit IS NULL OR used_count < usage_limit)");
+        $st->execute([$couponCode]);
+        if ($st->rowCount() === 0) {   // its last use went to someone else a moment ago: this order gets no discount
+            $adjust[] = 'Coupon ' . $couponCode . ' could not be applied: this code is no longer available';
+            $discount = 0.0; $freeship = false; $couponCode = '';
+            $shipping = shipping_fee($gov, $subtotal, false);
+            $total    = round($subtotal + $shipping, 2);
+            q("UPDATE orders SET discount = 0, shipping = ?, total = ?, coupon_code = '' WHERE id = ?", [$shipping, $total, $oid]);
+        }
+    }
     $pdo->commit();
 } catch (Throwable $e) {
     if (db()->inTransaction()) db()->rollBack();
     fail('Sorry — we could not place your order. Please try again.', 500);
 }
+
+/* the saved bag has become an order */
+if ($cid) { try { q("DELETE FROM customer_cart WHERE customer_id = ?", [$cid]); } catch (Throwable $e) {} }
+
+/* remember for the confirmation page (scoped to this visitor's session) */
+$_SESSION['last_order'] = $order_no;
+/* stock is the usual reason, but an option that went or a free gift that ran out are noted here too */
+if ($adjust) $_SESSION['order_note'] = 'Heads up, some items in your bag were adjusted: ' . implode('; ', $adjust) . '.';
+else unset($_SESSION['order_note']);
+
+/* Answer the shopper NOW, before the emails go out. The mail server can take many seconds
+   (20 s timeouts); the shopper's browser used to wait for it, and a dropped connection in
+   that time showed "Network error — try again", whose retry placed the order a second time.
+   The session is written and the response flushed first; the mails follow on their own. */
+$out = json_encode(['ok' => true, 'order_no' => $order_no, 'adjusted' => $adjust]);
+session_write_close();
+header('Content-Length: ' . strlen($out));
+header('Connection: close');
+echo $out;
+if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+else { while (ob_get_level() > 0) ob_end_flush(); flush(); }
+ignore_user_abort(true);
 
 /* ---- notifications ----
    Best-effort and deliberately AFTER the commit: the order is already safe, so a
@@ -183,13 +221,3 @@ try {
     send_order_confirmation($order, $oitems);   // email is required at checkout; the mailer still guards for old rows
     send_admin_order_alert($order, $oitems);    // admin hears about guest AND account orders
 } catch (Throwable $e) { /* ignore — the order stands */ }
-
-/* the saved bag has become an order */
-if ($cid) { try { q("DELETE FROM customer_cart WHERE customer_id = ?", [$cid]); } catch (Throwable $e) {} }
-
-/* remember for the confirmation page (scoped to this visitor's session) */
-$_SESSION['last_order'] = $order_no;
-/* stock is the usual reason, but an option that went or a free gift that ran out are noted here too */
-if ($adjust) $_SESSION['order_note'] = 'Heads up, some items in your bag were adjusted: ' . implode('; ', $adjust) . '.';
-else unset($_SESSION['order_note']);
-echo json_encode(['ok' => true, 'order_no' => $order_no, 'adjusted' => $adjust]);

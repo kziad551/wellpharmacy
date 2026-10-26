@@ -68,7 +68,11 @@ include __DIR__ . '/inc/head.php';
     if (!list.length) { grid.innerHTML = ''; empty.hidden = false; sub.textContent = 'Nothing saved yet.'; return; }
     empty.hidden = true;
     sub.textContent = list.length + (list.length === 1 ? ' saved item' : ' saved items');
-    grid.innerHTML = list.map(function (p) { return WELL.productCard(p); }).join('');
+    /* each card gets a Remove button: the cards themselves carry no heart, so there was no
+       way to un-save an item from this very page */
+    grid.innerHTML = list.map(function (p) {
+      return WELL.productCard(p).replace(/<\/article>\s*$/, '<button type="button" class="btn btn-ghost btn-sm wish-rm" data-wish="' + WELL.esc(p.id) + '" aria-label="Remove from wishlist">✕ Remove</button></article>');
+    }).join('');
     WELL.guardImages(grid);
   }
 

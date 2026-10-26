@@ -11,7 +11,12 @@ if (is_post()) {
     if ($no === '' || $phone === '') {
         $err = 'Enter your order number and the phone you ordered with.';
     } else {
-        $order = row("SELECT * FROM orders WHERE order_no = ? AND phone = ?", [$no, $phone]);
+        /* the order holds the phone as +961XXXXXXX; the shopper types it any way they like
+           ("03 123 456", "+961 3 123456"): compare the digits, without the country code / trunk 0 */
+        $digits = fn(string $s): string => ltrim(preg_replace('/^961/', '', preg_replace('/\D/', '', $s)), '0');
+        $order = null;
+        $cand  = row("SELECT * FROM orders WHERE order_no = ?", [$no]);
+        if ($cand && $digits($phone) !== '' && $digits((string) $cand['phone']) === $digits($phone)) $order = $cand;
         if (!$order) $err = "We couldn't find an order with that number and phone.";
     }
 }

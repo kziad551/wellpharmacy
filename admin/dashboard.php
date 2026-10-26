@@ -5,7 +5,7 @@ $nProducts = (int) val("SELECT COUNT(*) FROM products");
 $nActive   = (int) val("SELECT COUNT(*) FROM products WHERE status='active'");
 $nOrders   = (int) val("SELECT COUNT(*) FROM orders");
 $nNew      = (int) val("SELECT COUNT(*) FROM orders WHERE order_status='new'");
-$revenue   = (float) val("SELECT COALESCE(SUM(total),0) FROM orders WHERE payment_status='paid' OR payment_method='cod'");
+$revenue   = (float) val("SELECT COALESCE(SUM(total),0) FROM orders WHERE (payment_status='paid' OR payment_method='cod') AND order_status <> 'cancelled'");
 $lowStock  = (int) val("SELECT COUNT(*) FROM products WHERE stock <= low_stock AND status='active'");
 $recent    = rows("SELECT * FROM orders ORDER BY created_at DESC LIMIT 8");
 $lowList   = rows("SELECT id, name, stock, low_stock FROM products WHERE stock <= low_stock AND status='active' ORDER BY stock ASC LIMIT 6");

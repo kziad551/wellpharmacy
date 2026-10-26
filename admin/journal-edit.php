@@ -9,6 +9,9 @@ if (is_post()) {
     csrf_check();
     $title = trim((string) input('title'));
     $slug  = slugify((string) (input('slug') ?: $title));
+    if ($slug === '' && $title !== '') $slug = 'post-' . ($editing ? $id : substr(md5($title), 0, 8));
+    /* the slug is UNIQUE: a clash on an edit used to be a blank 500 (only Add checked it) */
+    if ($title !== '' && row("SELECT id FROM journal_posts WHERE slug = ? AND id <> ?", [$slug, $editing ? $id : 0])) { flash('A post with that URL slug already exists — choose another slug.', 'err'); redirect($editing ? "journal-edit?id=$id" : 'journal-edit'); }
     $image = trim((string) input('image'));
     $upErr = null;
     if ($u = save_upload('image_file', $upErr)) $image = $u;
