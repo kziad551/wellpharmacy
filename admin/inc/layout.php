@@ -228,10 +228,11 @@ function admin_foot(): void {
   .a-toast-x{flex:none;border:0;background:transparent;color:#a99f90;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;opacity:0;transition:opacity .15s}
   .a-toast:hover .a-toast-x{opacity:1}
   /* ---- ⓘ field descriptions (shown on hover / focus / tap) ---- */
-  .a-info{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-left:6px;border-radius:50%;border:1.3px solid #b3a996;color:#8a7d6e;
-    box-sizing:border-box;padding:0;cursor:help;vertical-align:-3px;flex:none;user-select:none;transition:background .15s,color .15s,border-color .15s}
-  .a-info svg{width:13px;height:13px;display:block}
-  .a-info:hover,.a-info:focus,.a-info.open{background:#7a6244;border-color:#7a6244;color:#fff;outline:none}
+  .a-info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:5px;padding:0;border-radius:50%;color:#a39783;
+    cursor:help;vertical-align:-4px;flex:none;user-select:none;transition:color .15s}
+  .a-info svg{width:16px;height:16px;display:block}
+  .a-info:hover,.a-info:focus,.a-info.open{color:#7a6244;outline:none}
+  .a-info:focus-visible{box-shadow:0 0 0 2px rgba(122,98,68,.35)}
   .a-card > .hd.has-info{display:flex;align-items:center;gap:8px}
   .a-card > .hd.has-info > .a-info{margin-left:auto}
   .a-tip{position:fixed;z-index:500;max-width:min(320px,calc(100vw - 16px));padding:10px 12px;border-radius:10px;background:#2c261f;color:#f4f0e7;
@@ -450,7 +451,7 @@ window.adminUploadLimits = function () {
   function icon(html){
     var s=document.createElement('span'); s.className='a-info'; s.tabIndex=0; s.setAttribute('role','button'); s.setAttribute('aria-label','More information'); s._html=html;
     /* drawn, not a letter: a font's "i" never sits in the middle of its circle */
-    s.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.4" r="1.15" fill="currentColor"/><rect x="7.05" y="6.5" width="1.9" height="5.6" rx=".95" fill="currentColor"/></svg>';
+    s.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
     s.addEventListener('mouseenter',function(){ show(s); }); s.addEventListener('mouseleave',hide);
     s.addEventListener('focus',function(){ show(s); }); s.addEventListener('blur',hide);
     /* a tap (phones) toggles it; never toggles a checkbox the ⓘ sits in */

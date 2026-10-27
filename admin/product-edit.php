@@ -526,17 +526,22 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       <div class="a-card"><div class="hd"><h2>Pricing &amp; stock</h2></div><div class="bd">
         <div class="f-row">
           <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">The regular price — its <b>primary</b> size. Extra sizes carry their own price under <b>Options</b>. Left blank while the sizes have prices, it becomes the cheapest size's price on save.</div></div>
-          <div class="field"><label>Sale (%)</label><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="e.g. 20">
-            <div class="hint">Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out (Price $10 + 20% sells at $8). The -% badge shows on the product.</div>
-            <div class="hint sale-now" id="saleNow"></div>
-            <?php $saleOptsOn = !array_key_exists('sale_opts', $v) || $v['sale_opts'] === null || (int) $v['sale_opts'] === 1; ?>
-            <label class="switch sale-opts" id="saleOptsWrap" style="margin-top:8px"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount the sizes and the colour / flavour extras</label>
-          </div>
-        </div>
-        <div class="f-row">
           <div class="field"><label>Badge</label><select class="input" name="badge">
             <?php foreach ($BADGES as $bk=>$bl): ?><option value="<?= e($bk) ?>" <?= $bk===$v['badge']?'selected':'' ?>><?= e($bl) ?></option><?php endforeach; ?>
           </select></div>
+        </div>
+        <?php /* the sale: its own strip — the %, then (while a sale is on) what it sells at and whether it covers the options */
+              $saleOptsOn = !array_key_exists('sale_opts', $v) || $v['sale_opts'] === null || (int) $v['sale_opts'] === 1; ?>
+        <div class="field sale-strip">
+          <label for="salePct">Sale (%)</label>
+          <div class="hint">Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out (Price $10 + 20% sells at $8). The -% badge shows on the product.</div>
+          <div class="sale-line">
+            <div class="sale-in"><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="none"><span>%</span></div>
+            <div class="sale-side">
+              <div class="sale-now" id="saleNow"></div>
+              <label class="switch sale-opts" id="saleOptsWrap"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount sizes &amp; colour / flavour extras</label>
+            </div>
+          </div>
         </div>
         <div class="f-row">
           <div class="field"><label>Stock</label><input class="input" type="number" name="stock" value="<?= e($v['stock']) ?>"></div>

@@ -445,8 +445,19 @@ select.input{padding-right:34px}
 .var-rows .var-row .vr-sale{grid-area:sale;overflow:hidden;text-overflow:ellipsis}
 .var-rows .var-row .vr-x{grid-area:x}
 .var-rows .var-row.is-default .vr-basep{width:auto}
-.sale-now{color:#4a7a3a}
+/* the sale strip in Pricing & stock: [ 20 % ]  Sells at $8 (was $10) / ☑ also discount extras */
+.sale-strip{margin:4px 0 16px;padding:12px 14px;border:1px solid var(--a-border);border-radius:12px;background:#faf8f3}
+.sale-strip > label{margin-bottom:8px}
+.sale-line{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.sale-in{position:relative;flex:none;width:110px}
+.sale-in .input{width:100%;padding-right:30px;-moz-appearance:textfield;appearance:textfield}
+.sale-in .input::-webkit-inner-spin-button,.sale-in .input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.sale-in span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--a-soft);font-weight:600;pointer-events:none}
+.sale-side{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.sale-now{font-size:13px;color:#4a7a3a}
+.sale-now:empty{display:none}
+.sale-now s{color:var(--a-faint)}
 .sale-opts[hidden]{display:none}
-label.switch.sale-opts{font-size:12.5px;font-weight:500;line-height:1.35;align-items:flex-start}
+label.switch.sale-opts{margin:0;font-size:12.5px;font-weight:500;line-height:1.35;color:var(--a-soft)}
 .swatch-pick .sw-custom{display:flex;align-items:center;justify-content:center;background:var(--a-primary-tint);color:var(--a-primary);font-size:18px;font-weight:600;box-shadow:none;border:1px dashed var(--a-primary-soft)}
 .swatch-pick .sw-custom .sw-cin{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
