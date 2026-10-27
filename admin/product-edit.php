@@ -539,9 +539,9 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
             <div class="sale-in"><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="none"><span>%</span></div>
             <div class="sale-side">
               <div class="sale-now" id="saleNow"></div>
-              <label class="switch sale-opts" id="saleOptsWrap"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount sizes &amp; extras</label>
             </div>
           </div>
+          <label class="switch sale-opts" id="saleOptsWrap"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>><span>Also discount sizes &amp; colour / flavour extras</span></label>
         </div>
         <div class="f-row">
           <div class="field"><label>Stock</label><input class="input" type="number" name="stock" value="<?= e($v['stock']) ?>"></div>

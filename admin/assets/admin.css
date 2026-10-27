@@ -458,7 +458,9 @@ select.input{padding-right:34px}
 .sale-now:empty{display:none}
 .sale-now s{color:var(--a-faint)}
 .sale-opts[hidden]{display:none}
-label.switch.sale-opts{margin:0;gap:8px;align-items:center;font-size:13px;font-weight:500;line-height:1;color:var(--a-ink);white-space:nowrap}
-label.switch.sale-opts input{width:16px;height:16px;margin:0}
+/* its own line under the % box; the text box is exactly the tick's height, so both sit on one centre line */
+label.switch.sale-opts{display:flex;align-items:center;gap:8px;margin:10px 0 0;min-height:0;padding:0;font-size:13px;font-weight:500;color:var(--a-ink)}
+label.switch.sale-opts input{width:16px;height:16px;margin:0;flex:none}
+label.switch.sale-opts span{display:block;line-height:16px}
 .swatch-pick .sw-custom{display:flex;align-items:center;justify-content:center;background:var(--a-primary-tint);color:var(--a-primary);font-size:18px;font-weight:600;box-shadow:none;border:1px dashed var(--a-primary-soft)}
 .swatch-pick .sw-custom .sw-cin{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
