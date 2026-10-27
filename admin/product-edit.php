@@ -811,7 +811,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     function done(){
       if(--pending>0) return;
       var parts=[];
-      if(added) parts.push(added+' added');
+      if(added) parts.push(added===1?'Image added':added+' images added');
       if(dup)   parts.push(dup+' duplicate'+(dup>1?'s':'')+' skipped');
       if(bad)   parts.push(bad+' unsupported/too-large skipped');
       say(parts.join(' · ')||'Nothing added', !(dup||bad));

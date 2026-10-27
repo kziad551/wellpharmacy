@@ -223,7 +223,7 @@ admin_head('Edit Hero', 'home-sections', 'The banner at the top of your home pag
       });
     })).then(function(){
       render();
-      var parts=[]; if(added) parts.push(added+' added'); if(dup) parts.push(dup+' duplicate'+(dup>1?'s':'')+' skipped'); if(bad) parts.push(bad+' unsupported/too-large skipped');
+      var parts=[]; if(added) parts.push(added===1?'Image added':added+' images added'); if(dup) parts.push(dup+' duplicate'+(dup>1?'s':'')+' skipped'); if(bad) parts.push(bad+' unsupported/too-large skipped');
       var total=items.reduce(function(s,it){ return s+(typeof it==='string'?0:it.file.size); },0);
       if(lim.post && total>lim.post*0.85) parts.push('these new photos add up to '+(total/1048576).toFixed(1)+' MB — save now, then add the rest');
       say(parts.join(' · ')||'Nothing added', !(dup||bad) && !(lim.post && total>lim.post*0.85));
