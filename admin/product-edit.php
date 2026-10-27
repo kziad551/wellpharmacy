@@ -708,6 +708,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   .var-groups>.field{margin-bottom:0}
   .var-groups>.field+.field{margin-top:18px;padding-top:18px;border-top:1px solid var(--a-border2)}
   .flv-head[hidden]{display:none}
+  .flv-head{margin-bottom:16px}
   .flv-name{display:flex;align-items:center;gap:10px}
   .field .flv-name label{flex:none;margin:0;font-size:12.5px;font-weight:500;color:var(--a-soft)}
   .flv-name .input{flex:1;min-width:0;max-width:240px}
@@ -885,6 +886,13 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     var pi=row.querySelector('.vr-price'); if(pi) pi.insertAdjacentElement('afterend',s);
   }
   var wasField=document.getElementById('wasField');
+  /* the primary size's price is the product price: the sale always applies to it */
+  function baseSale(row){
+    var old=row.querySelector('.vr-sale'); if(old) old.remove();
+    var n=base(); if(saleF()>=1||!(n>0)) return;
+    var s=document.createElement('span'); s.className='vr-sale'; s.title='Price during the sale'; s.textContent='→ $'+fmt(onSale(n));
+    var pi=row.querySelector('.vr-price'); if(pi) pi.insertAdjacentElement('afterend',s);
+  }
   function paintSale(){
     var f=saleF();
     if(saleOptsWrap) saleOptsWrap.hidden = f>=1;
@@ -892,7 +900,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     if(wasField) wasField.closest('.field').hidden = f<1;
     if(saleNow) saleNow.innerHTML = (f<1 && base()>0)
       ? 'Sells at <b>$'+fmt(onSale(base()))+'</b> with <s>$'+fmt(base())+'</s> crossed out.' : '';
-    document.querySelectorAll('.var-rows').forEach(function(r){ r.classList.toggle('has-sale', saleOnOpts()); });
+    document.querySelectorAll('.var-rows').forEach(function(r){ r.classList.toggle('has-sale', f<1); });
   }
   function saleChanged(){ paintSale(); renderSizes(); renderCols(); renderFlvs(); }
   if(salePct) salePct.addEventListener('input',saleChanged);
@@ -992,15 +1000,21 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         '<button type="button" class="btn btn-ghost btn-sm" id="addDefault">Add a default size</button>';
       d.querySelector('#addDefault').addEventListener('click',function(){ noDefault=false; if(sizeInput&&sizeInput.value.trim()) defLabel=sizeInput.value.trim(); renderSizes(); if(sizeInput&&!sizeInput.value.trim()) sizeInput.focus(); });
     } else {
-      d.innerHTML='<span class="vr-dot vr-star">*</span>'+
-        (nm ? '<span class="vr-name">'+esc(nm)+'</span>'
-            : '<span class="vr-name vr-name-empty">'+DEF_EMPTY+'</span>')+
-        '<span class="vr-tag" title="The primary size: the product opens with it, at the price above">★ Primary</span><span class="vr-basep">$'+fmt(base())+(saleF()<1&&base()>0?' → $'+fmt(onSale(base())):'')+'</span>'+
-        (base()<=0 && extras.length ? '<span class="vr-warn">Price is blank — set it above, the Default size sells at it (else the cheapest size\'s price is used)</span>' : '')+
-        (extras.length ? '<button type="button" class="vr-x" id="dropDefault" title="No default size — sell only the sizes below">&times;</button>' : '');
-      var dd=d.querySelector('#dropDefault'); if(dd) dd.addEventListener('click',function(){ noDefault=true; renderSizes(); });
+      /* the primary size: a row like every other option row. Its name IS the "Size" field and
+         its price IS the product "Price" — typing in either place updates the other */
+      d.className='var-row is-primary';
+      d.innerHTML='<span class="vr-dot"></span>'+
+        '<input class="input vr-label" placeholder="e.g. 50 ml" value="'+esc(nm)+'" aria-label="Primary size name">'+
+        '<span class="vr-pfx">$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(base()>0?esc(fmt(base())):'')+'" placeholder="price" aria-label="Primary size price (the product price)">'+
+        (extras.length ? '<button type="button" class="vr-x" title="No primary size — sell only the sizes below">&times;</button>' : '');
+      d.insertBefore(imgBtn(function(){return defImg;},function(v){ defImg=v; saveImgs(); }), d.querySelector('.vr-label'));
+      d.insertBefore(primBtn(0,function(){}), d.querySelector('.vr-pfx'));
+      var dl=d.querySelector('.vr-label'), dp=d.querySelector('.vr-price');
+      dl.addEventListener('input',function(){ if(sizeInput) sizeInput.value=dl.value; defLabel=dl.value.trim(); saveSizes(); });
+      dp.addEventListener('input',function(){ if(priceInput) priceInput.value=dp.value; paintSale(); baseSale(d); });
+      baseSale(d);
+      var dx=d.querySelector('.vr-x'); if(dx) dx.addEventListener('click',function(){ noDefault=true; renderSizes(); });
     }
-    if(!noDefault && extras.length){ var dn=d.querySelector('.vr-name'); d.insertBefore(imgBtn(function(){return defImg;},function(v){ defImg=v; saveImgs(); }), dn); }
     sizeWrap.appendChild(d);
     extras.forEach(function(x,idx){
       var row=document.createElement('div'); row.className='var-row';
@@ -1029,7 +1043,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     if(priceInput) priceInput.value=fmt(x.price||0);
     renderSizes(); paintSale();
   }
-  if(sizeInput) sizeInput.addEventListener('input',function(){ defLabel=sizeInput.value.trim(); var n=sizeWrap.querySelector('.is-default .vr-name'); if(n){ var v=sizeInput.value.trim(); n.textContent=v||DEF_EMPTY; n.classList.toggle('vr-name-empty',!v); } saveSizes(); });
+  if(sizeInput) sizeInput.addEventListener('input',function(){ defLabel=sizeInput.value.trim(); var n=sizeWrap.querySelector('.is-primary .vr-label'); if(n && document.activeElement!==n) n.value=sizeInput.value; saveSizes(); });
   renderSizes();
 
   /* ===== COLOURS: click a swatch to add it (name auto-filled), optional +$ surcharge ===== */

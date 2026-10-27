@@ -43,3 +43,20 @@ RewriteRule ^ 404.php [L]
     Require all denied
   </If>
 </FilesMatch>
+
+# photo uploads: the host's PHP default is 2M a photo / 8M a save. The live server runs PHP
+# through LiteSpeed LSAPI, which reads php_value here and ignores .user.ini. Kept OUTSIDE
+# cPanel's "php ini directives" block so its MultiPHP INI Editor never rewrites it.
+# (No effect on a local XAMPP copy: neither module exists there.)
+<IfModule lsapi_module>
+   php_value upload_max_filesize 20M
+   php_value post_max_size 64M
+   php_value max_file_uploads 50
+   php_value memory_limit 256M
+</IfModule>
+<IfModule php8_module>
+   php_value upload_max_filesize 20M
+   php_value post_max_size 64M
+   php_value max_file_uploads 50
+   php_value memory_limit 256M
+</IfModule>

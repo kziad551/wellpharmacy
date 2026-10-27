@@ -228,8 +228,9 @@ function admin_foot(): void {
   .a-toast-x{flex:none;border:0;background:transparent;color:#a99f90;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;opacity:0;transition:opacity .15s}
   .a-toast:hover .a-toast-x{opacity:1}
   /* ---- ⓘ field descriptions (shown on hover / focus / tap) ---- */
-  .a-info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;border-radius:50%;border:1.3px solid #b3a996;color:#8a7d6e;
-    font:italic 700 10.5px/1 Georgia,serif;cursor:help;vertical-align:1px;flex:none;user-select:none;transition:background .15s,color .15s,border-color .15s}
+  .a-info{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-left:6px;border-radius:50%;border:1.3px solid #b3a996;color:#8a7d6e;
+    box-sizing:border-box;padding:0;cursor:help;vertical-align:-3px;flex:none;user-select:none;transition:background .15s,color .15s,border-color .15s}
+  .a-info svg{width:13px;height:13px;display:block}
   .a-info:hover,.a-info:focus,.a-info.open{background:#7a6244;border-color:#7a6244;color:#fff;outline:none}
   .a-card > .hd.has-info{display:flex;align-items:center;gap:8px}
   .a-card > .hd.has-info > .a-info{margin-left:auto}
@@ -447,7 +448,9 @@ window.adminUploadLimits = function () {
     tip.style.left=left+'px'; tip.style.top=top+'px';
   }
   function icon(html){
-    var s=document.createElement('span'); s.className='a-info'; s.tabIndex=0; s.setAttribute('role','button'); s.setAttribute('aria-label','More information'); s.textContent='i'; s._html=html;
+    var s=document.createElement('span'); s.className='a-info'; s.tabIndex=0; s.setAttribute('role','button'); s.setAttribute('aria-label','More information'); s._html=html;
+    /* drawn, not a letter: a font's "i" never sits in the middle of its circle */
+    s.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.4" r="1.15" fill="currentColor"/><rect x="7.05" y="6.5" width="1.9" height="5.6" rx=".95" fill="currentColor"/></svg>';
     s.addEventListener('mouseenter',function(){ show(s); }); s.addEventListener('mouseleave',hide);
     s.addEventListener('focus',function(){ show(s); }); s.addEventListener('blur',hide);
     /* a tap (phones) toggles it; never toggles a checkbox the ⓘ sits in */
