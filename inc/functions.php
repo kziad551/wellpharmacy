@@ -305,39 +305,80 @@ function parse_variant_opts(?string $s): array {
     return $out;
 }
 
+/* ---- SALE ----
+   "Sale badge (%)" is a real discount: Price $10 + Sale 20% sells at $8.00, with $10.00
+   crossed out. products.price always holds the REGULAR price; the discount is applied
+   here, at read time, so editing the sale never rewrites the price. sale_opts (on unless
+   switched off) says whether the sale also covers the sizes' own prices and the colour /
+   flavour extras. Every price reader below takes $regular = true for the undiscounted one. */
+function product_sale_factor(array $p): float {
+    $s = (int) ($p['sale_pct'] ?? 0);
+    return ($s > 0 && $s < 100) ? (100 - $s) / 100 : 1.0;
+}
+function product_sale_covers_opts(array $p): bool {
+    return !array_key_exists('sale_opts', $p) || $p['sale_opts'] === null || (int) $p['sale_opts'] === 1;
+}
+/** An option's price (a size's own price, a colour/flavour extra) as sold right now. */
+function sale_opt_price(array $p, ?float $v, bool $regular = false): ?float {
+    if ($v === null || $regular || !product_sale_covers_opts($p)) return $v;
+    $f = product_sale_factor($p);
+    return $f < 1 ? round($v * $f, 2) : $v;
+}
+
 /* The price a product sells at before any option is picked. Normally products.price.
    When that is 0 but the SIZES carry prices (the owner priced "30 ml|9.90 / 50 ml|14.50"
    and left the base price blank), the cheapest priced size stands in for it, so the
    product is for sale at its options' prices instead of reading "Price coming soon"
    everywhere. 0 = genuinely unpriced. Every price reader (cards, product page, the
-   feed, checkout) goes through here so they can never disagree. */
-function product_base_price(array $p): float {
+   feed, checkout) goes through here so they can never disagree. A sale is applied. */
+function product_base_price(array $p, bool $regular = false): float {
     $base = (float) ($p['price'] ?? 0);
-    if ($base > 0) return $base;
+    $f = $regular ? 1.0 : product_sale_factor($p);
+    if ($base > 0) return $f < 1 ? round($base * $f, 2) : $base;
     $priced = [];
     foreach (parse_variant_opts($p['opt_sizes'] ?? '') as $o) if ($o['price'] !== null && $o['price'] > 0) $priced[] = (float) $o['price'];
-    return $priced ? round(min($priced), 2) : 0.0;
+    return $priced ? (float) sale_opt_price($p, round(min($priced), 2), $regular) : 0.0;
 }
 
 /* The sizes a product can be SOLD in. A size with no price of its own sells at the base
    price — so while the base price is blank, such a size has no price at all and is left
    out (never sold at some other size's price); the priced ones stay for sale. Every seller
-   of sizes (cards, product page, feed, checkout) reads this, not the raw column. */
-function product_sizes(array $p): array {
+   of sizes (cards, product page, feed, checkout) reads this, not the raw column. Prices
+   come with the sale applied (when it covers the options). */
+function product_sizes(array $p, bool $regular = false): array {
     $sizes = parse_variant_opts($p['opt_sizes'] ?? '');
-    if ((float) ($p['price'] ?? 0) > 0) return $sizes;
-    return array_values(array_filter($sizes, fn($o) => $o['price'] !== null && $o['price'] > 0));
+    if ((float) ($p['price'] ?? 0) <= 0) $sizes = array_values(array_filter($sizes, fn($o) => $o['price'] !== null && $o['price'] > 0));
+    return array_map(fn($o) => ['label' => $o['label'], 'price' => sale_opt_price($p, $o['price'], $regular)], $sizes);
+}
+/** The colours / flavours with their extras as sold right now (the sale applied when it covers them). */
+function product_colors(array $p, bool $regular = false): array {
+    return array_map(fn($o) => ['label' => $o['label'], 'price' => sale_opt_price($p, $o['price'], $regular)], parse_variant_opts($p['opt_colors'] ?? ''));
+}
+function product_flavors(array $p, bool $regular = false): array {
+    return array_map(fn($o) => ['label' => $o['label'], 'price' => sale_opt_price($p, $o['price'], $regular)], parse_variant_opts($p['opt_flavors'] ?? ''));
+}
+
+/* The crossed-out price next to the price a product opens at, or null for none: under a
+   sale, the same choice at its regular price; otherwise the "Was" the admin typed — which
+   belongs to the plain base price, so it only shows when no colour/flavour extra is in. */
+function product_display_was(array $p): ?float {
+    $now = product_default_price($p);
+    if ($now <= 0) return null;
+    if (product_sale_factor($p) < 1) { $reg = product_default_price($p, true); return $reg > $now + 0.005 ? $reg : null; }
+    $was = ($p['was'] ?? null) !== null && $p['was'] !== '' ? (float) $p['was'] : 0.0;
+    return ($was > $now + 0.005 && abs($now - product_base_price($p)) < 0.005) ? $was : null;
 }
 
 /* Resolve the effective unit price for a chosen color/size against a product row.
    Size price wins, then color price, else the base price. Also returns a display
    label ("White · 50 ml"). Server-side source of truth — never trust a client price.
    Flavors work like colors: one must be picked when the product has any, and its
-   surcharge is added on top of the color's. The label reads color, flavor, size. */
+   surcharge is added on top of the color's. The label reads color, flavor, size.
+   Every price here has the sale applied (product_sizes / _colors / _flavors). */
 function variant_resolve(array $p, string $color, string $size, string $flavor = ''): array {
-    $colors  = parse_variant_opts($p['opt_colors'] ?? '');
+    $colors  = product_colors($p);
     $sizes   = product_sizes($p);
-    $flavors = parse_variant_opts($p['opt_flavors'] ?? '');
+    $flavors = product_flavors($p);
     $base      = product_base_price($p);   // the SIZE sets the price...
     $surcharge = 0.0;                    // ...and the COLOR and FLAVOR add optional surcharges on top
     $clabel = ''; $zlabel = ''; $flabel = '';
@@ -357,11 +398,11 @@ function variant_resolve(array $p, string $color, string $size, string $flavor =
    PRIMARY flavour's extra. The primary one is the first in its list (the admin's
    "Make primary" moves an option to the top), so a product with colours and flavours is
    always ready to buy as it opens, and its card shows that same price. */
-function product_default_price(array $p): float {
-    $base = product_base_price($p);
+function product_default_price(array $p, bool $regular = false): float {
+    $base = product_base_price($p, $regular);
     if ($base <= 0) return 0.0;
-    $c = parse_variant_opts($p['opt_colors'] ?? '');
-    $f = parse_variant_opts($p['opt_flavors'] ?? '');
+    $c = product_colors($p, $regular);
+    $f = product_flavors($p, $regular);
     $sur = ($c && $c[0]['price'] !== null ? (float) $c[0]['price'] : 0.0) + ($f && $f[0]['price'] !== null ? (float) $f[0]['price'] : 0.0);
     return round($base + $sur, 2);
 }
@@ -416,8 +457,8 @@ function flavor_group_name(array $p): string {
 function variant_from_price(array $p): float {
     $base   = product_base_price($p);
     $sizes  = product_sizes($p);
-    $colors = parse_variant_opts($p['opt_colors'] ?? '');
-    $flavors = parse_variant_opts($p['opt_flavors'] ?? '');
+    $colors = product_colors($p);
+    $flavors = product_flavors($p);
     $baseMin = $sizes  ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $base, $sizes)) : $base;
     $surMin  = $colors ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0,  $colors)) : 0.0;
     $flvMin  = $flavors ? min(array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : 0.0, $flavors)) : 0.0;

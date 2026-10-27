@@ -68,7 +68,7 @@ function well_product_card(array $p): string {
        and flavour (product_default_price) — the same price the product page shows */
     $fromLbl = '';
     if (!$noPrice) $price = product_default_price($p);
-    if ($was !== null && abs($price - product_base_price($p)) > 0.005) $was = null;   // the old price was the base price's
+    $was = $noPrice ? null : product_display_was($p);   // a sale's regular price, or the typed "Was" (base price only)
 
     if ($noPrice) {
         $priceHtml = '<span class="price price-tba">Price coming soon</span>';

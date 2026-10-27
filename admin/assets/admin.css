@@ -421,7 +421,16 @@ select.input{padding-right:34px}
 .swatch-pick{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
 .swatch-pick .sw{flex:none;width:28px;height:28px;border-radius:9px;border:1px solid rgba(0,0,0,.15);cursor:pointer;padding:0;position:relative;overflow:hidden;box-shadow:inset 0 0 0 2px #fff;transition:transform .08s}
 .swatch-pick .sw:hover{transform:scale(1.08)}
-.swatch-pick .sw.used{opacity:.32;cursor:default;transform:none}
-.swatch-pick .sw.used::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#333}
+/* ticked = the product has this colour; click again to take it off (it stays in the row) */
+.swatch-pick .sw.used{box-shadow:inset 0 0 0 2px #fff,0 0 0 2px var(--a-primary)}
+.swatch-pick .sw.used::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.75)}
+.swatch-pick .sw-custom.open{background:var(--a-primary);color:#fff}
+.swatch-pick .sw-add{flex:1 1 100%;display:flex;gap:8px;align-items:center;padding:8px;border:1px dashed var(--a-border);border-radius:10px;background:#faf9f6}
+.swatch-pick .sw-add input[type=color]{flex:none;width:40px;height:36px;padding:0;border:1px solid var(--a-border);border-radius:8px;background:#fff;cursor:pointer}
+.swatch-pick .sw-add .input{flex:1;min-width:0}
+/* sale: what a priced option sells at during the sale */
+.var-row .vr-sale{flex:none;font-size:12px;font-weight:700;color:#b04a2f;white-space:nowrap}
+.sale-now{color:#4a7a3a}
+.sale-opts[hidden]{display:none}
 .swatch-pick .sw-custom{display:flex;align-items:center;justify-content:center;background:var(--a-primary-tint);color:var(--a-primary);font-size:18px;font-weight:600;box-shadow:none;border:1px dashed var(--a-primary-soft)}
 .swatch-pick .sw-custom .sw-cin{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}

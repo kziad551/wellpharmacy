@@ -232,6 +232,7 @@ if (is_post()) {
     $price = (float) input('price');
     $was   = input('was') !== '' ? (float) input('was') : null;
     $sale  = input('sale_pct') !== '' ? (int) input('sale_pct') : null;
+    if ($sale !== null && ($sale <= 0 || $sale >= 100)) $sale = null;   // a sale is 1-99 %; 0 or blank = no sale
     /* Price left blank while the sizes carry prices (the owner priced the options, not the
        product): the cheapest priced size becomes the price, so the product is for sale
        instead of reading "Price coming soon" everywhere. The Default size then sells at
@@ -314,6 +315,15 @@ if (is_post()) {
             }
         }
     }
+    /* the admin's own colours (name + #hex), kept so an unticked one stays in the swatch row */
+    if (is_array($rawImgs) && is_array($rawImgs['palette'] ?? null)) {
+        $pal = [];
+        foreach (array_slice($rawImgs['palette'], 0, 40) as $c) {
+            $n = mb_substr(trim(str_replace('|', '', (string) ($c['name'] ?? ''))), 0, 40); $h = strtolower((string) ($c['hex'] ?? ''));
+            if ($n !== '' && preg_match('/^#[0-9a-f]{6}$/', $h)) $pal[] = ['name' => $n, 'hex' => $h];
+        }
+        if ($pal) $optImgs['palette'] = $pal;
+    }
     $optImgsJson = array_filter($optImgs) ? json_encode($optImgs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
 
     /* short columns are cut to their width here: the live MySQL runs strict, where a value
@@ -335,6 +345,7 @@ if (is_post()) {
     ];
     /* option photos need db/migrate-option-images.php; until it has run the product still saves */
     if (product_has_col('opt_images')) $data['opt_images'] = $optImgsJson;
+    if (product_has_col('sale_opts'))  $data['sale_opts']  = input('sale_opts') ? 1 : 0;   // does the sale cover sizes + extras
 
     /* The base price is the STANDARD (default) size's price and is stored as typed —
        never overwritten. The cheapest option is shown as "from $X" on cards / the product
@@ -514,11 +525,15 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     <div style="display:flex;flex-direction:column;gap:18px">
       <div class="a-card"><div class="hd"><h2>Pricing &amp; stock</h2></div><div class="bd">
         <div class="f-row">
-          <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">What the product sells at — its <b>Default</b> size. Extra sizes carry their own price under <b>Options</b>. Left blank while the sizes have prices, it becomes the cheapest size's price on save.</div></div>
-          <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" value="<?= e($v['was']) ?>" placeholder="if on sale"></div>
+          <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">The regular price — its <b>primary</b> size. Extra sizes carry their own price under <b>Options</b>. Left blank while the sizes have prices, it becomes the cheapest size's price on save.</div></div>
+          <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" id="wasField" value="<?= e($v['was']) ?>" placeholder="optional"><div class="hint" id="wasHint">A crossed-out old price to show next to the price. Not needed for a sale — the sale % does it.</div></div>
         </div>
         <div class="f-row">
-          <div class="field"><label>Sale badge (%)</label><input class="input" type="number" name="sale_pct" value="<?= e($v['sale_pct']) ?>" placeholder="e.g. 20"></div>
+          <div class="field"><label>Sale (%)</label><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="e.g. 20">
+            <div class="hint sale-now" id="saleNow"></div>
+            <?php $saleOptsOn = !array_key_exists('sale_opts', $v) || $v['sale_opts'] === null || (int) $v['sale_opts'] === 1; ?>
+            <label class="switch sale-opts" id="saleOptsWrap" style="margin-top:8px"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount the sizes and the colour / flavour extras</label>
+          </div>
           <div class="field"><label>Badge</label><select class="input" name="badge">
             <?php foreach ($BADGES as $bk=>$bl): ?><option value="<?= e($bk) ?>" <?= $bk===$v['badge']?'selected':'' ?>><?= e($bl) ?></option><?php endforeach; ?>
           </select></div>
@@ -625,7 +640,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
             <input type="hidden" name="opt_images" id="optImages" value="<?= e((string) ($v['opt_images'] ?? '')) ?>">
             <div id="sizeRows" class="var-rows"></div>
             <button type="button" class="btn btn-ghost btn-sm" id="addSize"><?= aicon('plus') ?> Add size</button>
-            <div class="hint">The <b>Default</b> row is the product at its base price (its name is the <b>Size</b> field). Extra sizes get their own price. Sizes only apply once you add at least one extra size. Remove the Default row (×) when every size has its own price.</div></div>
+            <div class="hint">The <b>★ Primary</b> size is the product at its price above (its name is the <b>Size</b> field); the product opens with it. Extra sizes get their own price — click <b>☆</b> on one to make it the primary size. Sizes only apply once you add at least one extra size. Remove the primary row (×) when every size has its own price.</div></div>
         </div>
       </div></div>
 
@@ -854,13 +869,39 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       var pr=l.slice(i+1).trim(); return {label:l.slice(0,i).trim(), price: pr===''?null:parseFloat(pr)};
     }).filter(function(o){return o.label;});
   }
+  /* ===== SALE: the % lowers the price; optionally the sizes' prices and the extras too.
+     Each priced row shows what it sells at during the sale ("→ $4"). ===== */
+  var salePct=document.getElementById('salePct'), saleOpts=document.getElementById('saleOpts'),
+      saleOptsWrap=document.getElementById('saleOptsWrap'), saleNow=document.getElementById('saleNow');
+  function saleF(){ var s=parseInt(salePct&&salePct.value,10); return (s>0&&s<100)?(100-s)/100:1; }
+  function saleOnOpts(){ return saleF()<1 && !!(saleOpts&&saleOpts.checked); }
+  function onSale(v){ return Math.round(v*saleF()*100)/100; }
+  /* the "→ $x" after a row's price input (sizes' own prices and the extras) */
+  function rowSale(row,v){
+    var old=row.querySelector('.vr-sale'); if(old) old.remove();
+    var n=parseFloat(v); if(!saleOnOpts()||!(n>0)) return;
+    var s=document.createElement('span'); s.className='vr-sale'; s.title='Price during the sale'; s.textContent='→ $'+fmt(onSale(n));
+    var pi=row.querySelector('.vr-price'); if(pi) pi.insertAdjacentElement('afterend',s);
+  }
+  function paintSale(){
+    var f=saleF();
+    if(saleOptsWrap) saleOptsWrap.hidden = f>=1;
+    if(saleNow) saleNow.innerHTML = (f<1 && base()>0)
+      ? 'Sells at <b>$'+fmt(onSale(base()))+'</b> with <s>$'+fmt(base())+'</s> crossed out.'
+      : 'Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out.';
+  }
+  function saleChanged(){ paintSale(); renderSizes(); renderCols(); renderFlvs(); }
+  if(salePct) salePct.addEventListener('input',saleChanged);
+  if(saleOpts) saleOpts.addEventListener('change',saleChanged);
+  if(priceInput) priceInput.addEventListener('input',paintSale);
+
   /* ===== SIZES: one permanent Default (base price, no remove) + extra priced sizes ===== */
   /* ===== OPTION PHOTOS: a photo per colour / flavour / size, shown when the shopper picks it =====
      Each row keeps its photo (row.img); saveImgs() writes {"color":{label:photo},…} to opt_images.
      A photo is one of the product's own (main, hover, gallery) or a new one, which joins the gallery. */
   var imgHidden=document.getElementById('optImages');
   var IMG={color:{},flavor:{},size:{}};
-  try{ var ij=JSON.parse((imgHidden&&imgHidden.value)||'{}'); ['color','flavor','size'].forEach(function(g){ if(ij&&ij[g]&&typeof ij[g]==='object') IMG[g]=ij[g]; }); }catch(e){}
+  try{ var ij=JSON.parse((imgHidden&&imgHidden.value)||'{}'); ['color','flavor','size'].forEach(function(g){ if(ij&&ij[g]&&typeof ij[g]==='object') IMG[g]=ij[g]; }); if(ij&&Array.isArray(ij.palette)) IMG.palette=ij.palette; }catch(e){}
   var defImg='';
   function saveImgs(){
     if(!imgHidden) return;
@@ -869,6 +910,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     (flvs||[]).forEach(function(f){ var l=String(f.label).trim(); if(l&&f.img) o.flavor[l]=f.img; });
     if(!noDefault && defImg){ o.size[curDef()||'Standard']=defImg; }
     (extras||[]).forEach(function(x){ var l=String(x.label).trim(); if(l&&x.img) o.size[l]=x.img; });
+    if(typeof CUSTOM!=='undefined' && CUSTOM.length) o.palette=CUSTOM;   // own colours stay in the swatch row
     imgHidden.value=JSON.stringify(o);
   }
   var CAM='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
@@ -949,7 +991,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       d.innerHTML='<span class="vr-dot vr-star">*</span>'+
         (nm ? '<span class="vr-name">'+esc(nm)+'</span>'
             : '<span class="vr-name vr-name-empty">'+DEF_EMPTY+'</span>')+
-        '<span class="vr-tag">Default</span><span class="vr-basep">$'+fmt(base())+'</span>'+
+        '<span class="vr-tag" title="The primary size: the product opens with it, at the price above">★ Primary</span><span class="vr-basep">$'+fmt(base())+(saleF()<1&&base()>0?' → $'+fmt(onSale(base())):'')+'</span>'+
         (base()<=0 && extras.length ? '<span class="vr-warn">Price is blank — set it above, the Default size sells at it (else the cheapest size\'s price is used)</span>' : '')+
         (extras.length ? '<button type="button" class="vr-x" id="dropDefault" title="No default size — sell only the sizes below">&times;</button>' : '');
       var dd=d.querySelector('#dropDefault'); if(dd) dd.addEventListener('click',function(){ noDefault=true; renderSizes(); });
@@ -964,7 +1006,10 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         '<button type="button" class="vr-x" title="Remove">&times;</button>';
       row.insertBefore(imgBtn(function(){return extras[idx].img||'';},function(v){ extras[idx].img=v; saveImgs(); }), row.querySelector('.vr-label'));
       row.querySelector('.vr-label').addEventListener('input',function(e){ extras[idx].label=e.target.value; saveSizes(); });
-      row.querySelector('.vr-price').addEventListener('input',function(e){ extras[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveSizes(); });
+      row.querySelector('.vr-price').addEventListener('input',function(e){ extras[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveSizes(); rowSale(row,extras[idx].price); });
+      rowSale(row,x.price);
+      /* ☆ makes this size the primary one: it becomes the product's price + "Size", and the old primary joins the list */
+      row.insertBefore(primBtn(idx+1,function(){ makePrimarySize(idx); }), row.querySelector('.vr-pfx'));
       row.querySelector('.vr-x').addEventListener('click',function(){ extras.splice(idx,1); saveSizes(); renderSizes(); });
       sizeWrap.appendChild(row);
     });
@@ -972,12 +1017,21 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   }
   document.getElementById('addSize').addEventListener('click',function(){ extras.push({label:'',price:base()}); renderSizes(); var l=sizeWrap.querySelector('.var-row:last-child .vr-label'); if(l) l.focus(); });
   if(priceInput) priceInput.addEventListener('input',renderSizes);   // the Default row shows the price (and warns while it is blank)
+  function makePrimarySize(idx){
+    var x=extras.splice(idx,1)[0];
+    if(!noDefault) extras.unshift({label:curDef()||'Standard', price:base(), img:defImg});
+    noDefault=false; defImg=x.img||''; defLabel=x.label;
+    if(sizeInput) sizeInput.value=x.label;
+    if(priceInput) priceInput.value=fmt(x.price||0);
+    renderSizes(); paintSale();
+  }
   if(sizeInput) sizeInput.addEventListener('input',function(){ defLabel=sizeInput.value.trim(); var n=sizeWrap.querySelector('.is-default .vr-name'); if(n){ var v=sizeInput.value.trim(); n.textContent=v||DEF_EMPTY; n.classList.toggle('vr-name-empty',!v); } saveSizes(); });
   renderSizes();
 
   /* ===== COLOURS: click a swatch to add it (name auto-filled), optional +$ surcharge ===== */
   var PALETTE=[['White','#ffffff'],['Black','#222222'],['Grey','#9ca3af'],['Silver','#cdd2d8'],['Red','#e23b3b'],['Pink','#f3a7c4'],['Orange','#f39a3e'],['Yellow','#f2d34e'],['Green','#4caf72'],['Teal','#16b8a6'],['Blue','#3b82f6'],['Navy','#25407a'],['Purple','#8b5cf6'],['Brown','#8a5a2b'],['Beige','#e7d5b8'],['Gold','#c9a24a']];
   var HEX={}; PALETTE.forEach(function(pl){ HEX[pl[0].toLowerCase()]=pl[1]; });
+  HEX.gray=HEX.grey; HEX.gold=HEX.gold||'#c9a24a';   // "Gray" and "Grey" are the same swatch
   function hexOf(name){ return HEX[String(name).toLowerCase()] || (/^#/.test(name)?name:'#d8cfc0'); }
   var colWrap=document.getElementById('colorRows'), colHidden=document.getElementById('optColors'), pick=document.getElementById('swatchPick');
   var cols=parseOpts(colHidden.value).map(function(o){return {label:o.label, price:(o.price!=null&&o.price>0)?o.price:0, img:IMG.color[o.label]||''};});
@@ -991,7 +1045,8 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         '<span class="vr-pfx">+$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(c.price>0?esc(c.price):'')+'" placeholder="0">'+
         '<button type="button" class="vr-x" title="Remove">&times;</button>';
       row.querySelector('.vr-label').addEventListener('input',function(e){ cols[idx].label=e.target.value; saveCols(); });
-      row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveCols(); });
+      row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveCols(); rowSale(row,cols[idx].price); });
+      rowSale(row,c.price);
       row.querySelector('.vr-x').addEventListener('click',function(){ cols.splice(idx,1); saveCols(); renderCols(); renderPalette(); });
       row.insertBefore(imgBtn(function(){return cols[idx].img||'';},function(v){ cols[idx].img=v; saveImgs(); }), row.querySelector('.vr-label'));
       if(cols.length>1) row.insertBefore(primBtn(idx,function(){ cols.unshift(cols.splice(idx,1)[0]); saveCols(); renderCols(); renderPalette(); }), row.querySelector('.vr-pfx'));
@@ -999,18 +1054,53 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     });
     saveCols();
   }
+  /* Swatches toggle: ✓ = this product has the colour (click again to take it off). Custom
+     colours (the + swatch: pick in the wheel, name it, Add) stay in the row even when not
+     ticked, so they are never lost for this product — kept in opt_images.palette. */
+  var CUSTOM=[];
+  (IMG.palette||[]).forEach(function(c){ if(c&&c.name&&/^#[0-9a-f]{6}$/i.test(c.hex||'')) CUSTOM.push({name:String(c.name), hex:c.hex}); });
+  cols.forEach(function(c){   // a colour on the product that isn't a standard swatch (e.g. "#ff8800") joins the row
+    var l=String(c.label), known=PALETTE.some(function(pl){return pl[0].toLowerCase()===l.toLowerCase();}) || CUSTOM.some(function(x){return x.name.toLowerCase()===l.toLowerCase();});
+    if(!known && /^#[0-9a-f]{6}$/i.test(l)) CUSTOM.push({name:l, hex:l});
+  });
+  CUSTOM.forEach(function(c){ HEX[c.name.toLowerCase()]=c.hex; });
+  function same(a,b){ a=String(a).toLowerCase().replace('gray','grey'); b=String(b).toLowerCase().replace('gray','grey'); return a===b; }
+  function isUsed(name){ return cols.some(function(c){return same(c.label,name);}); }
+  function toggleColour(name){
+    if(isUsed(name)) cols=cols.filter(function(c){return !same(c.label,name);});
+    else cols.push({label:name, price:0, img:''});
+    saveCols(); renderCols(); renderPalette();
+  }
+  var addPanel=null;
   function renderPalette(){
     pick.innerHTML='';
-    PALETTE.forEach(function(pl){
-      var used=cols.some(function(c){return String(c.label).toLowerCase()===pl[0].toLowerCase();});
-      var b=document.createElement('button'); b.type='button'; b.className='sw'+(used?' used':''); b.title=pl[0]; b.style.background=pl[1];
-      b.addEventListener('click',function(){ if(used) return; cols.push({label:pl[0], price:0}); saveCols(); renderCols(); renderPalette(); });
+    PALETTE.map(function(pl){return {name:pl[0], hex:pl[1]};}).concat(CUSTOM).forEach(function(sw){
+      var used=isUsed(sw.name);
+      var b=document.createElement('button'); b.type='button'; b.className='sw'+(used?' used':''); b.style.background=sw.hex;
+      b.title=sw.name+(used?' — click to take it off':' — click to add');
+      b.addEventListener('click',function(){ toggleColour(sw.name); });
       pick.appendChild(b);
     });
-    var cw=document.createElement('label'); cw.className='sw sw-custom'; cw.title='Custom colour'; cw.appendChild(document.createTextNode('+'));
-    var ci=document.createElement('input'); ci.type='color'; ci.className='sw-cin';
-    ci.addEventListener('change',function(e){ var hex=e.target.value; HEX[hex.toLowerCase()]=hex; cols.push({label:hex, price:0}); saveCols(); renderCols(); renderPalette(); });
-    cw.appendChild(ci); pick.appendChild(cw);
+    var cw=document.createElement('button'); cw.type='button'; cw.className='sw sw-custom'+(addPanel?' open':''); cw.title='Add your own colour'; cw.textContent='+';
+    cw.addEventListener('click',function(){ addPanel=!addPanel; renderPalette(); });
+    pick.appendChild(cw);
+    if(addPanel){
+      var pn=document.createElement('div'); pn.className='sw-add';
+      pn.innerHTML='<input type="color" value="#c06c84" aria-label="Pick the colour"><input class="input" maxlength="40" placeholder="Name (optional), e.g. Rose gold" aria-label="Colour name"><button type="button" class="btn btn-primary btn-sm">Add colour</button>';
+      var wheel=pn.querySelector('input[type=color]'), nm=pn.querySelector('.input');
+      function add(){
+        var hex=wheel.value.toLowerCase(), name=(nm.value||'').trim().replace(/\|/g,'')||hex;
+        if(!CUSTOM.some(function(x){return x.name.toLowerCase()===name.toLowerCase();}) && !PALETTE.some(function(pl){return pl[0].toLowerCase()===name.toLowerCase();})) CUSTOM.push({name:name, hex:hex});
+        HEX[name.toLowerCase()]=hex;
+        addPanel=false;
+        if(!isUsed(name)) cols.push({label:name, price:0, img:''});
+        saveCols(); renderCols(); renderPalette();
+      }
+      pn.querySelector('button').addEventListener('click',add);
+      nm.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); add(); } });
+      pick.appendChild(pn);
+      setTimeout(function(){ nm.focus(); },0);
+    }
   }
   renderCols(); renderPalette();
 
@@ -1040,7 +1130,8 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       if(flvs.length>1) row.insertBefore(primBtn(idx,function(){ flvs.unshift(flvs.splice(idx,1)[0]); renderFlvs(); }), row.querySelector('.vr-pfx'));
       checkFlv(lab);
       lab.addEventListener('input',function(){ flvs[idx].label=lab.value; checkFlv(lab); saveFlvs(); });
-      pr.addEventListener('input',function(){ flvs[idx].price=pr.value; saveFlvs(); });
+      pr.addEventListener('input',function(){ flvs[idx].price=pr.value; saveFlvs(); rowSale(row,pr.value); });
+      rowSale(row,f.price);
       lab.addEventListener('keydown',function(e){ flvEnter(e,idx); });
       pr.addEventListener('keydown',function(e){ flvEnter(e,idx); });
       row.querySelector('.vr-x').addEventListener('click',function(){ flvs.splice(idx,1); renderFlvs(Math.min(idx,flvs.length-1)); });
@@ -1069,6 +1160,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   });
   flvName.addEventListener('keydown',function(e){ if(isEnter(e)){ e.preventDefault(); var l=flvWrap.querySelector('.vr-label'); if(l) l.focus(); } });
   renderFlvs();
+  paintSale();
 })();
 
 /* ---- free gift card: on/off, gift type, and a single-product picker fed by admin/product-search ---- */

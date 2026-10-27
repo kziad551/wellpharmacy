@@ -46,7 +46,8 @@ $products = [];
    long_desc, ingredients, how_to_use, benefits, arabic, barcode and sku for all
    1742 rows, which nothing here reads. */
 $PCOLS = "id,name,brand,category,price,was,sale_pct,badge,rating,reviews,stock,low_stock,kw,descr,keywords,image,hover_image,unit,opt_colors,opt_sizes,opt_flavors,opt_flavor_name"
-       . (product_has_col('opt_images') ? ',opt_images,size' : '');   // option photos (once db/migrate-option-images.php has run)
+       . (product_has_col('opt_images') ? ',opt_images,size' : '')    // option photos (once db/migrate-option-images.php has run)
+       . (product_has_col('sale_opts') ? ',sale_opts' : '');          // does the sale cover the options too (same migration)
 foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, id") as $p) {
     $row = [
         'id'      => $p['id'],
@@ -63,17 +64,20 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
         'desc'    => trim(preg_replace('/\s+/', ' ', strip_tags((string)$p['descr']))),   // card blurb: never render stray HTML
         'keywords'=> $p['keywords'] ?? '',
         'unit'    => $p['unit'] ?? '',
-        'colors'  => parse_variant_opts($p['opt_colors'] ?? ''),
+        'colors'  => product_colors($p),   // extras as sold now (a sale applied when it covers the options)
         'sizes'   => product_sizes($p),   // the sizes for sale (an unpriced size needs a base price)
         'from'    => product_default_price($p),   // the price it opens at: default size + PRIMARY colour + PRIMARY flavour
-        'was'     => $p['was'] !== null ? (float)$p['was'] : null,
+        'was'     => product_display_was($p),   // crossed out next to the opening price (a sale's regular price, or the typed "Was")
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],
         'low'     => (int)$p['low_stock'],
     ];
     /* flavours, a third option group (same {label, price} shape; price is a surcharge like a
        colour's). Like `gift`, both keys are left out for the many products without flavours. */
-    if ($fl = parse_variant_opts($p['opt_flavors'] ?? '')) { $row['flavors'] = $fl; $row['flavor_name'] = flavor_group_name($p); }
+    if ($fl = product_flavors($p)) { $row['flavors'] = $fl; $row['flavor_name'] = flavor_group_name($p); }
+    /* on sale: the factor (0.8 for 20%) and whether it covers the options, so the product page
+       can cross out the regular price of whatever is picked */
+    if (($sf = product_sale_factor($p)) < 1) { $row['saleF'] = $sf; $row['saleOpts'] = product_sale_covers_opts($p); }
     /* a photo per option (left out for the many products without any) */
     if (!empty($p['opt_images']) && array_filter($oi = product_option_images($p))) $row['oimg'] = $oi;
     /* free gift with purchase (inc/gifts.php): one cached query for the whole loop.

@@ -368,7 +368,7 @@
     // colour and PRIMARY flavour extras — the same price the product page starts on.
     const fromLbl = '';
     const cardPrice = (!noPrice && p.from > 0) ? p.from : p.price;
-    const was = (p.was && Math.abs(cardPrice - p.price) < 0.005) ? p.was : null;   // the old price was the base price's
+    const was = (p.was && p.was > cardPrice + 0.005) ? p.was : null;   // the feed decides (product_display_was): a sale's regular price, or the typed "Was"
     const buyPrice = `${money(cardPrice)}${was ? ` <s>${money(was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
     const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
     const priceHtml = noPrice
@@ -916,7 +916,7 @@
     const prodRow = (p) => {
       const bp = W.BY_ID && W.BY_ID[p.id], open = (bp && bp.from > 0) ? bp.from : p.price;   // the price it opens at, as on the card
       const price = p.price > 0
-        ? money(open) + (p.was && open === p.price ? ' <s>' + money(p.was) + '</s>' : '')
+        ? money(open) + (p.was && p.was > open ? ' <s>' + money(p.was) + '</s>' : '')
         : '<span class="tba">Price soon</span>';
       return '<a class="sugg-prod' + (p.out ? ' is-out' : '') + '" data-sugg-item href="product?id=' + encodeURIComponent(p.id) + '">'
         + '<span class="sp-img">' + (p.image ? '<img class="gimg" src="' + esc(p.image) + '" alt="" loading="lazy">' : '') + '</span>'

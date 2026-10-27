@@ -352,10 +352,12 @@ include __DIR__ . '/inc/head.php';
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
         <?php else: ?><span class="p" id="pdpPrice"><?= $pdpFrom ? '<span class="from">from</span> ' : '' ?><?= money($pdpSpan[0]) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
         <?php /* the old price belongs to the base price only: hidden while a "from" or a picked option shows another */ ?>
-        <?php if ($p['was']): ?><span class="was" id="pdpWas" <?= ($pdpFrom || abs($pdpOpen - $basePrice) > 0.005) ? 'hidden' : '' ?>><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
+        <?php $pdpWasV = product_display_was($p);   /* a sale's regular price, or the typed "Was" (base price only) */ ?>
+        <?php if ($pdpWasV !== null || product_sale_factor($p) < 1): ?><span class="was" id="pdpWas" <?= $pdpWasV === null ? 'hidden' : '' ?>><?= $pdpWasV !== null ? money($pdpWasV) : '' ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
-      <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = product_sizes($p); $vFlavors = parse_variant_opts($p['opt_flavors'] ?? ''); ?>
+      <?php /* option prices as sold right now (a sale applied when it covers the options) */
+            $vColors = product_colors($p); $vSizes = product_sizes($p); $vFlavors = product_flavors($p); ?>
       <?php if ($vColors): ?>
       <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color<span class="opt-sel"></span></span><div class="opt-btns">
         <?php foreach ($vColors as $o): $oimg = $OPT_IMG['color'][$o['label']] ?? ''; ?><button type="button" class="opt-btn<?= $oimg !== '' ? ' has-img' : '' ?>" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"<?= $oimg !== '' ? ' data-img="' . e($oimg) . '"' : '' ?>><?php if ($oimg !== ''): ?><img class="opt-thumb" src="<?= e($oimg) ?>" alt="" loading="lazy"><?php endif; ?><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
@@ -619,6 +621,18 @@ $PAGE_JS = <<<JS
     const z = span(p.sizes || [], SEL.size, p.price), c = span(p.colors || [], SEL.color, 0), f = span(FLAVORS, SEL.flavor, 0);
     return [z[0] + c[0] + f[0], z[1] + c[1] + f[1]];
   }
+  /* on sale: the same picks at their regular price (crossed out next to the sale price).
+     The feed's prices have the sale in; saleF undoes it — on the base price always, on a
+     size's own price and the extras only when the sale covers the options. */
+  function regularPrice(){
+    const f = +p.saleF; if (!(f > 0 && f < 1)) return null;
+    const o = !!p.saleOpts, un = v => o ? v / f : v;
+    const z = (p.sizes || []).find(x => x.label === SEL.size);
+    let reg = (z && z.price != null) ? un(+z.price) : p.price / f;
+    const c = (p.colors || []).find(x => x.label === SEL.color); if (c && c.price != null) reg += un(+c.price);
+    const fl = FLAVORS.find(x => x.label === SEL.flavor); if (fl && fl.price != null) reg += un(+fl.price);
+    return Math.round(reg * 100) / 100;
+  }
   function optReady(){ return (!(p.colors && p.colors.length) || SEL.color) && (!(p.sizes && p.sizes.length) || SEL.size) && (!FLAVORS.length || SEL.flavor); }
   // the first group still to pick, brought into view: the mini bar's button sits far below it
   function showMissing(){
@@ -663,7 +677,9 @@ $PAGE_JS = <<<JS
     if (!NOPRICE) {
       \$('#miniPrice').textContent = (from ? 'from ' : '') + W.money(unit*qty);
       const pe = \$('#pdpPrice'); if (pe) pe.innerHTML = (from ? '<span class="from">from</span> ' : '') + W.money(unit);   // shows the default price, updates as options are chosen
-      const pw = \$('#pdpWas'); if (pw) pw.hidden = from || Math.abs(unit - p.price) > 0.005;   // the old price was the base price's
+      const pw = \$('#pdpWas');
+      if (pw) { const reg = regularPrice(), was = reg != null ? reg : (Math.abs(unit - p.price) < 0.005 ? p.was : null);
+                pw.hidden = from || !(was > unit + 0.005); if (!pw.hidden) pw.textContent = W.money(was); }
     }
     let label;
     if (NOPRICE) label = 'Price coming soon';

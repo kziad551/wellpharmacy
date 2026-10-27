@@ -42,7 +42,7 @@ $order = "CASE WHEN name LIKE ? THEN 0 WHEN brand LIKE ? THEN 1 WHEN name LIKE ?
           (stock > 0) DESC, sort, name";
 $oa = ["$qx%", "$qx%", "% $qx%"];
 
-$prods = rows("SELECT id, name, brand, image, price, was, stock, opt_sizes FROM products $where ORDER BY $order
+$prods = rows("SELECT id, name, brand, image, price, was, sale_pct, stock, opt_sizes, opt_colors, opt_flavors" . (product_has_col('sale_opts') ? ', sale_opts' : '') . " FROM products $where ORDER BY $order
                LIMIT " . SUGG_PER . " OFFSET $offset", array_merge($a, $oa));
 $out = [
     'q'        => $q,
@@ -52,7 +52,7 @@ $out = [
         'brand' => (string) $p['brand'],
         'image' => (string) $p['image'],
         'price' => product_base_price($p),   // as on the cards: a blank base price falls back to the cheapest priced size
-        'was'   => $p['was'] !== null && $p['was'] !== '' ? (float) $p['was'] : null,
+        'was'   => product_display_was($p),   // as on the cards: a sale's regular price, or the typed "Was"
         'out'   => (int) $p['stock'] <= 0,
     ], $prods),
     'next'     => count($prods) === SUGG_PER ? $offset + SUGG_PER : null,
