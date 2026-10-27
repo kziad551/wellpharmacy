@@ -227,6 +227,15 @@ function admin_foot(): void {
   .a-toast-msg{flex:1;line-height:1.4}
   .a-toast-x{flex:none;border:0;background:transparent;color:#a99f90;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;opacity:0;transition:opacity .15s}
   .a-toast:hover .a-toast-x{opacity:1}
+  /* ---- ⓘ field descriptions (shown on hover / focus / tap) ---- */
+  .a-info{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:6px;border-radius:50%;border:1.3px solid #b3a996;color:#8a7d6e;
+    font:italic 700 10.5px/1 Georgia,serif;cursor:help;vertical-align:1px;flex:none;user-select:none;transition:background .15s,color .15s,border-color .15s}
+  .a-info:hover,.a-info:focus,.a-info.open{background:#7a6244;border-color:#7a6244;color:#fff;outline:none}
+  .a-card > .hd.has-info{display:flex;align-items:center;gap:8px}
+  .a-card > .hd.has-info > .a-info{margin-left:auto}
+  .a-tip{position:fixed;z-index:500;max-width:min(320px,calc(100vw - 16px));padding:10px 12px;border-radius:10px;background:#2c261f;color:#f4f0e7;
+    font-size:12.5px;line-height:1.55;box-shadow:0 12px 30px rgba(44,38,31,.28);pointer-events:none}
+  .a-tip b{color:#fff} .a-tip hr{border:0;border-top:1px solid rgba(244,240,231,.18);margin:8px 0}
   /* ---- admin-nav.js: back pill, breadcrumb, previous/next, "you were here" highlight ---- */
   .a-nav-pill{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:250;display:inline-flex;align-items:center;gap:7px;max-width:calc(100vw - 32px);
     height:44px;padding:0 20px;border-radius:999px;background:#2c261f;color:#f4f0e7;font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -417,6 +426,55 @@ window.adminUploadLimits = function () {
       pick.textContent='Change image'; undoBtn.style.display='';
       status.style.color='#4a7a3a'; status.textContent='✓ '+f.name+' ('+mb.toFixed(1)+' MB) — preview only. Click Save to keep it.';
     });
+  });
+})();
+
+/* ---- ⓘ instead of always-on descriptions ----
+   Every static field description (.hint) becomes a small ⓘ next to the field's label; hover,
+   focus or tap shows it. A card-level description goes to an ⓘ at the right of the card title.
+   Kept on screen: hints with an id (live text such as "Sells at $8", counters, limits) and
+   hints in a box without any input (they ARE the content, e.g. "Save the brand first"). */
+(function(){
+  var tip=null, cur=null;
+  function hide(){ if(tip){ tip.remove(); tip=null; } if(cur){ cur.classList.remove('open'); cur=null; } }
+  function show(ic){
+    hide(); cur=ic; ic.classList.add('open');
+    tip=document.createElement('div'); tip.className='a-tip'; tip.setAttribute('role','tooltip'); tip.innerHTML=ic._html;
+    document.body.appendChild(tip);
+    var r=ic.getBoundingClientRect(), w=tip.offsetWidth, h=tip.offsetHeight, vw=document.documentElement.clientWidth;
+    var left=Math.max(8, Math.min(r.left+r.width/2-w/2, vw-w-8)), top=r.bottom+8;
+    if(top+h>window.innerHeight-8) top=Math.max(8, r.top-h-8);
+    tip.style.left=left+'px'; tip.style.top=top+'px';
+  }
+  function icon(html){
+    var s=document.createElement('span'); s.className='a-info'; s.tabIndex=0; s.setAttribute('role','button'); s.setAttribute('aria-label','More information'); s.textContent='i'; s._html=html;
+    s.addEventListener('mouseenter',function(){ show(s); }); s.addEventListener('mouseleave',hide);
+    s.addEventListener('focus',function(){ show(s); }); s.addEventListener('blur',hide);
+    /* a tap (phones) toggles it; never toggles a checkbox the ⓘ sits in */
+    s.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(cur===s) hide(); else show(s); });
+    return s;
+  }
+  window.addEventListener('scroll',hide,{passive:true});
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') hide(); });
+  var made=new Map();
+  function attach(target,html,atEnd){
+    var ic=made.get(target);
+    if(ic){ ic._html+='<hr>'+html; return; }
+    ic=icon(html); made.set(target,ic);
+    target.appendChild(ic);
+    if(atEnd) target.classList.add('has-info');
+  }
+  document.querySelectorAll('.a-main .hint').forEach(function(h){
+    if(h.id || !h.textContent.trim()) return;
+    var html=h.innerHTML.trim();
+    var field=h.closest('.field');
+    if(field && field.querySelector('input,select,textarea,button')){
+      var label=field.querySelector('label');
+      if(label){ attach(label,html,false); h.remove(); return; }
+    }
+    if(field) return;                                         // a field with no input: the hint is its content
+    var card=h.closest('.a-card'), hd=card && card.querySelector(':scope > .hd');
+    if(hd && card.querySelector('input,select,textarea,button')){ attach(hd,html,true); h.remove(); }
   });
 })();
 

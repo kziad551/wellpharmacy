@@ -430,7 +430,23 @@ select.input{padding-right:34px}
 .swatch-pick .sw-add .input{flex:1;min-width:0}
 /* sale: what a priced option sells at during the sale */
 .var-row .vr-sale{flex:none;font-size:12px;font-weight:700;color:#b04a2f;white-space:nowrap}
+/* option rows on one fixed grid, so every row lines up whatever the names and which
+   pieces a row has (no ★ with one option, no sale price while there is no sale) */
+.var-rows .var-row:not(.is-default){display:grid;align-items:center;gap:8px;
+  grid-template-columns:18px 34px minmax(70px,1fr) 28px 20px 70px var(--sale-w,0px) 22px;
+  grid-template-areas:"dot img label prim pfx price sale x"}
+.var-rows.has-sale{--sale-w:52px}
+.var-rows .var-row .vr-dot{grid-area:dot}
+.var-rows .var-row .vr-img{grid-area:img}
+.var-rows .var-row .vr-label{grid-area:label;min-width:0;width:100%}
+.var-rows .var-row .vr-prim{grid-area:prim}
+.var-rows .var-row .vr-pfx{grid-area:pfx;text-align:right}
+.var-rows .var-row .vr-price{grid-area:price;width:100%}
+.var-rows .var-row .vr-sale{grid-area:sale;overflow:hidden;text-overflow:ellipsis}
+.var-rows .var-row .vr-x{grid-area:x}
+.var-rows .var-row.is-default .vr-basep{width:auto}
 .sale-now{color:#4a7a3a}
 .sale-opts[hidden]{display:none}
+label.switch.sale-opts{font-size:12.5px;font-weight:500;line-height:1.35;align-items:flex-start}
 .swatch-pick .sw-custom{display:flex;align-items:center;justify-content:center;background:var(--a-primary-tint);color:var(--a-primary);font-size:18px;font-weight:600;box-shadow:none;border:1px dashed var(--a-primary-soft)}
 .swatch-pick .sw-custom .sw-cin{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}

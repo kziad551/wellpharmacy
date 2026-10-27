@@ -526,10 +526,11 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       <div class="a-card"><div class="hd"><h2>Pricing &amp; stock</h2></div><div class="bd">
         <div class="f-row">
           <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">The regular price — its <b>primary</b> size. Extra sizes carry their own price under <b>Options</b>. Left blank while the sizes have prices, it becomes the cheapest size's price on save.</div></div>
-          <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" id="wasField" value="<?= e($v['was']) ?>" placeholder="optional"><div class="hint" id="wasHint">A crossed-out old price to show next to the price. Not needed for a sale — the sale % does it.</div></div>
+          <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" id="wasField" value="<?= e($v['was']) ?>" placeholder="optional"><div class="hint">A crossed-out old price to show next to the price, when there is no sale. During a sale this box is hidden: the sale % crosses out the regular price by itself.</div></div>
         </div>
         <div class="f-row">
           <div class="field"><label>Sale (%)</label><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="e.g. 20">
+            <div class="hint">Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out (Price $10 + 20% sells at $8). The -% badge shows on the product.</div>
             <div class="hint sale-now" id="saleNow"></div>
             <?php $saleOptsOn = !array_key_exists('sale_opts', $v) || $v['sale_opts'] === null || (int) $v['sale_opts'] === 1; ?>
             <label class="switch sale-opts" id="saleOptsWrap" style="margin-top:8px"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount the sizes and the colour / flavour extras</label>
@@ -542,7 +543,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
           <div class="field"><label>Stock</label><input class="input" type="number" name="stock" value="<?= e($v['stock']) ?>"></div>
           <div class="field"><label>Low-stock warning at</label><input class="input" type="number" name="low_stock" value="<?= e($v['low_stock']) ?>"><div class="hint">Shows "Only X left" when stock hits this.</div></div>
         </div>
-        <p class="muted" style="font-size:12.5px;margin:4px 0 0">⭐ Rating &amp; review count come from real customer reviews on the product page — not set here.</p>
+        <p class="hint">⭐ Rating &amp; review count come from real customer reviews on the product page — not set here.</p>
       </div></div>
 
       <div class="a-card gift-card" id="gift"><div class="hd"><h2>Free gift</h2><?php if ($gState): ?><span class="pill pill-<?= e($gState[1]) ?>"><?= e($gState[0]) ?></span><?php endif; ?></div>
@@ -883,12 +884,15 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     var s=document.createElement('span'); s.className='vr-sale'; s.title='Price during the sale'; s.textContent='→ $'+fmt(onSale(n));
     var pi=row.querySelector('.vr-price'); if(pi) pi.insertAdjacentElement('afterend',s);
   }
+  var wasField=document.getElementById('wasField');
   function paintSale(){
     var f=saleF();
     if(saleOptsWrap) saleOptsWrap.hidden = f>=1;
+    /* "Was" is for a crossed-out price WITHOUT a sale; during a sale the % makes it, so the box steps aside */
+    if(wasField) wasField.closest('.field').hidden = f<1;
     if(saleNow) saleNow.innerHTML = (f<1 && base()>0)
-      ? 'Sells at <b>$'+fmt(onSale(base()))+'</b> with <s>$'+fmt(base())+'</s> crossed out.'
-      : 'Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out.';
+      ? 'Sells at <b>$'+fmt(onSale(base()))+'</b> with <s>$'+fmt(base())+'</s> crossed out.' : '';
+    document.querySelectorAll('.var-rows').forEach(function(r){ r.classList.toggle('has-sale', saleOnOpts()); });
   }
   function saleChanged(){ paintSale(); renderSizes(); renderCols(); renderFlvs(); }
   if(salePct) salePct.addEventListener('input',saleChanged);
