@@ -458,6 +458,7 @@ select.input{padding-right:34px}
 .sale-now:empty{display:none}
 .sale-now s{color:var(--a-faint)}
 .sale-opts[hidden]{display:none}
-label.switch.sale-opts{margin:0;font-size:12.5px;font-weight:500;line-height:1.35;color:var(--a-soft)}
+label.switch.sale-opts{margin:0;gap:8px;align-items:center;font-size:13px;font-weight:500;line-height:1;color:var(--a-ink);white-space:nowrap}
+label.switch.sale-opts input{width:16px;height:16px;margin:0}
 .swatch-pick .sw-custom{display:flex;align-items:center;justify-content:center;background:var(--a-primary-tint);color:var(--a-primary);font-size:18px;font-weight:600;box-shadow:none;border:1px dashed var(--a-primary-soft)}
 .swatch-pick .sw-custom .sw-cin{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}

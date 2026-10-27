@@ -534,12 +534,12 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
               $saleOptsOn = !array_key_exists('sale_opts', $v) || $v['sale_opts'] === null || (int) $v['sale_opts'] === 1; ?>
         <div class="field sale-strip">
           <label for="salePct">Sale (%)</label>
-          <div class="hint">Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out (Price $10 + 20% sells at $8). The -% badge shows on the product.</div>
+          <div class="hint">Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out (Price $10 + 20% sells at $8). The -% badge shows on the product. <b>Also discount sizes &amp; extras</b>: the sale also lowers the sizes' own prices and the colour / flavour extras (Black +$5 becomes +$4).</div>
           <div class="sale-line">
             <div class="sale-in"><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="none"><span>%</span></div>
             <div class="sale-side">
               <div class="sale-now" id="saleNow"></div>
-              <label class="switch sale-opts" id="saleOptsWrap"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount sizes &amp; colour / flavour extras</label>
+              <label class="switch sale-opts" id="saleOptsWrap"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount sizes &amp; extras</label>
             </div>
           </div>
         </div>
