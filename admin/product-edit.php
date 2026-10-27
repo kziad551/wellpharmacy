@@ -230,7 +230,7 @@ if (is_post()) {
     }
     if (!$editing && $typedId === '') $newId = product_auto_id($newId);
     $price = (float) input('price');
-    $was   = input('was') !== '' ? (float) input('was') : null;
+    $was   = null;   // no "Was" box any more: a crossed-out price comes only from a sale %; saving clears an old one
     $sale  = input('sale_pct') !== '' ? (int) input('sale_pct') : null;
     if ($sale !== null && ($sale <= 0 || $sale >= 100)) $sale = null;   // a sale is 1-99 %; 0 or blank = no sale
     /* Price left blank while the sizes carry prices (the owner priced the options, not the
@@ -526,15 +526,14 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       <div class="a-card"><div class="hd"><h2>Pricing &amp; stock</h2></div><div class="bd">
         <div class="f-row">
           <div class="field"><label>Price ($)</label><input class="input" type="number" step="0.01" name="price" value="<?= e($v['price']) ?>" required><div class="hint">The regular price — its <b>primary</b> size. Extra sizes carry their own price under <b>Options</b>. Left blank while the sizes have prices, it becomes the cheapest size's price on save.</div></div>
-          <div class="field"><label>Was ($)</label><input class="input" type="number" step="0.01" name="was" id="wasField" value="<?= e($v['was']) ?>" placeholder="optional"><div class="hint">A crossed-out old price to show next to the price, when there is no sale. During a sale this box is hidden: the sale % crosses out the regular price by itself.</div></div>
-        </div>
-        <div class="f-row">
           <div class="field"><label>Sale (%)</label><input class="input" type="number" min="0" max="99" step="1" name="sale_pct" id="salePct" value="<?= e($v['sale_pct']) ?>" placeholder="e.g. 20">
             <div class="hint">Blank = no sale. With a %, the price drops by that much and the regular price shows crossed out (Price $10 + 20% sells at $8). The -% badge shows on the product.</div>
             <div class="hint sale-now" id="saleNow"></div>
             <?php $saleOptsOn = !array_key_exists('sale_opts', $v) || $v['sale_opts'] === null || (int) $v['sale_opts'] === 1; ?>
             <label class="switch sale-opts" id="saleOptsWrap" style="margin-top:8px"><input type="checkbox" name="sale_opts" value="1" id="saleOpts" <?= $saleOptsOn ? 'checked' : '' ?>> Also discount the sizes and the colour / flavour extras</label>
           </div>
+        </div>
+        <div class="f-row">
           <div class="field"><label>Badge</label><select class="input" name="badge">
             <?php foreach ($BADGES as $bk=>$bl): ?><option value="<?= e($bk) ?>" <?= $bk===$v['badge']?'selected':'' ?>><?= e($bl) ?></option><?php endforeach; ?>
           </select></div>
@@ -885,7 +884,6 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     var s=document.createElement('span'); s.className='vr-sale'; s.title='Price during the sale'; s.textContent='→ $'+fmt(onSale(n));
     var pi=row.querySelector('.vr-price'); if(pi) pi.insertAdjacentElement('afterend',s);
   }
-  var wasField=document.getElementById('wasField');
   /* the primary size's price is the product price: the sale always applies to it */
   function baseSale(row){
     var old=row.querySelector('.vr-sale'); if(old) old.remove();
@@ -896,8 +894,6 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   function paintSale(){
     var f=saleF();
     if(saleOptsWrap) saleOptsWrap.hidden = f>=1;
-    /* "Was" is for a crossed-out price WITHOUT a sale; during a sale the % makes it, so the box steps aside */
-    if(wasField) wasField.closest('.field').hidden = f<1;
     if(saleNow) saleNow.innerHTML = (f<1 && base()>0)
       ? 'Sells at <b>$'+fmt(onSale(base()))+'</b> with <s>$'+fmt(base())+'</s> crossed out.' : '';
     document.querySelectorAll('.var-rows').forEach(function(r){ r.classList.toggle('has-sale', f<1); });

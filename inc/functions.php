@@ -358,15 +358,14 @@ function product_flavors(array $p, bool $regular = false): array {
     return array_map(fn($o) => ['label' => $o['label'], 'price' => sale_opt_price($p, $o['price'], $regular)], parse_variant_opts($p['opt_flavors'] ?? ''));
 }
 
-/* The crossed-out price next to the price a product opens at, or null for none: under a
-   sale, the same choice at its regular price; otherwise the "Was" the admin typed — which
-   belongs to the plain base price, so it only shows when no colour/flavour extra is in. */
+/* The crossed-out price next to the price a product opens at, or null for none: only a
+   sale makes one (the same choice at its regular price). The old typed "Was" price is
+   gone from the admin, so an old value left in products.was is never shown. */
 function product_display_was(array $p): ?float {
     $now = product_default_price($p);
-    if ($now <= 0) return null;
-    if (product_sale_factor($p) < 1) { $reg = product_default_price($p, true); return $reg > $now + 0.005 ? $reg : null; }
-    $was = ($p['was'] ?? null) !== null && $p['was'] !== '' ? (float) $p['was'] : 0.0;
-    return ($was > $now + 0.005 && abs($now - product_base_price($p)) < 0.005) ? $was : null;
+    if ($now <= 0 || product_sale_factor($p) >= 1) return null;
+    $reg = product_default_price($p, true);
+    return $reg > $now + 0.005 ? $reg : null;
 }
 
 /* Resolve the effective unit price for a chosen color/size against a product row.
