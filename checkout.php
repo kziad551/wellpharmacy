@@ -219,7 +219,7 @@ ob_start(); ?>
     document.getElementById('coItems').innerHTML = its.map(function (x) {
       var vlabel = [x.color, x.flavor, x.size].filter(Boolean).join(' · ');   // same order as the order label
       var g = gifts[x.k]; if (g) nGifts++;
-      return '<div class="co-it"><img class="gimg" data-grade src="' + x.p.img + '" alt="">' +
+      return '<div class="co-it"><img class="gimg" data-grade src="' + W.esc(W.lineImg(x, x.p)) + '" alt="">' +
         '<div>' + x.p.name + (vlabel ? '<div class="q">' + W.esc(vlabel) + '</div>' : '') + '<div class="q">Qty ' + x.qty + '</div></div>' +
         '<b>' + money(x.price * x.qty) + '</b></div>' + (g ? W.giftRowHTML(g, 'checkout') : '');
     }).join('');

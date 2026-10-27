@@ -132,6 +132,9 @@ $HEAD_CSS = <<<CSS
   #addBtn.is-disabled{opacity:.5}
   .price-row .p .from{font-size:.62em; font-weight:500; color:var(--text-muted); vertical-align:middle}
   .opt-btn .opt-x{opacity:.6; font-size:12px; margin-left:2px}
+  /* an option with its own photo: a small picture in front of its name */
+  .opt-btn.has-img{display:inline-flex; align-items:center; gap:8px; padding:5px 15px 5px 5px}
+  .opt-btn .opt-thumb{width:30px; height:30px; border-radius:50%; object-fit:cover; background:#fff; flex:none}
   .opt-btn.on .opt-x{opacity:.85}
   .opt-group .opt-lbl .opt-sel{font-weight:500; color:var(--ink)}
   .instock{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--mint)}
@@ -320,6 +323,10 @@ $galRaw = trim((string) ($p['gallery'] ?? ''));
 $galArr = $galRaw === '' ? [] : json_decode($galRaw, true);
 if (!is_array($galArr)) $galArr = preg_split('/\r\n|\r|\n/', $galRaw);
 $galArr = array_values(array_filter(array_map('trim', array_filter($galArr, 'is_string'))));
+/* a photo given to a colour / flavour / size is among the thumbnails too, so picking that
+   option can show it (and the shopper can see every model's photo before choosing) */
+$OPT_IMG = product_option_images($p);
+foreach ($OPT_IMG as $grpImgs) foreach ($grpImgs as $oi) if (!in_array($oi, $galArr, true)) $galArr[] = $oi;
 $jgallery = json_encode($galArr, JSON_UNESCAPED_SLASHES);
 
 /* Same list the JS builds: main image, hover image, then the gallery, de-duped in
@@ -358,18 +365,18 @@ include __DIR__ . '/inc/head.php';
       <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = product_sizes($p); $vFlavors = parse_variant_opts($p['opt_flavors'] ?? ''); ?>
       <?php if ($vColors): ?>
       <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color</span><div class="opt-btns">
-        <?php foreach ($vColors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
+        <?php foreach ($vColors as $o): $oimg = $OPT_IMG['color'][$o['label']] ?? ''; ?><button type="button" class="opt-btn<?= $oimg !== '' ? ' has-img' : '' ?>" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"<?= $oimg !== '' ? ' data-img="' . e($oimg) . '"' : '' ?>><?php if ($oimg !== ''): ?><img class="opt-thumb" src="<?= e($oimg) ?>" alt="" loading="lazy"><?php endif; ?><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
       <?php if ($vFlavors): /* flavours: pick one, like a size; the +$ is a surcharge, like a colour's. The heading shows the pick. */ ?>
       <div class="opt-group" data-optgroup="flavor"><span class="opt-lbl"><?= e(flavor_group_name($p)) ?><span class="opt-sel"></span></span><div class="opt-btns">
-        <?php foreach ($vFlavors as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
+        <?php foreach ($vFlavors as $o): $oimg = $OPT_IMG['flavor'][$o['label']] ?? ''; ?><button type="button" class="opt-btn<?= $oimg !== '' ? ' has-img' : '' ?>" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"<?= $oimg !== '' ? ' data-img="' . e($oimg) . '"' : '' ?>><?php if ($oimg !== ''): ?><img class="opt-thumb" src="<?= e($oimg) ?>" alt="" loading="lazy"><?php endif; ?><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
       <?php if ($vSizes): ?>
       <div class="opt-group" data-optgroup="size"><span class="opt-lbl">Size</span><div class="opt-btns">
         <?php /* every size shows its price — the default one sells at the base price */ ?>
-        <?php foreach ($vSizes as $o): ?><button type="button" class="opt-btn" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"><?= e($o['label']) ?><?php if(!$noPrice): ?> <span class="opt-x"><?= money($o['price'] !== null ? $o['price'] : $basePrice) ?></span><?php endif; ?></button><?php endforeach; ?>
+        <?php foreach ($vSizes as $o): $oimg = $OPT_IMG['size'][$o['label']] ?? ''; ?><button type="button" class="opt-btn<?= $oimg !== '' ? ' has-img' : '' ?>" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"<?= $oimg !== '' ? ' data-img="' . e($oimg) . '"' : '' ?>><?php if ($oimg !== ''): ?><img class="opt-thumb" src="<?= e($oimg) ?>" alt="" loading="lazy"><?php endif; ?><?= e($o['label']) ?><?php if(!$noPrice): ?> <span class="opt-x"><?= money($o['price'] !== null ? $o['price'] : $basePrice) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
       <?php /* the standard size is already the first size chip when the product has sizes */ ?>
@@ -637,11 +644,14 @@ $PAGE_JS = <<<JS
       btn.addEventListener('click', function(){
         g.querySelectorAll('.opt-btn').forEach(function(b){ b.classList.remove('on'); });
         btn.classList.add('on'); SEL[grp] = btn.getAttribute('data-label'); showSel(g, SEL[grp]); paint();
+        showOptPhoto(btn);
       });
     });
   });
   // reflect the pre-selected standard size in the buttons
   if (SEL.size){ document.querySelectorAll('.opt-group[data-optgroup="size"] .opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.size) b.classList.add('on'); }); }
+  /* an option with its own photo shows it in the big picture when picked (it is one of the thumbnails) */
+  function showOptPhoto(btn){ const src = btn && btn.getAttribute('data-img'); if (!src) return; const i = gal.indexOf(src); if (i >= 0) setPhoto(i); }
   // ...and the only flavour, when there is just one
   if (SEL.flavor){ const fg = document.querySelector('.opt-group[data-optgroup="flavor"]'); if (fg){ fg.querySelectorAll('.opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.flavor) b.classList.add('on'); }); showSel(fg, SEL.flavor); } }
   function paint(){

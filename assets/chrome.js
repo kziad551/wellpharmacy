@@ -98,6 +98,12 @@
   const unitPrice = (l) => { const v = linePrice(l); return v != null ? v : (l.price != null ? +l.price : 0); };
   const findLine = (k) => CART.find((x) => lineKey(x) === k);
   W.lineKey = lineKey; W.unitPrice = unitPrice;
+  /* the photo of a bag line: its colour's, flavour's or size's own photo, else the product's */
+  W.lineImg = (l, p) => {
+    p = p || W.BY_ID[l.id]; if (!p) return '';
+    const o = p.oimg || {};
+    return (o.color && o.color[l.color]) || (o.flavor && o.flavor[l.flavor]) || (o.size && o.size[l.size]) || p.img;
+  };
 
   /* Signed in? The ACCOUNT is the source of truth — seed from it and mirror every
      change back to the DB, so a shopper's bag/favourites follow them to any device.
@@ -410,7 +416,8 @@
     let show = sizes.slice(0, 3).map((o, i) => [i, o]);
     if (sel >= 0 && sel >= show.length) { show.pop(); show.push([sel, sizes[sel]]); }
     if (sel < 0) sel = show[0][0];
-    let html = show.map(([i, o]) => `<button type="button" class="pc-opt${i === sel ? ' on" data-def="1' : ''}" data-size="${esc(o.label)}" data-price="${priceOf(o).toFixed(2)}">${esc(o.label)}<b>${money(priceOf(o))}</b></button>`).join('');
+    const imgs = (p.oimg && p.oimg.size) || {};   // a size with its own photo swaps the card's picture
+    let html = show.map(([i, o]) => `<button type="button" class="pc-opt${i === sel ? ' on" data-def="1' : ''}" data-size="${esc(o.label)}" data-price="${priceOf(o).toFixed(2)}"${imgs[o.label] ? ` data-img="${esc(imgs[o.label])}"` : ''}>${esc(o.label)}<b>${money(priceOf(o))}</b></button>`).join('');
     if (sizes.length > show.length) html += `<a class="pc-opt more" href="product?id=${encodeURIComponent(p.id)}" title="All sizes">+${sizes.length - show.length}</a>`;
     return `<div class="pc-opts" data-opts>${html}</div>`;
   }
@@ -420,9 +427,12 @@
     const chip = e.target.closest('.pc-opt[data-size]'); if (!chip) return;
     const card = chip.closest('.pcard'), opts = chip.closest('.pc-opts'); if (!card || !opts) return;
     opts.querySelectorAll('.pc-opt').forEach((c) => c.classList.toggle('on', c === chip));
-    const pp = card.querySelector('.pprice'), buy = card.querySelector('.buybtn');
+    const pp = card.querySelector('.pprice'), buy = card.querySelector('.buybtn'), img = card.querySelector('.pc-a');
     if (pp && pp.dataset.orig == null) pp.dataset.orig = pp.innerHTML;
     if (buy && buy.dataset.orig == null) buy.dataset.orig = buy.innerHTML;
+    if (img && img.dataset.orig == null) img.dataset.orig = img.getAttribute('src');
+    /* the size's own photo (else the product's) */
+    if (img) { const want = chip.dataset.img || img.dataset.orig; if (img.getAttribute('src') !== want) { img.dataset.failed = ''; img.src = want; } }
     if (chip.hasAttribute('data-def')) {
       if (pp) pp.innerHTML = pp.dataset.orig;
       if (buy) buy.innerHTML = buy.dataset.orig;
@@ -721,7 +731,7 @@
         const note = atMax ? `<span class="ci-max">${stock <= low ? 'Only ' + stock + ' left' : 'Max reached'}</span>` : (stock <= low ? `<span class="ci-max">Only ${stock} left</span>` : '');
         const k = encodeURIComponent(lineKey(l));
         const vlabel = [l.color, l.flavor, l.size].filter(Boolean).join(' · ');   // same order as the order label (variant_resolve)
-        return `<div class="citem${gift ? ' has-gift' : ''}"><img class="thumb gimg" data-grade src="${p.img}" alt=""><div class="ci-b"><span class="br">${p.brand}</span><div class="ti">${p.name}</div>${vlabel?`<div class="ci-var">${esc(vlabel)}</div>`:''}${b?`<span class="badge ${b.cls}" style="margin-bottom:8px">${b.label}</span>`:''}<div class="ci-foot"><span class="stepper"><button data-dec="${k}">−</button><span class="q">${l.qty}</span><button data-inc="${k}"${atMax?' disabled':''}>+</button></span><span class="pr">${money(unitPrice(l)*l.qty)}</span></div>${note}</div><button class="rm" data-rm="${k}" aria-label="Remove">${I.close}</button></div>${gift ? W.giftRowHTML(gift, 'drawer') : ''}`;
+        return `<div class="citem${gift ? ' has-gift' : ''}"><img class="thumb gimg" data-grade src="${esc(W.lineImg(l, p))}" alt=""><div class="ci-b"><span class="br">${p.brand}</span><div class="ti">${p.name}</div>${vlabel?`<div class="ci-var">${esc(vlabel)}</div>`:''}${b?`<span class="badge ${b.cls}" style="margin-bottom:8px">${b.label}</span>`:''}<div class="ci-foot"><span class="stepper"><button data-dec="${k}">−</button><span class="q">${l.qty}</span><button data-inc="${k}"${atMax?' disabled':''}>+</button></span><span class="pr">${money(unitPrice(l)*l.qty)}</span></div>${note}</div><button class="rm" data-rm="${k}" aria-label="Remove">${I.close}</button></div>${gift ? W.giftRowHTML(gift, 'drawer') : ''}`;
       }).join('');
       body = `<div class="freeship ${met?'met':''}"><p>${met?'Yay! You\'ve unlocked FREE SHIPPING ✦':`You're ${money(remain)} away from FREE SHIPPING! ♡`}</p><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>
         <div class="cart-items">${items}</div>

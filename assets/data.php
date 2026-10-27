@@ -45,7 +45,8 @@ $products = [];
 /* Only the columns the shape below actually uses. SELECT * also dragged in
    long_desc, ingredients, how_to_use, benefits, arabic, barcode and sku for all
    1742 rows, which nothing here reads. */
-$PCOLS = "id,name,brand,category,price,was,sale_pct,badge,rating,reviews,stock,low_stock,kw,descr,keywords,image,hover_image,unit,opt_colors,opt_sizes,opt_flavors,opt_flavor_name";
+$PCOLS = "id,name,brand,category,price,was,sale_pct,badge,rating,reviews,stock,low_stock,kw,descr,keywords,image,hover_image,unit,opt_colors,opt_sizes,opt_flavors,opt_flavor_name"
+       . (product_has_col('opt_images') ? ',opt_images,size' : '');   // option photos (once db/migrate-option-images.php has run)
 foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, id") as $p) {
     $row = [
         'id'      => $p['id'],
@@ -73,6 +74,8 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
     /* flavours, a third option group (same {label, price} shape; price is a surcharge like a
        colour's). Like `gift`, both keys are left out for the many products without flavours. */
     if ($fl = parse_variant_opts($p['opt_flavors'] ?? '')) { $row['flavors'] = $fl; $row['flavor_name'] = flavor_group_name($p); }
+    /* a photo per option (left out for the many products without any) */
+    if (!empty($p['opt_images']) && array_filter($oi = product_option_images($p))) $row['oimg'] = $oi;
     /* free gift with purchase (inc/gifts.php): one cached query for the whole loop.
        The key is left out when there is no live offer, so ~1,800 products don't
        each carry a "gift":null. */

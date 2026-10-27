@@ -395,6 +395,21 @@ select.input{padding-right:34px}
 .var-row .vr-name{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--a-ink);padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .var-row .vr-name-empty{font-weight:400;font-style:italic;color:var(--a-faint)}
 .var-row.is-default{flex-wrap:wrap}
+/* option photo: a small square button per colour / flavour / size row */
+.var-row .vr-img{flex:none;width:34px;height:34px;padding:0;border:1.5px dashed var(--a-border);border-radius:8px;background:#fff;color:var(--a-faint);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.var-row .vr-img svg{width:17px;height:17px}
+.var-row .vr-img:hover{border-color:var(--a-primary);color:var(--a-primary)}
+.var-row .vr-img.has{border-style:solid;border-color:var(--a-primary)}
+.var-row .vr-img img{width:100%;height:100%;object-fit:cover;display:block}
+.vr-pop{position:absolute;z-index:400;width:min(340px,calc(100vw - 16px));background:#fff;border:1px solid var(--a-border);border-radius:12px;box-shadow:0 14px 38px rgba(44,38,31,.22);padding:12px}
+.vr-pop-h{font-size:12.5px;font-weight:700;color:#3a352d;margin-bottom:10px}
+.vr-pop-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;max-height:240px;overflow:auto}
+.vr-pop-g button{padding:0;border:2px solid transparent;border-radius:8px;background:#f4f1ea;aspect-ratio:1/1;cursor:pointer;overflow:hidden}
+.vr-pop-g button img{width:100%;height:100%;object-fit:cover;display:block}
+.vr-pop-g button:hover{border-color:var(--a-border)}
+.vr-pop-g button.on{border-color:var(--a-primary)}
+.vr-pop-e{font-size:12.5px;color:var(--a-faint);padding:6px 0}
+.vr-pop-a{display:flex;gap:8px;margin-top:10px}
 .var-row .vr-warn{flex:1 1 100%;font-size:12px;font-weight:600;color:#b04a2f;padding-left:28px}
 /* colour swatch palette */
 .swatch-pick{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}

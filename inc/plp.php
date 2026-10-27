@@ -146,9 +146,12 @@ function well_card_size_chips(array $p, float $shown, bool $unbuyable, string $h
     if ($sel !== null && !isset($show[$sel])) { array_pop($show); $show[$sel] = $sizes[$sel]; }
     if ($sel === null) $sel = array_key_first($show);
     $html = '';
+    $imgs = product_option_images($p)['size'];   // a size with its own photo swaps the card's picture
     foreach ($show as $i => $o) {
         $op = $priceOf($o);
-        $html .= '<button type="button" class="pc-opt' . ($i === $sel ? ' on" data-def="1' : '') . '" data-size="' . e($o['label']) . '" data-price="' . number_format($op, 2, '.', '') . '">'
+        $im = $imgs[$o['label']] ?? '';
+        $html .= '<button type="button" class="pc-opt' . ($i === $sel ? ' on" data-def="1' : '') . '" data-size="' . e($o['label']) . '" data-price="' . number_format($op, 2, '.', '') . '"'
+               . ($im !== '' ? ' data-img="' . e($im) . '"' : '') . '>'
                . e($o['label']) . '<b>' . well_money($op) . '</b></button>';
     }
     if (count($sizes) > count($show)) $html .= '<a class="pc-opt more" href="' . e($href) . '" title="All sizes">+' . (count($sizes) - count($show)) . '</a>';

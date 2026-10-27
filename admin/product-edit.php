@@ -255,37 +255,66 @@ if (is_post()) {
 
     $galPaths = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) input('gallery')))));
     $galErrs  = [];
+    /* gallery_keys names each uploaded file, in order: an option photo picked from the new
+       photos says new:<key>, and is pointed at the file's saved path below */
+    $galKeys = preg_split('/\r\n|\r|\n/', (string) input('gallery_keys'));
+    $newPath = [];
     if (!empty($_FILES['gallery_files']['name']) && is_array($_FILES['gallery_files']['name'])) {
         foreach ($_FILES['gallery_files']['name'] as $gi => $gnm) {
             if (($_FILES['gallery_files']['error'][$gi] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) continue;
             /* a photo PHP refused (over its size limit) is named in the flash, not dropped in silence */
             $_FILES['_gf'] = ['name'=>$gnm,'type'=>$_FILES['gallery_files']['type'][$gi],'tmp_name'=>$_FILES['gallery_files']['tmp_name'][$gi],'error'=>$_FILES['gallery_files']['error'][$gi],'size'=>$_FILES['gallery_files']['size'][$gi]];
-            $ge=null; if ($gu = save_upload('_gf', $ge)) $galPaths[] = $gu;
+            $ge=null; if ($gu = save_upload('_gf', $ge)) { $galPaths[] = $gu; if (($galKeys[$gi] ?? '') !== '') $newPath[$galKeys[$gi]] = $gu; }
             elseif ($ge) $galErrs[] = $gnm . ': ' . $ge;
         }
     }
     if ($galErrs) { $upErr = ($upErr ? $upErr . ' ' : '') . 'Gallery photo(s) not added — ' . implode(' · ', $galErrs); }
     // de-duplicate: drop repeated paths/URLs and pixel-identical local uploads (safety net for the client-side guard)
-    $seenStr = []; $seenHash = []; $uniqueGal = [];
+    $seenStr = []; $seenHash = []; $uniqueGal = []; $galAlias = [];
     foreach ($galPaths as $gpath) {
         if (isset($seenStr[$gpath])) continue;
         $seenStr[$gpath] = true;
         if (!preg_match('~^(https?:|/|data:)~', $gpath)) {              // local, site-relative path → compare file contents
             $abs = dirname(__DIR__) . '/' . $gpath;
             if (is_file($abs) && ($h = md5_file($abs)) !== false) {
-                if (isset($seenHash[$h])) continue;
-                $seenHash[$h] = true;
+                if (isset($seenHash[$h])) { $galAlias[$gpath] = $seenHash[$h]; continue; }   // an option photo pointing here uses the kept copy
+                $seenHash[$h] = $gpath;
             }
         }
         $uniqueGal[] = $gpath;
     }
     $galPaths = $uniqueGal;
+    /* no main photo but a gallery: its first photo becomes the main one (cards were blank) */
+    if ($image === '' && $galPaths) $image = array_shift($galPaths);
 
     /* Flavours: one that can't be stored is left out and named in the flash, the rest of
        the product still saves, and the editor reopens at the card (see below). */
     [$flavors, $flvBad] = product_flavors_clean(product_gift_field('opt_flavors'));
     [$flavors, $flvSame] = product_flavors_distinct($flavors);
     $flvBad = array_merge($flvBad, $flvSame);
+
+    /* Option photos: {"color":{label:photo},"flavor":{…},"size":{…}} from the editor. A new
+       photo (new:<key>) becomes its saved path; only options that are being saved and only
+       real photo paths / URLs are kept. */
+    $optImgs = ['color' => [], 'flavor' => [], 'size' => []];
+    $rawImgs = json_decode((string) input('opt_images'), true);
+    if (is_array($rawImgs)) {
+        $labelsOf = [
+            'color'  => array_column(parse_variant_opts((string) input('opt_colors')), 'label'),
+            'flavor' => array_column(parse_variant_opts($flavors), 'label'),
+            'size'   => array_merge(array_column(parse_variant_opts((string) input('opt_sizes')), 'label'), [trim((string) input('size'))]),
+        ];
+        foreach ($optImgs as $g => $_) {
+            foreach ((array) ($rawImgs[$g] ?? []) as $label => $img) {
+                $label = trim((string) $label); $img = trim((string) $img);
+                if ($label === '' || !in_array($label, $labelsOf[$g], true)) continue;
+                if (strncmp($img, 'new:', 4) === 0) $img = $newPath[substr($img, 4)] ?? '';
+                $img = $galAlias[$img] ?? $img;
+                if ($img !== '' && option_image_ok($img)) $optImgs[$g][$label] = $img;
+            }
+        }
+    }
+    $optImgsJson = array_filter($optImgs) ? json_encode($optImgs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
 
     /* short columns are cut to their width here: the live MySQL runs strict, where a value
        one character too long is a blank 500 instead of a saved product */
@@ -304,6 +333,8 @@ if (is_post()) {
         'feat_latest'=> input('feat_latest') ? 1 : 0, 'feat_trending'=> input('feat_trending') ? 1 : 0, 'feat_wellness'=> input('feat_wellness') ? 1 : 0,
         'home_sort'=>(int)input('home_sort'), 'status'=> input('status')==='draft'?'draft':'active',
     ];
+    /* option photos need db/migrate-option-images.php; until it has run the product still saves */
+    if (product_has_col('opt_images')) $data['opt_images'] = $optImgsJson;
 
     /* The base price is the STANDARD (default) size's price and is stored as typed —
        never overwritten. The cheapest option is shown as "from $X" on cards / the product
@@ -571,7 +602,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       </div></div>
 
       <div class="a-card var-card" id="options"><div class="hd"><h2>Options / variants <span class="faint" style="font-weight:400;font-size:12.5px">(optional)</span></h2></div><div class="bd">
-        <p class="hint" style="margin:0 0 14px">Colours, flavours and/or sizes the customer picks before adding to bag. <b>The size sets the price; a colour or flavour can add a surcharge on top.</b> The <b>Default</b> size always uses the product's base price above.</p>
+        <p class="hint" style="margin:0 0 14px">Colours, flavours and/or sizes the customer picks before adding to bag. <b>The size sets the price; a colour or flavour can add a surcharge on top.</b> The <b>Default</b> size always uses the product's base price above. Click the <b>camera</b> on any row to give that option its own photo; it shows when the shopper picks it. For models or types, add them as <b>Flavours</b> and rename the group (e.g. “Model”).</p>
         <div class="var-groups">
           <div class="field"><label>Colours</label>
             <input type="hidden" name="opt_colors" id="optColors" value="<?= e($v['opt_colors'] ?? '') ?>">
@@ -590,6 +621,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
             <div class="hint">Shoppers pick one before adding to bag. Set a <b>+$</b> if a flavour costs extra (blank = same price). All flavours share the stock above.</div></div>
           <div class="field"><label>Sizes</label>
             <input type="hidden" name="opt_sizes" id="optSizes" value="<?= e($v['opt_sizes'] ?? '') ?>">
+            <input type="hidden" name="opt_images" id="optImages" value="<?= e((string) ($v['opt_images'] ?? '')) ?>">
             <div id="sizeRows" class="var-rows"></div>
             <button type="button" class="btn btn-ghost btn-sm" id="addSize"><?= aicon('plus') ?> Add size</button>
             <div class="hint">The <b>Default</b> row is the product at its base price (its name is the <b>Size</b> field). Extra sizes get their own price. Sizes only apply once you add at least one extra size. Remove the Default row (×) when every size has its own price.</div></div>
@@ -693,8 +725,17 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   function asrc(v){ return (!v||/^(https?:|\/|data:|blob:)/.test(v)) ? v : '../'+v; }
   function trashSvg(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>'; }
   function say(msg,ok){ note.style.color=ok?'#4a7a3a':'#b04a2f'; note.textContent=msg||''; }
-  function syncStore(){ store.value=urls.join('\n'); }
-  function syncFiles(){ var dt=new DataTransfer(); files.forEach(function(f){dt.items.add(f.file);}); fileInput.files=dt.files; }
+  var keysField=document.createElement('textarea'); keysField.name='gallery_keys'; keysField.hidden=true; box.appendChild(keysField);
+  function syncStore(){ store.value=urls.join('\n'); if(window.prodPhotosChanged) window.prodPhotosChanged(); }
+  /* gallery_keys lines up with the uploaded files, in order, so a colour / flavour / size that
+     was given one of these new photos (new:<key>) can be pointed at its saved path */
+  function syncFiles(){ var dt=new DataTransfer(); files.forEach(function(f){dt.items.add(f.file);}); fileInput.files=dt.files; keysField.value=files.map(function(f){return f.key;}).join('\n'); budget(); if(window.prodPhotosChanged) window.prodPhotosChanged(); }
+  /* the server takes post_max_size per save: say so BEFORE the save is lost, not after */
+  function budget(){
+    var lim=window.adminUploadLimits(), total=files.reduce(function(s,f){return s+f.file.size;},0);
+    if(lim.post && total > lim.post*0.85) say('These new photos add up to '+(total/1048576).toFixed(1)+' MB — the server takes about '+(lim.post/1048576*0.85).toFixed(0)+' MB per save. Save now, then add the rest.',false);
+    else if(lim.files && files.length > lim.files-3) say('That is '+files.length+' new photos — save now, then add more (the server takes '+lim.files+' files per save).',false);
+  }
   function hex(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){return b.toString(16).padStart(2,'0');}).join(''); }
 
   function tile(src,cap,isUp,onRemove){
@@ -746,15 +787,46 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       if(bad)   parts.push(bad+' unsupported/too-large skipped');
       say(parts.join(' · ')||'Nothing added', !(dup||bad));
     }
-    chosen.forEach(function(file){
-      if(!/\.(jpe?g|png|webp|gif|avif)$/i.test(file.name)||file.size>10*1048576){ bad++; done(); return; }
-      keyFor(file).then(function(k){
-        if(seen[k]){ dup++; }
-        else { seen[k]=true; files.push({file:file,key:k,url:URL.createObjectURL(file)}); added++; syncFiles(); render(); }
-        done();
+    /* one after the other, so the photos land in the order they were picked */
+    chosen.reduce(function(chain,file0){ return chain.then(function(){
+      if(!/\.(jpe?g|png|webp|gif|avif)$/i.test(file0.name)||file0.size>25*1048576){ bad++; done(); return; }
+      /* the duplicate check reads the ORIGINAL; what is uploaded is the shrunk copy */
+      return keyFor(file0).then(function(k){
+        if(seen[k]){ dup++; done(); return; }
+        seen[k]=true;
+        return window.adminShrink(file0).then(function(file){
+          var lim=window.adminUploadLimits();
+          if(lim.file && file.size>lim.file){ delete seen[k]; bad++; done(); return; }
+          files.push({file:file,key:k.slice(0,40),url:URL.createObjectURL(file)}); added++; syncFiles(); render(); done();
+        });
       });
-    });
+    }); }, Promise.resolve());
   });
+
+  /* the product's photos, for the colour / flavour / size photo pickers below:
+     saved ones by path, photos added in this visit as new:<key> */
+  window.prodPhotos={
+    list:function(){
+      var out=[], seenV={};
+      function add(v,src){ if(v&&!seenV[v]){ seenV[v]=1; out.push({val:v,src:src||asrc(v)}); } }
+      var main=document.querySelector('input[name="image"]'), hov=document.querySelector('input[name="hover_image"]');
+      if(main) add(main.value.trim()); if(hov) add(hov.value.trim());
+      urls.forEach(function(u){ add(u); });
+      files.forEach(function(f){ add('new:'+f.key, f.url); });
+      return out;
+    },
+    src:function(v){ if(!v) return ''; if(v.indexOf('new:')===0){ var f=files.find(function(x){return 'new:'+x.key===v;}); return f?f.url:''; } return asrc(v); },
+    /* a photo picked from the option's own button joins the gallery; resolves to its new:<key> */
+    add:function(file0){
+      return keyFor(file0).then(function(k){
+        var hit=files.find(function(x){return x.key===k.slice(0,40);}); if(hit) return 'new:'+hit.key;
+        return window.adminShrink(file0).then(function(file){
+          seen[k]=true; var f={file:file,key:k.slice(0,40),url:URL.createObjectURL(file)};
+          files.push(f); syncFiles(); render(); say('Photo added to the gallery — save to keep it.',true); return 'new:'+f.key;
+        });
+      });
+    }
+  };
 
   function addUrl(){
     var u=(urlInput.value||'').trim();
@@ -782,10 +854,66 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     }).filter(function(o){return o.label;});
   }
   /* ===== SIZES: one permanent Default (base price, no remove) + extra priced sizes ===== */
+  /* ===== OPTION PHOTOS: a photo per colour / flavour / size, shown when the shopper picks it =====
+     Each row keeps its photo (row.img); saveImgs() writes {"color":{label:photo},…} to opt_images.
+     A photo is one of the product's own (main, hover, gallery) or a new one, which joins the gallery. */
+  var imgHidden=document.getElementById('optImages');
+  var IMG={color:{},flavor:{},size:{}};
+  try{ var ij=JSON.parse((imgHidden&&imgHidden.value)||'{}'); ['color','flavor','size'].forEach(function(g){ if(ij&&ij[g]&&typeof ij[g]==='object') IMG[g]=ij[g]; }); }catch(e){}
+  var defImg='';
+  function saveImgs(){
+    if(!imgHidden) return;
+    var o={color:{},flavor:{},size:{}};
+    (cols||[]).forEach(function(c){ var l=String(c.label).trim(); if(l&&c.img) o.color[l]=c.img; });
+    (flvs||[]).forEach(function(f){ var l=String(f.label).trim(); if(l&&f.img) o.flavor[l]=f.img; });
+    if(!noDefault && defImg){ o.size[curDef()||'Standard']=defImg; }
+    (extras||[]).forEach(function(x){ var l=String(x.label).trim(); if(l&&x.img) o.size[l]=x.img; });
+    imgHidden.value=JSON.stringify(o);
+  }
+  var CAM='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  function imgBtn(get,set){
+    var b=document.createElement('button'); b.type='button'; b.className='vr-img';
+    b._paint=function(){
+      var v=get(), src=v&&window.prodPhotos?window.prodPhotos.src(v):'';
+      if(v && !src) { set(''); v=''; }                                         // its new photo was removed from the gallery
+      b.innerHTML=src?'<img src="'+esc(src)+'" alt="">':CAM;
+      b.classList.toggle('has',!!src);
+      b.title=src?'Photo shown for this option — click to change':'Add a photo for this option';
+    };
+    b.addEventListener('click',function(e){ e.preventDefault(); openPicker(b,get,set); });
+    b._paint(); return b;
+  }
+  window.prodPhotosChanged=function(){ document.querySelectorAll('.vr-img').forEach(function(b){ if(b._paint) b._paint(); }); };
+  var pop=null;
+  function closePicker(){ if(pop){ pop.remove(); pop=null; } }
+  function openPicker(btn,get,set){
+    closePicker();
+    var list=window.prodPhotos?window.prodPhotos.list():[], cur=get();
+    pop=document.createElement('div'); pop.className='vr-pop';
+    pop.innerHTML='<div class="vr-pop-h">Photo shown when this option is picked</div>'+
+      (list.length?'<div class="vr-pop-g">'+list.map(function(p,i){ return '<button type="button" data-i="'+i+'" class="'+(p.val===cur?'on':'')+'"><img src="'+esc(p.src)+'" alt=""></button>'; }).join('')+'</div>'
+                  :'<div class="vr-pop-e">This product has no photos yet — upload one.</div>')+
+      '<div class="vr-pop-a"><button type="button" class="btn btn-ghost btn-sm" data-up>＋ Upload photo</button>'+(cur?'<button type="button" class="btn btn-ghost btn-sm" data-none>No photo</button>':'')+'</div>';
+    document.body.appendChild(pop);
+    var r=btn.getBoundingClientRect();
+    pop.style.top=(window.scrollY+r.bottom+6)+'px'; pop.style.left=Math.max(8,Math.min(window.scrollX+r.left, window.scrollX+document.documentElement.clientWidth-pop.offsetWidth-8))+'px';
+    pop.querySelectorAll('[data-i]').forEach(function(t){ t.addEventListener('click',function(){ set(list[+t.dataset.i].val); btn._paint(); closePicker(); }); });
+    var none=pop.querySelector('[data-none]'); if(none) none.addEventListener('click',function(){ set(''); btn._paint(); closePicker(); });
+    pop.querySelector('[data-up]').addEventListener('click',function(){
+      var fi=document.createElement('input'); fi.type='file'; fi.accept='image/*';
+      fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f||!window.prodPhotos) return;
+        window.prodPhotos.add(f).then(function(v){ set(v); btn._paint(); }); closePicker(); });
+      fi.click();
+    });
+  }
+  document.addEventListener('click',function(e){ if(pop && !pop.contains(e.target) && !e.target.closest('.vr-img')) closePicker(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closePicker(); });
+
   var sizeWrap=document.getElementById('sizeRows'), sizeHidden=document.getElementById('optSizes');
   var DEF_EMPTY='Standard size — set it in the “Size” field above';
   var defLabel='', extras=[];
-  parseOpts(sizeHidden.value).forEach(function(o){ if(o.price===null && defLabel==='') defLabel=o.label; else extras.push({label:o.label, price:o.price==null?base():o.price}); });
+  parseOpts(sizeHidden.value).forEach(function(o){ if(o.price===null && defLabel==='') defLabel=o.label; else extras.push({label:o.label, price:o.price==null?base():o.price, img:IMG.size[o.label]||''}); });
+  defImg = IMG.size[defLabel] || (sizeInput && IMG.size[sizeInput.value.trim()]) || '';
   /* a product whose every size carries its own price (an import like "30 ml|9.90 / 50 ml|14.50")
      has NO default size. Opening it used to invent one from the "Size" field — a new $0 option
      the shop then sold. Such a product keeps its list as it is; the owner can add a default. */
@@ -795,8 +923,9 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   function curDef(){ return (sizeInput && sizeInput.value.trim()) || defLabel.trim() || ''; }
   function saveSizes(){
     var kept=extras.filter(function(x){return x.label.trim();}).map(function(x){return x.label.trim()+'|'+fmt(x.price||0);});
-    if(!kept.length){ sizeHidden.value=''; return; }
+    if(!kept.length){ sizeHidden.value=''; saveImgs(); return; }
     sizeHidden.value = (noDefault ? kept : [curDef() || 'Standard'].concat(kept)).join('\n');
+    saveImgs();
   }
   function renderSizes(){
     sizeWrap.innerHTML='';
@@ -815,6 +944,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         (extras.length ? '<button type="button" class="vr-x" id="dropDefault" title="No default size — sell only the sizes below">&times;</button>' : '');
       var dd=d.querySelector('#dropDefault'); if(dd) dd.addEventListener('click',function(){ noDefault=true; renderSizes(); });
     }
+    if(!noDefault && extras.length){ var dn=d.querySelector('.vr-name'); d.insertBefore(imgBtn(function(){return defImg;},function(v){ defImg=v; saveImgs(); }), dn); }
     sizeWrap.appendChild(d);
     extras.forEach(function(x,idx){
       var row=document.createElement('div'); row.className='var-row';
@@ -822,6 +952,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         '<input class="input vr-label" placeholder="e.g. 50 ml" value="'+esc(x.label)+'">'+
         '<span class="vr-pfx">$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+(x.price!=null?esc(x.price):'')+'" placeholder="price">'+
         '<button type="button" class="vr-x" title="Remove">&times;</button>';
+      row.insertBefore(imgBtn(function(){return extras[idx].img||'';},function(v){ extras[idx].img=v; saveImgs(); }), row.querySelector('.vr-label'));
       row.querySelector('.vr-label').addEventListener('input',function(e){ extras[idx].label=e.target.value; saveSizes(); });
       row.querySelector('.vr-price').addEventListener('input',function(e){ extras[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveSizes(); });
       row.querySelector('.vr-x').addEventListener('click',function(){ extras.splice(idx,1); saveSizes(); renderSizes(); });
@@ -839,8 +970,8 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   var HEX={}; PALETTE.forEach(function(pl){ HEX[pl[0].toLowerCase()]=pl[1]; });
   function hexOf(name){ return HEX[String(name).toLowerCase()] || (/^#/.test(name)?name:'#d8cfc0'); }
   var colWrap=document.getElementById('colorRows'), colHidden=document.getElementById('optColors'), pick=document.getElementById('swatchPick');
-  var cols=parseOpts(colHidden.value).map(function(o){return {label:o.label, price:(o.price!=null&&o.price>0)?o.price:0};});
-  function saveCols(){ colHidden.value = cols.filter(function(c){return String(c.label).trim();}).map(function(c){ return c.price>0 ? (String(c.label).trim()+'|'+fmt(c.price)) : String(c.label).trim(); }).join('\n'); }
+  var cols=parseOpts(colHidden.value).map(function(o){return {label:o.label, price:(o.price!=null&&o.price>0)?o.price:0, img:IMG.color[o.label]||''};});
+  function saveCols(){ colHidden.value = cols.filter(function(c){return String(c.label).trim();}).map(function(c){ return c.price>0 ? (String(c.label).trim()+'|'+fmt(c.price)) : String(c.label).trim(); }).join('\n'); saveImgs(); }
   function renderCols(){
     colWrap.innerHTML='';
     cols.forEach(function(c,idx){
@@ -852,6 +983,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       row.querySelector('.vr-label').addEventListener('input',function(e){ cols[idx].label=e.target.value; saveCols(); });
       row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveCols(); });
       row.querySelector('.vr-x').addEventListener('click',function(){ cols.splice(idx,1); saveCols(); renderCols(); renderPalette(); });
+      row.insertBefore(imgBtn(function(){return cols[idx].img||'';},function(v){ cols[idx].img=v; saveImgs(); }), row.querySelector('.vr-label'));
       colWrap.appendChild(row);
     });
     saveCols();
@@ -875,11 +1007,12 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
   var FLV_MAX=40;
   var flvWrap=document.getElementById('flavorRows'), flvHidden=document.getElementById('optFlavors'), addFlv=document.getElementById('addFlavor');
   var flvHead=document.getElementById('flvHead'), flvLimit=document.getElementById('flvLimit'), flvName=document.getElementById('optFlavorName');
-  var flvs=parseOpts(flvHidden.value).map(function(o){return {label:o.label, price:(o.price!=null&&o.price>0)?String(o.price):''};});
+  var flvs=parseOpts(flvHidden.value).map(function(o){return {label:o.label, price:(o.price!=null&&o.price>0)?String(o.price):'', img:IMG.flavor[o.label]||''};});
   function saveFlvs(){
     flvHidden.value = flvs.filter(function(f){return f.label.trim();}).map(function(f){
       var n=parseFloat(f.price); return (n && !isNaN(n)) ? f.label.trim()+'|'+fmt(n) : f.label.trim();   // a negative one is sent on, for the server to name
     }).join('\n');
+    saveImgs();
   }
   /* "|" separates the name from its price when saved, so a name can't hold one */
   function checkFlv(inp){ inp.setCustomValidity(inp.value.indexOf('|')>=0 ? "A name can't contain the | character." : ''); }
@@ -892,6 +1025,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         '<span class="vr-pfx">+$</span><input class="input vr-price" type="number" step="0.01" min="0" value="'+esc(f.price)+'" placeholder="0" aria-label="Extra price for this flavour">'+
         '<button type="button" class="vr-x" title="Remove" aria-label="Remove this flavour">&times;</button>';
       var lab=row.querySelector('.vr-label'), pr=row.querySelector('.vr-price');
+      row.insertBefore(imgBtn(function(){return flvs[idx].img||'';},function(v){ flvs[idx].img=v; saveImgs(); }), lab);
       checkFlv(lab);
       lab.addEventListener('input',function(){ flvs[idx].label=lab.value; checkFlv(lab); saveFlvs(); });
       pr.addEventListener('input',function(){ flvs[idx].price=pr.value; saveFlvs(); });

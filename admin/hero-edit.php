@@ -202,16 +202,25 @@ admin_head('Edit Hero', 'home-sections', 'The banner at the top of your home pag
   pickBtn.addEventListener('click',function(){ picker.click(); });
   picker.addEventListener('change',function(){
     var chosen=Array.prototype.slice.call(picker.files||[]); picker.value='';
-    var added=0,dup=0,bad=0;
-    chosen.forEach(function(file){
-      if(!/\.(jpe?g|png|webp|gif|avif)$/i.test(file.name)||file.size>10*1048576){ bad++; return; }
-      var k='ns:'+file.name+':'+file.size;
-      if(seen[k]){ dup++; return; }
-      seen[k]=true; items.push({file:file,key:k,url:URL.createObjectURL(file)}); added++;
+    var added=0,dup=0,bad=0, lim=window.adminUploadLimits();
+    say('Preparing photos…',true);
+    /* each photo is shrunk first (adminShrink): the server takes 2 MB a photo, 8 MB a save */
+    Promise.all(chosen.map(function(file0){
+      if(!/\.(jpe?g|png|webp|gif|avif)$/i.test(file0.name)||file0.size>25*1048576){ bad++; return null; }
+      var k='ns:'+file0.name+':'+file0.size;
+      if(seen[k]){ dup++; return null; }
+      seen[k]=true;
+      return window.adminShrink(file0).then(function(file){
+        if(lim.file && file.size>lim.file){ delete seen[k]; bad++; return; }
+        items.push({file:file,key:k,url:URL.createObjectURL(file)}); added++;
+      });
+    })).then(function(){
+      render();
+      var parts=[]; if(added) parts.push(added+' added'); if(dup) parts.push(dup+' duplicate'+(dup>1?'s':'')+' skipped'); if(bad) parts.push(bad+' unsupported/too-large skipped');
+      var total=items.reduce(function(s,it){ return s+(typeof it==='string'?0:it.file.size); },0);
+      if(lim.post && total>lim.post*0.85) parts.push('these new photos add up to '+(total/1048576).toFixed(1)+' MB — save now, then add the rest');
+      say(parts.join(' · ')||'Nothing added', !(dup||bad) && !(lim.post && total>lim.post*0.85));
     });
-    render();
-    var parts=[]; if(added) parts.push(added+' added'); if(dup) parts.push(dup+' duplicate'+(dup>1?'s':'')+' skipped'); if(bad) parts.push(bad+' unsupported/too-large skipped');
-    say(parts.join(' · ')||'Nothing added', !(dup||bad));
   });
   function addUrl(){
     var u=(urlInput.value||'').trim();

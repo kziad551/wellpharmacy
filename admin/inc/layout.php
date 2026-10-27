@@ -104,7 +104,15 @@ function admin_head(string $title, string $current = '', string $subtitle = ''):
 <title><?= e($title) ?> — WELL Admin</title>
 <link rel="stylesheet" href="<?= asset('assets/admin.css') ?>">
 </head>
-<body data-page="<?= e(basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '.php')) ?>">
+<?php
+    /* the server's upload limits, in bytes, for the uploaders' own checks (admin_ini_bytes) */
+    $iniBytes = function (string $k): int {
+        $v = trim((string) ini_get($k)); $n = (int) $v;
+        switch (strtolower(substr($v, -1))) { case 'g': $n *= 1024; case 'm': $n *= 1024; case 'k': $n *= 1024; }
+        return $n;
+    };
+?>
+<body data-page="<?= e(basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '.php')) ?>" data-upmax="<?= $iniBytes('upload_max_filesize') ?>" data-postmax="<?= $iniBytes('post_max_size') ?>" data-maxfiles="<?= (int) ini_get('max_file_uploads') ?>">
 <div class="a-shell">
   <aside class="a-side" id="aSide">
     <div class="a-brand">
@@ -247,6 +255,36 @@ function admin_foot(): void {
   @keyframes aToastOut{to{opacity:0;transform:translateY(12px)}}
 </style>
 <script>
+/* ---- photo shrinking, before upload ----
+   The live server takes 2 MB a photo and 8 MB a save; a phone photo is 3-5 MB, so photos
+   were refused and a few at once lost the whole save. Every admin uploader now passes its
+   photos through here: anything over ~1.2 MB or 2000px is redrawn at 2000px max, JPEG 86%
+   (PNG -> WebP so see-through backgrounds stay see-through) — about 300-600 KB, the same
+   size the server would have shrunk it to anyway. GIFs and small photos pass untouched. */
+window.adminShrink = function (file) {
+  var MAX = 2000, LIMIT = 1.2 * 1048576;
+  if (!file || !/^image\/(jpeg|png|webp|avif)$/i.test(file.type) || !window.createImageBitmap) return Promise.resolve(file);
+  return createImageBitmap(file).then(function (bmp) {
+    var big = Math.max(bmp.width, bmp.height);
+    if (file.size <= LIMIT && big <= MAX) { if (bmp.close) bmp.close(); return file; }
+    var s = Math.min(1, MAX / big), w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+    var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    var cx = cv.getContext('2d');
+    var png = /png/i.test(file.type), type = png ? 'image/webp' : 'image/jpeg';
+    if (!png) { cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); }   // a JPEG has no transparency
+    cx.drawImage(bmp, 0, 0, w, h); if (bmp.close) bmp.close();
+    return new Promise(function (res) { cv.toBlob(res, type, 0.86); }).then(function (blob) {
+      if (!blob || blob.size >= file.size) return file;            // no gain: keep the original
+      var ext = blob.type === 'image/webp' ? 'webp' : blob.type === 'image/png' ? 'png' : 'jpg';
+      return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.' + ext, { type: blob.type, lastModified: Date.now() });
+    });
+  }).catch(function () { return file; });
+};
+/* what the server accepts, from <body data-…> (bytes) */
+window.adminUploadLimits = function () {
+  var b = document.body.dataset;
+  return { file: +b.upmax || 0, post: +b.postmax || 0, files: +b.maxfiles || 20 };
+};
 (function(){
   // ---- flash toast: pops up bottom-right, auto-dismisses after 5s, hover reveals the ✕ ----
   (function(){
@@ -357,8 +395,20 @@ function admin_foot(): void {
     idle();
 
     inp.addEventListener('change',function(){
-      var f=inp.files&&inp.files[0]; if(!f) return;
+      var f0=inp.files&&inp.files[0]; if(!f0) return;
+      if(inp._shrunk===f0){ inp._shrunk=null; } else if(/\.(jpe?g|png|webp|avif)$/i.test(f0.name)){
+        /* shrink first (see adminShrink), put the smaller file in the input, then run this again */
+        status.style.color='#8a7d6e'; status.textContent='Preparing photo…';
+        window.adminShrink(f0).then(function(f1){
+          if(f1!==f0){ var dt=new DataTransfer(); dt.items.add(f1); inp.files=dt.files; }
+          inp._shrunk=inp.files[0]; inp.dispatchEvent(new Event('change'));
+        });
+        return;
+      }
+      var f=inp.files[0];
       var mb=f.size/1048576, typeOk=/\.(jpe?g|png|webp|gif|avif)$/i.test(f.name);
+      var lim=window.adminUploadLimits();
+      if(lim.file && f.size>lim.file){ status.style.color='#b04a2f'; status.textContent='✕ Even after shrinking, that image is '+mb.toFixed(1)+' MB — the server takes '+(lim.file/1048576).toFixed(0)+' MB at most. Please pick a smaller one.'; undoBtn.style.display='none'; inp.value=''; return; }
       if(!typeOk){ status.style.color='#b04a2f'; status.textContent='✕ Unsupported file type — use JPG, PNG, WebP, GIF or AVIF.'; undoBtn.style.display='none'; inp.value=''; return; }
       if(mb>maxMB){ status.style.color='#b04a2f'; status.textContent='✕ That image is '+mb.toFixed(1)+' MB — the maximum is '+maxMB+' MB. Please pick a smaller one.'; undoBtn.style.display='none'; inp.value=''; return; }
       if(objUrl) URL.revokeObjectURL(objUrl);

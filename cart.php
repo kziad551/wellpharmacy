@@ -75,7 +75,7 @@ ob_start(); ?>
                        : (stock <= low ? '<div class="cnote">Only ' + stock + ' left</div>' : '');
       rows.push(
         '<div class="crow">' +
-          '<img class="gimg" data-grade src="' + p.img + '" alt="">' +
+          '<img class="gimg" data-grade src="' + W.esc(W.lineImg(l, p)) + '" alt="">' +
           '<div><div class="br">' + p.brand + '</div><div class="ti">' + p.name + '</div>' +
             (vlabel ? '<div class="cvar">' + W.esc(vlabel) + '</div>' : '') +
             '<span class="stepper"><button data-cdec="' + k + '">−</button><span class="q">' + l.qty + '</span><button data-cinc="' + k + '"' + (atMax ? ' disabled' : '') + '>+</button></span>' + note + '</div>' +

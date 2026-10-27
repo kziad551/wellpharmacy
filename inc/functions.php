@@ -353,6 +353,41 @@ function variant_resolve(array $p, string $color, string $size, string $flavor =
             'label' => implode(' · ', array_filter([$clabel, $flabel, $zlabel]))];
 }
 
+/* A photo per option: products.opt_images holds {"color":{"Red":"uploads/x.jpg"},
+   "flavor":{…},"size":{…}} — picking that option shows that photo (product page, card
+   size chips, the bag line). Only options that still exist and only image paths/URLs
+   come back; [] groups when the product has none (or the column isn't migrated yet). */
+function product_option_images(array $p): array {
+    $out = ['color' => [], 'flavor' => [], 'size' => []];
+    $raw = json_decode((string) ($p['opt_images'] ?? ''), true);
+    if (!is_array($raw)) return $out;
+    $live = [
+        'color'  => array_column(parse_variant_opts($p['opt_colors'] ?? ''), 'label'),
+        'flavor' => array_column(parse_variant_opts($p['opt_flavors'] ?? ''), 'label'),
+        'size'   => array_merge(array_column(parse_variant_opts($p['opt_sizes'] ?? ''), 'label'), [trim((string) ($p['size'] ?? ''))]),
+    ];
+    foreach ($out as $g => $_) {
+        foreach ((array) ($raw[$g] ?? []) as $label => $img) {
+            $label = (string) $label; $img = trim((string) $img);
+            if ($img === '' || !in_array($label, $live[$g], true) || !option_image_ok($img)) continue;
+            $out[$g][$label] = $img;
+        }
+    }
+    return $out;
+}
+
+/** Does products have this column? (a feature whose migration hasn't run yet stays off) */
+function product_has_col(string $c): bool {
+    static $cols = null;
+    if ($cols === null) $cols = array_column(rows("SHOW COLUMNS FROM products"), 'Field');
+    return in_array($c, $cols, true);
+}
+
+/** A value that may be used as an option photo: a site upload or a plain http(s) URL. */
+function option_image_ok(string $v): bool {
+    return strlen($v) <= 500 && (bool) preg_match('~^(uploads/[\w.\-/]+|https?://[^\s"\'<>]+)$~i', $v) && strpos($v, '..') === false;
+}
+
 /* What the shop calls a product's flavour group: opt_flavor_name, '' = "Flavour"
    (the owner can call it "Scent", "Type", ...). */
 function flavor_group_name(array $p): string {
