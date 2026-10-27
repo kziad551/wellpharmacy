@@ -353,6 +353,19 @@ function variant_resolve(array $p, string $color, string $size, string $flavor =
             'label' => implode(' · ', array_filter([$clabel, $flabel, $zlabel]))];
 }
 
+/* The price a product opens at: its default size, plus the PRIMARY colour's and the
+   PRIMARY flavour's extra. The primary one is the first in its list (the admin's
+   "Make primary" moves an option to the top), so a product with colours and flavours is
+   always ready to buy as it opens, and its card shows that same price. */
+function product_default_price(array $p): float {
+    $base = product_base_price($p);
+    if ($base <= 0) return 0.0;
+    $c = parse_variant_opts($p['opt_colors'] ?? '');
+    $f = parse_variant_opts($p['opt_flavors'] ?? '');
+    $sur = ($c && $c[0]['price'] !== null ? (float) $c[0]['price'] : 0.0) + ($f && $f[0]['price'] !== null ? (float) $f[0]['price'] : 0.0);
+    return round($base + $sur, 2);
+}
+
 /* A photo per option: products.opt_images holds {"color":{"Red":"uploads/x.jpg"},
    "flavor":{…},"size":{…}} — picking that option shows that photo (product page, card
    size chips, the bag line). Only options that still exist and only image paths/URLs

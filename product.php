@@ -61,18 +61,11 @@ $stock = (int)$p['stock'];
 $low   = (int)$p['low_stock'];
 $basePrice = product_base_price($p);     // the default size's price (the cheapest priced size when the base is blank)
 $noPrice = ($basePrice <= 0);            // price not set yet — show "coming soon", block ordering
-/* the price the page opens at, the way its script paints it before anything is picked: the
-   standard size (else the cheapest size), plus the cheapest colour and flavour surcharge.
-   "from" while the choices still change it (a single flavour is already picked). */
-$pdpSpan = (function (array $p, float $base): array {
-    $pr = fn(array $list, float $d) => array_map(fn($o) => $o['price'] !== null ? (float) $o['price'] : $d, $list);
-    $sizes = product_sizes($p);
-    $z = (!$sizes || array_filter($sizes, fn($o) => $o['price'] === null)) ? [$base] : $pr($sizes, $base);
-    $c = $pr(parse_variant_opts($p['opt_colors'] ?? ''), 0.0) ?: [0.0];
-    $f = $pr(parse_variant_opts($p['opt_flavors'] ?? ''), 0.0) ?: [0.0];
-    return [round(min($z) + min($c) + min($f), 2), round(max($z) + max($c) + max($f), 2)];
-})($p, $basePrice);
-$pdpFrom = $pdpSpan[0] != $pdpSpan[1];
+/* the price the page opens at, as its script paints it: the default size with the PRIMARY
+   colour and PRIMARY flavour already picked (product_default_price) — one exact price */
+$pdpOpen = product_default_price($p);
+$pdpSpan = [$pdpOpen, $pdpOpen];
+$pdpFrom = false;
 
 /* free gift with purchase (inc/gifts.php). Hidden, like the card chip, while the product
    can't be bought (sold out or price coming soon): nobody could earn the gift. */
@@ -359,12 +352,12 @@ include __DIR__ . '/inc/head.php';
         <?php if ($noPrice): ?><span class="p p-tba">Price coming soon</span>
         <?php else: ?><span class="p" id="pdpPrice"><?= $pdpFrom ? '<span class="from">from</span> ' : '' ?><?= money($pdpSpan[0]) ?></span><?php if(trim((string)($p['unit']??''))!==''): ?><span class="unit-lbl">/ <?= e($p['unit']) ?></span><?php endif; ?>
         <?php /* the old price belongs to the base price only: hidden while a "from" or a picked option shows another */ ?>
-        <?php if ($p['was']): ?><span class="was" id="pdpWas" <?= $pdpFrom ? 'hidden' : '' ?>><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
+        <?php if ($p['was']): ?><span class="was" id="pdpWas" <?= ($pdpFrom || abs($pdpOpen - $basePrice) > 0.005) ? 'hidden' : '' ?>><?= money($p['was']) ?></span><?php endif; ?><?php endif; ?>
         <span class="instock" id="stockLine"></span>
       </div>
       <?php $vColors = parse_variant_opts($p['opt_colors'] ?? ''); $vSizes = product_sizes($p); $vFlavors = parse_variant_opts($p['opt_flavors'] ?? ''); ?>
       <?php if ($vColors): ?>
-      <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color</span><div class="opt-btns">
+      <div class="opt-group" data-optgroup="color"><span class="opt-lbl">Color<span class="opt-sel"></span></span><div class="opt-btns">
         <?php foreach ($vColors as $o): $oimg = $OPT_IMG['color'][$o['label']] ?? ''; ?><button type="button" class="opt-btn<?= $oimg !== '' ? ' has-img' : '' ?>" data-label="<?= e($o['label']) ?>" data-price="<?= $o['price']!==null ? e($o['price']) : '' ?>"<?= $oimg !== '' ? ' data-img="' . e($oimg) . '"' : '' ?>><?php if ($oimg !== ''): ?><img class="opt-thumb" src="<?= e($oimg) ?>" alt="" loading="lazy"><?php endif; ?><?= e($o['label']) ?><?php if($o['price']!==null && (float)$o['price']>0): ?> <span class="opt-x">+<?= money($o['price']) ?></span><?php endif; ?></button><?php endforeach; ?>
       </div></div>
       <?php endif; ?>
@@ -600,7 +593,10 @@ $PAGE_JS = <<<JS
   const FLAVORS = p.flavors || [];   // a third option group; assets/data.php only sends it when the product has some
   const HAS_OPTS = (p.colors && p.colors.length) || (p.sizes && p.sizes.length) || FLAVORS.length;
   const SEL = { color: null, size: null, flavor: null };
-  if (FLAVORS.length === 1) SEL.flavor = FLAVORS[0].label;   // a single flavour: nothing to choose
+  /* the PRIMARY colour and PRIMARY flavour (the first of each — the admin's "Make primary" puts
+     it there) are picked as the page opens, so it shows their price and can go straight in the bag */
+  if (p.colors && p.colors.length) SEL.color = p.colors[0].label;
+  if (FLAVORS.length) SEL.flavor = FLAVORS[0].label;
   // a plain product opens at what's already in the bag (the button then reads "Update bag"). A product with
   // options opens at 1: each colour/size/flavour is its own bag line, so the bag total is not this line's qty
   let qty = HAS_OPTS ? 1 : Math.max(1, Math.min(W.cartQtyOf(p.id) || 1, STOCK || 1));
@@ -652,8 +648,13 @@ $PAGE_JS = <<<JS
   if (SEL.size){ document.querySelectorAll('.opt-group[data-optgroup="size"] .opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.size) b.classList.add('on'); }); }
   /* an option with its own photo shows it in the big picture when picked (it is one of the thumbnails) */
   function showOptPhoto(btn){ const src = btn && btn.getAttribute('data-img'); if (!src) return; const i = gal.indexOf(src); if (i >= 0) setPhoto(i); }
-  // ...and the only flavour, when there is just one
-  if (SEL.flavor){ const fg = document.querySelector('.opt-group[data-optgroup="flavor"]'); if (fg){ fg.querySelectorAll('.opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL.flavor) b.classList.add('on'); }); showSel(fg, SEL.flavor); } }
+  // ...and the primary colour and flavour (the big photo stays the product's own until the shopper clicks one)
+  ['color', 'flavor'].forEach(function(grp){
+    if (!SEL[grp]) return;
+    const g = document.querySelector('.opt-group[data-optgroup="' + grp + '"]'); if (!g) return;
+    g.querySelectorAll('.opt-btn').forEach(function(b){ if (b.getAttribute('data-label') === SEL[grp]) b.classList.add('on'); });
+    showSel(g, SEL[grp]);
+  });
   function paint(){
     \$('#qty').textContent = qty;
     const ready = optReady();

@@ -395,6 +395,12 @@ select.input{padding-right:34px}
 .var-row .vr-name{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--a-ink);padding:4px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .var-row .vr-name-empty{font-weight:400;font-style:italic;color:var(--a-faint)}
 .var-row.is-default{flex-wrap:wrap}
+/* primary colour / flavour: the first row; the others can be made primary */
+.var-row .vr-prim{flex:none;height:28px;padding:0 10px;border:1px solid var(--a-border);border-radius:999px;background:#fff;color:var(--a-soft);font-size:11.5px;font-weight:700;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center}
+.var-row .vr-prim:hover{border-color:var(--a-primary);color:var(--a-primary)}
+.var-row .vr-prim.on{background:var(--a-primary);border-color:var(--a-primary);color:#fff;cursor:default}
+.var-row .vr-prim.icon{width:28px;padding:0;justify-content:center;font-size:15px;font-weight:400}
+.var-row .vr-label{min-width:90px}
 /* option photo: a small square button per colour / flavour / size row */
 .var-row .vr-img{flex:none;width:34px;height:34px;padding:0;border:1.5px dashed var(--a-border);border-radius:8px;background:#fff;color:var(--a-faint);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .var-row .vr-img svg{width:17px;height:17px}

@@ -64,11 +64,11 @@ function well_product_card(array $p): string {
         $badges .= '<span class="badge ' . $b[0] . '">' . $b[1] . '</span>';
     }
 
-    /* the card shows the default item's price. When no option sells at it (every flavour or
-       colour costs extra), it shows the cheapest one instead, as "from $X" */
-    $from    = $noPrice ? $price : variant_from_price($p);
-    $fromLbl = $from > $price ? '<span class="from">from</span> ' : '';
-    if ($fromLbl !== '') $price = $from;
+    /* the card shows the price the product opens at: its default size with the PRIMARY colour
+       and flavour (product_default_price) — the same price the product page shows */
+    $fromLbl = '';
+    if (!$noPrice) $price = product_default_price($p);
+    if ($was !== null && abs($price - product_base_price($p)) > 0.005) $was = null;   // the old price was the base price's
 
     if ($noPrice) {
         $priceHtml = '<span class="price price-tba">Price coming soon</span>';
@@ -94,7 +94,8 @@ function well_product_card(array $p): string {
                          $buyBtn = '<a class="buybtn" href="' . e($href) . '">buy — ' . $buyPrice . '</a>'; }
     else               { $addBtn = '<button class="btn" data-add="' . e($id) . '">add to bag</button>';
                          $buyBtn = '<button class="buybtn" data-add="' . e($id) . '">buy — ' . $buyPrice . '</button>'; }
-    $chips = well_card_size_chips($p, $price, $soldOut || $noPrice, $href);
+    /* size chips only when the size alone sets the price (a colour/flavour is picked on the page) */
+    $chips = $needsPage ? '' : well_card_size_chips($p, $price, $soldOut || $noPrice, $href);
 
     $stockNote = (!$soldOut && $stock <= $low) ? '<span class="pc-stock">Only ' . $stock . ' left</span>' : '';
     /* free gift chip: the 2nd child of .pc-top so space-between puts it top-right.

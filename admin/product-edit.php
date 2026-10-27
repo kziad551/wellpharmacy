@@ -504,7 +504,8 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
               </div>
             </div>
             <div class="gal-note" data-gal-note></div>
-            <div class="hint">Pick several at once — previews appear instantly and stack left→right. Hover a photo and click ✕ to remove it. Duplicate images are skipped automatically. Nothing is saved until you click <b>Save product</b>.</div>
+            <div class="hint">Pick several at once — previews appear instantly and stack left→right. Hover a photo and click ✕ to remove it. Duplicate images are skipped automatically. Nothing is saved until you click <b>Save product</b>.
+              Big phone photos are shrunk before upload. This server accepts <b><?= e((string) ini_get('upload_max_filesize')) ?></b> per photo and <b><?= e((string) ini_get('post_max_size')) ?></b> per save.</div>
           </div>
         </div>
       </div></div>
@@ -602,7 +603,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       </div></div>
 
       <div class="a-card var-card" id="options"><div class="hd"><h2>Options / variants <span class="faint" style="font-weight:400;font-size:12.5px">(optional)</span></h2></div><div class="bd">
-        <p class="hint" style="margin:0 0 14px">Colours, flavours and/or sizes the customer picks before adding to bag. <b>The size sets the price; a colour or flavour can add a surcharge on top.</b> The <b>Default</b> size always uses the product's base price above. Click the <b>camera</b> on any row to give that option its own photo; it shows when the shopper picks it. For models or types, add them as <b>Flavours</b> and rename the group (e.g. “Model”).</p>
+        <p class="hint" style="margin:0 0 14px">Colours, flavours and/or sizes the customer picks before adding to bag. <b>The size sets the price; a colour or flavour can add a surcharge on top.</b> The <b>Default</b> size always uses the product's base price above. The <b>★ Primary</b> colour and flavour are selected when the product page opens, and their extra is in the price shoppers first see (base + primary colour + primary flavour). Click <b>☆</b> on another row to make it primary. Click the <b>camera</b> on any row to give that option its own photo; it shows when the shopper picks it. For models or types, add them as <b>Flavours</b> and rename the group (e.g. “Model”).</p>
         <div class="var-groups">
           <div class="field"><label>Colours</label>
             <input type="hidden" name="opt_colors" id="optColors" value="<?= e($v['opt_colors'] ?? '') ?>">
@@ -883,6 +884,15 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     b.addEventListener('click',function(e){ e.preventDefault(); openPicker(b,get,set); });
     b._paint(); return b;
   }
+  /* PRIMARY colour / flavour: the first row is the one the product page opens with (its extra
+     is in the price shoppers first see). "Make primary" moves a row to the top. */
+  function primBtn(idx,makePrimary){
+    if(idx===0){ var s=document.createElement('span'); s.className='vr-prim icon on'; s.title='Primary: the product page opens with this one selected, and its extra is in the first price shown'; s.setAttribute('aria-label','Primary'); s.textContent='★'; return s; }
+    var b=document.createElement('button'); b.type='button'; b.className='vr-prim icon'; b.textContent='☆';
+    b.title='Make primary: the product page opens with this one selected'; b.setAttribute('aria-label','Make primary');
+    b.addEventListener('click',function(e){ e.preventDefault(); makePrimary(); });
+    return b;
+  }
   window.prodPhotosChanged=function(){ document.querySelectorAll('.vr-img').forEach(function(b){ if(b._paint) b._paint(); }); };
   var pop=null;
   function closePicker(){ if(pop){ pop.remove(); pop=null; } }
@@ -984,6 +994,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
       row.querySelector('.vr-price').addEventListener('input',function(e){ cols[idx].price=e.target.value===''?0:parseFloat(e.target.value); saveCols(); });
       row.querySelector('.vr-x').addEventListener('click',function(){ cols.splice(idx,1); saveCols(); renderCols(); renderPalette(); });
       row.insertBefore(imgBtn(function(){return cols[idx].img||'';},function(v){ cols[idx].img=v; saveImgs(); }), row.querySelector('.vr-label'));
+      if(cols.length>1) row.insertBefore(primBtn(idx,function(){ cols.unshift(cols.splice(idx,1)[0]); saveCols(); renderCols(); renderPalette(); }), row.querySelector('.vr-pfx'));
       colWrap.appendChild(row);
     });
     saveCols();
@@ -1026,6 +1037,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         '<button type="button" class="vr-x" title="Remove" aria-label="Remove this flavour">&times;</button>';
       var lab=row.querySelector('.vr-label'), pr=row.querySelector('.vr-price');
       row.insertBefore(imgBtn(function(){return flvs[idx].img||'';},function(v){ flvs[idx].img=v; saveImgs(); }), lab);
+      if(flvs.length>1) row.insertBefore(primBtn(idx,function(){ flvs.unshift(flvs.splice(idx,1)[0]); renderFlvs(); }), row.querySelector('.vr-pfx'));
       checkFlv(lab);
       lab.addEventListener('input',function(){ flvs[idx].label=lab.value; checkFlv(lab); saveFlvs(); });
       pr.addEventListener('input',function(){ flvs[idx].price=pr.value; saveFlvs(); });

@@ -65,7 +65,7 @@ foreach (rows("SELECT $PCOLS FROM products WHERE status='active' ORDER BY sort, 
         'unit'    => $p['unit'] ?? '',
         'colors'  => parse_variant_opts($p['opt_colors'] ?? ''),
         'sizes'   => product_sizes($p),   // the sizes for sale (an unpriced size needs a base price)
-        'from'    => variant_from_price($p),   // cheapest buyable price — the "from $X" label (base price is untouched)
+        'from'    => product_default_price($p),   // the price it opens at: default size + PRIMARY colour + PRIMARY flavour
         'was'     => $p['was'] !== null ? (float)$p['was'] : null,
         'sale'    => $p['sale_pct'] !== null ? (int)$p['sale_pct'] : null,
         'stock'   => (int)$p['stock'],

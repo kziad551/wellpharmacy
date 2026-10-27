@@ -364,17 +364,17 @@
     const saleBadge = p.sale ? `<span class="badge badge-sale">-${p.sale}%</span>` : '';
     const hover = p.hover || p.img2;   // 2nd image for the rhode hover-swap
     const noPrice = !(p.price > 0);   // price not set yet (e.g. a new brand awaiting prices) — show "coming soon" & block ordering
-    // Cards always show the DEFAULT (standard) item price; if the product has options the
-    // shopper picks one on the product page and the price updates there. When no option sells
-    // at that price (every flavour or colour costs extra), the cheapest one shows, as "from $X".
-    const fromLbl = (!noPrice && p.from > p.price) ? '<span class="from">from</span> ' : '';
-    const cardPrice = fromLbl ? p.from : p.price;
-    const buyPrice = `${money(cardPrice)}${p.was ? ` <s>${money(p.was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
+    // Cards show the price the product opens at (p.from): its default size plus the PRIMARY
+    // colour and PRIMARY flavour extras — the same price the product page starts on.
+    const fromLbl = '';
+    const cardPrice = (!noPrice && p.from > 0) ? p.from : p.price;
+    const was = (p.was && Math.abs(cardPrice - p.price) < 0.005) ? p.was : null;   // the old price was the base price's
+    const buyPrice = `${money(cardPrice)}${was ? ` <s>${money(was)}</s>` : ''}`;   // mobile rhode "BUY — $price" pill
     const unitLbl = p.unit ? ` <span class="unit-lbl">/ ${esc(p.unit)}</span>` : '';   // e.g. "/ sachet"
     const priceHtml = noPrice
       ? `<span class="price price-tba">Price coming soon</span>`
-      : p.was   // desktop price row (old box)
-      ? `<span class="price sale"><span class="now">${fromLbl}${money(cardPrice)}</span><span class="was">${money(p.was)}</span>${unitLbl}</span>`
+      : was   // desktop price row (old box)
+      ? `<span class="price sale"><span class="now">${fromLbl}${money(cardPrice)}</span><span class="was">${money(was)}</span>${unitLbl}</span>`
       : `<span class="price">${fromLbl}${money(cardPrice)}${unitLbl}</span>`;
     const stock = p.stock | 0, low = p.low | 0, soldOut = stock <= 0;
     const soldBadge = soldOut ? `<span class="badge badge-out">SOLD OUT</span>` : '';
@@ -388,7 +388,7 @@
     const pHref = 'product?id=' + encodeURIComponent(p.id);
     const addBtn = soldOut ? `<button class="btn" disabled>Sold out</button>` : noPrice ? `<span class="btn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : needsPage ? `<a class="btn" href="${pHref}">add to bag</a>` : `<button class="btn" data-add="${esc(p.id)}">add to bag</button>`;
     const buyBtn = soldOut ? `<button class="buybtn" disabled>Sold out</button>` : noPrice ? `<span class="buybtn soon" title="Price coming soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Coming soon</span>` : needsPage ? `<a class="buybtn" href="${pHref}">buy — ${buyPrice}</a>` : `<button class="buybtn" data-add="${esc(p.id)}">buy — ${buyPrice}</button>`;
-    const chips = (!soldOut && !noPrice) ? sizeChips(p, cardPrice) : '';
+    const chips = (!soldOut && !noPrice && !needsPage) ? sizeChips(p, cardPrice) : '';   // size alone sets the price: chips here
     const pid = esc(p.id), href = 'product?id=' + encodeURIComponent(p.id), alt = esc(p.brand + ' ' + p.name);   // admin text: escaped like inc/plp.php does
     return `<article class="pcard${soldOut ? ' is-sold' : ''}${hover ? '' : ' no-hover'}" data-pid="${pid}">
       <div class="media graded" data-imgwrap>
@@ -914,9 +914,9 @@
     }
 
     const prodRow = (p) => {
-      const bp = W.BY_ID && W.BY_ID[p.id], from = (bp && bp.from > p.price) ? bp.from : 0;   // no option sells at the base price: "from" the cheapest, as on the card
+      const bp = W.BY_ID && W.BY_ID[p.id], open = (bp && bp.from > 0) ? bp.from : p.price;   // the price it opens at, as on the card
       const price = p.price > 0
-        ? (from ? 'from ' + money(from) : money(p.price)) + (p.was ? ' <s>' + money(p.was) + '</s>' : '')
+        ? money(open) + (p.was && open === p.price ? ' <s>' + money(p.was) + '</s>' : '')
         : '<span class="tba">Price soon</span>';
       return '<a class="sugg-prod' + (p.out ? ' is-out' : '') + '" data-sugg-item href="product?id=' + encodeURIComponent(p.id) + '">'
         + '<span class="sp-img">' + (p.image ? '<img class="gimg" src="' + esc(p.image) + '" alt="" loading="lazy">' : '') + '</span>'
