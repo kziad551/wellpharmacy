@@ -111,6 +111,7 @@ admin_head('Edit Hero', 'home-sections', 'The banner at the top of your home pag
     <div class="hd"><h2>Slide images</h2><span class="muted" style="font-size:12.5px">The photo rotates through these, in this order. Add as many as you like; one makes a still image; none uses the built-in defaults.</span></div>
     <div class="bd">
       <div class="hero-gal" data-hero-gal>
+        <div class="hg-count" data-hg-count><b><?= count($slides) ?></b> <?= count($slides) === 1 ? 'slide' : 'slides' ?></div>
         <div class="hg-grid" data-hg-grid></div>
         <textarea name="hero_imgs" data-hg-store hidden><?= e(implode("\n", $slides)) ?></textarea>
         <input type="file" name="hero_files[]" accept="image/*" multiple data-hg-files hidden>
@@ -130,6 +131,9 @@ admin_head('Edit Hero', 'home-sections', 'The banner at the top of your home pag
   <div class="page-actions"><div class="spacer"></div><button class="btn btn-primary">Save hero</button></div>
 </form>
 <style>
+  .hg-count{font-size:13px;color:var(--a-soft,#8a7d6e);margin:0 0 10px}
+  .hg-count b{color:var(--a-ink,#2c261f);font-size:14px}
+  .hg-count span{color:#4a7a3a}
   .hg-grid{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
   .hg-grid:empty{display:none}
   .hg-tile{position:relative;width:120px}
@@ -197,6 +201,9 @@ admin_head('Edit Hero', 'home-sections', 'The banner at the top of your home pag
       grid.appendChild(t);
     });
     sync();
+    /* the running count: 0 slides, 1 slide, 2 slides… (how many are new, not saved yet) */
+    var n=items.length, nNew=items.filter(function(x){return typeof x!=='string';}).length, cnt=box.querySelector('[data-hg-count]');
+    if(cnt) cnt.innerHTML='<b>'+n+'</b> '+(n===1?'slide':'slides')+(nNew?' <span>· '+nNew+' new — click Save hero to keep '+(nNew===1?'it':'them')+'</span>':'');
   }
 
   pickBtn.addEventListener('click',function(){ picker.click(); });

@@ -504,6 +504,7 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
         <?php $gp = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($v['gallery'] ?? ''))))); ?>
         <div class="field"><label>Extra photos <span class="faint">(thumbnails on the product page, after main + hover)</span></label>
           <div class="gal" data-gallery>
+            <div class="gal-count" data-gal-count><b><?= count($gp) ?></b> <?= count($gp) === 1 ? 'photo' : 'photos' ?></div>
             <div class="gal-grid" data-gal-grid></div>
             <textarea name="gallery" data-gal-store hidden><?= e(implode("\n", $gp)) ?></textarea>
             <input type="file" name="gallery_files[]" accept="image/*" multiple data-gal-files hidden>
@@ -664,6 +665,9 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
 </form>
 
 <style>
+  .gal-count{font-size:13px;color:var(--a-soft,#8a7d6e);margin:0 0 10px}
+  .gal-count b{color:var(--a-ink,#2c261f);font-size:14px}
+  .gal-count span{color:#4a7a3a}
   .gal-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
   .gal-grid:empty{display:none}
   .gal-tile{position:relative;width:92px}
@@ -772,6 +776,9 @@ admin_head($editing ? 'Edit product' : 'Add product', 'products', $editing ? $v[
     grid.innerHTML='';
     urls.forEach(function(u,i){ tile(asrc(u),u,false,function(){ urls.splice(i,1); syncStore(); render(); say('Removed.',true); }); });
     files.forEach(function(f,i){ tile(f.url,f.file.name+' (new)',true,function(){ delete seen[f.key]; URL.revokeObjectURL(f.url); files.splice(i,1); syncFiles(); render(); say('Removed.',true); }); });
+    /* the running count: 0 photos, 1 photo, 2 photos… (how many of them are new, not saved yet) */
+    var n=urls.length+files.length, cnt=box.querySelector('[data-gal-count]');
+    if(cnt) cnt.innerHTML='<b>'+n+'</b> '+(n===1?'photo':'photos')+(files.length?' <span>· '+files.length+' new — click Save to keep '+(files.length===1?'it':'them')+'</span>':'');
   }
 
   function keyFor(file){
